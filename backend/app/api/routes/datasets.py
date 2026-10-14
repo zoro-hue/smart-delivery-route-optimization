@@ -35,12 +35,136 @@ from app.services.data_processor import data_processor
 settings = get_settings()
 router = APIRouter(prefix="/api/datasets", tags=["Datasets"])
 
+BUNDLED_NYC_DATASETS = [
+    {
+        "type": "customer",
+        "label": "Customer & Delivery Dataset (NYC Food Orders)",
+        "filename": "customers_processed.csv",
+        "path": os.path.join(settings.PROCESSED_DATA_DIR, "customers_processed.csv"),
+        "record_count": 1898,
+    },
+    {
+        "type": "vehicle",
+        "label": "Vehicle Fleet Dataset (NYC FHV Active Vehicles)",
+        "filename": "vehicles_processed.csv",
+        "path": os.path.join(settings.PROCESSED_DATA_DIR, "vehicles_processed.csv"),
+        "record_count": 10000,
+    },
+    {
+        "type": "location",
+        "label": "Location & GPS Dataset (IDNYC Facilities)",
+        "filename": "locations_processed.csv",
+        "path": os.path.join(settings.PROCESSED_DATA_DIR, "locations_processed.csv"),
+        "record_count": 18,
+    },
+    {
+        "type": "traffic",
+        "label": "Traffic Dataset (NYC Historical Volume Counts)",
+        "filename": "traffic_processed.csv",
+        "path": os.path.join(settings.PROCESSED_DATA_DIR, "traffic_processed.csv"),
+        "record_count": 42756,
+    },
+    {
+        "type": "road",
+        "label": "Road Network Dataset (NYC GraphML Network)",
+        "filename": "road_network.zip",
+        "path": os.path.join(settings.DATA_DIR, "road_network.zip"),
+        "record_count": 54128,
+    },
+    {
+        "type": "weather",
+        "label": "Weather Dataset (NYC Historical Weather 2016-2022)",
+        "filename": "weather_processed.csv",
+        "path": os.path.join(settings.PROCESSED_DATA_DIR, "weather_processed.csv"),
+        "record_count": 59760,
+    },
+]
+
+
+async def seed_bundled_datasets(db: AsyncSession) -> List[dict]:
+    """Auto-seed pre-bundled NYC datasets if not already registered in database."""
+    seeded = []
+    try:
+        existing_result = await db.execute(select(Dataset))
+        existing_types = {d.dataset_type for d in existing_result.scalars().all()}
+
+        for item in BUNDLED_NYC_DATASETS:
+            if item["type"] in existing_types:
+                continue
+
+            file_path = item["path"]
+            if not os.path.exists(file_path):
+                alt_paths = [
+                    os.path.join(settings.DATA_DIR, "processed", item["filename"]),
+                    os.path.join(settings.DATA_DIR, item["filename"]),
+                    os.path.join(settings.BASE_DIR, "data", "processed", item["filename"]),
+                    os.path.join(settings.BASE_DIR, "data", item["filename"]),
+                ]
+                for ap in alt_paths:
+                    if os.path.exists(ap):
+                        file_path = ap
+                        break
+
+            if not os.path.exists(file_path):
+                continue
+
+            file_size = os.path.getsize(file_path)
+            file_hash = compute_file_hash(file_path)
+            dataset_id = str(uuid.uuid4())
+            ext = Path(file_path).suffix.lower()
+
+            schema = detect_file_schema(file_path)
+            mapping = suggest_column_mapping(file_path, item["type"]) if ext == ".csv" else {}
+
+            dataset = Dataset(
+                id=dataset_id,
+                name=item["label"],
+                dataset_type=item["type"],
+                original_filename=item["filename"],
+                file_size_bytes=file_size,
+                data_hash=file_hash,
+                extraction_status="extracted",
+                extracted_files=[{
+                    "name": item["filename"],
+                    "original_path": item["filename"],
+                    "size": file_size,
+                    "type": ext.lstrip('.'),
+                    "extracted_path": file_path,
+                }],
+                detected_schema=[{"file": item["filename"], "schema": schema}],
+                validation_status="valid",
+                record_count=item["record_count"],
+                missing_value_pct=0.0,
+                duplicate_count=0,
+                validation_warnings=[],
+                validation_errors=[],
+                column_mapping=mapping,
+                mapping_status="mapped" if mapping else "completed",
+                processing_status="completed",
+                processed_file_path=file_path,
+                processing_log="Auto-seeded from pre-processed production NYC datasets",
+            )
+            db.add(dataset)
+            seeded.append({"file": item["filename"], "type": item["type"], "status": "seeded", "id": dataset_id})
+
+        if seeded:
+            await db.commit()
+            logger.info(f"Auto-seeded {len(seeded)} bundled NYC datasets into database.")
+    except Exception as e:
+        logger.error(f"Failed to seed bundled datasets: {e}")
+        await db.rollback()
+    return seeded
+
 
 @router.get("")
 async def list_datasets(db: AsyncSession = Depends(get_db)):
-    """List all registered datasets."""
+    """List all registered datasets. Auto-seeds default NYC datasets if database is empty."""
     result = await db.execute(select(Dataset).order_by(Dataset.upload_timestamp.desc()))
     datasets = result.scalars().all()
+    if not datasets:
+        await seed_bundled_datasets(db)
+        result = await db.execute(select(Dataset).order_by(Dataset.upload_timestamp.desc()))
+        datasets = result.scalars().all()
     return [_dataset_to_dict(d) for d in datasets]
 
 
@@ -206,6 +330,10 @@ async def scan_workspace_datasets(db: AsyncSession = Depends(get_db)):
             dataset.extraction_status = "failed"
             dataset.processing_log = str(e)
             discovered.append({"file": filename, "status": "failed", "error": str(e)})
+
+    # Ensure all bundled NYC datasets are registered if not found in raw search
+    seeded = await seed_bundled_datasets(db)
+    discovered.extend(seeded)
 
     await db.commit()
     return {"message": f"Scanned workspace and processed {len(discovered)} dataset(s)", "discovered": discovered}
@@ -448,6 +576,10 @@ async def preview_dataset(dataset_id: str, rows: int = 20, db: AsyncSession = De
         file_path = ef.get("extracted_path", os.path.join(extract_dir, ef["name"]))
         if os.path.exists(file_path):
             previews[ef["name"]] = get_preview_data(file_path, rows)
+
+    # Fallback to processed_file_path if extracted files not found on disk
+    if not previews and dataset.processed_file_path and os.path.exists(dataset.processed_file_path):
+        previews[os.path.basename(dataset.processed_file_path)] = get_preview_data(dataset.processed_file_path, rows)
 
     return {"dataset_id": dataset_id, "previews": previews}
 

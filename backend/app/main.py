@@ -38,6 +38,10 @@ async def lifespan(app: FastAPI):
     try:
         await init_db()
         logger.info("Database schema verified and initialized.")
+        from app.api.routes.datasets import seed_bundled_datasets
+        from app.db.session import async_session_factory
+        async with async_session_factory() as session:
+            await seed_bundled_datasets(session)
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
