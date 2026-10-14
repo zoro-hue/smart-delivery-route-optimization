@@ -54,17 +54,18 @@ The objective of this project is to evaluate the viability, algorithmic trade-of
 
 ## 🔬 Research Gaps and Project Contributions
 
-The research framework of ROUTE/IQ is grounded in our literature survey, `LITERATURE_SURVEY (4).pdf` (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*, SRM University-AP), which systematically reviews 20 foundational papers spanning Big Data, Logistics, Route Optimization, Quantum Computing, and Dynamic Transportation.
+The research framework of ROUTE/IQ is grounded in our literature survey, `LITERATURE_SURVEY (4).pdf` (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*, SRM University-AP), supported by the primary literature corpus in `Research Papers/`.
 
 ### Literature Observations vs. ROUTE/IQ Implementation
 
-| Research Observation from Our Survey | Challenge or Gap Identified (Section 20 of Survey) | How ROUTE/IQ Addresses It | Evidence and Current Limitation |
+| Research Observation from Our Survey & Literature | Challenge or Gap Identified (Section 20 of Survey) | How ROUTE/IQ Addresses It | Evidence and Current Limitation |
 | :--- | :--- | :--- | :--- |
-| **Scalability in Combinatorial Routing** (Azad et al. [7], Wang et al. [10]) | VRP search space grows exponentially ($O(n!)$); gate-based quantum routing has been evaluated only on minimal problem sizes ($N \le 4$) due to qubit availability. | Implements a multi-paradigm suite: Google OR-Tools for large instances, QIGA for intermediate instances (up to 20 stops), and QAOA for 3-4 stop NISQ formulation testing. | Solves 4-node instances in 0.62s via QAOA simulation; oversized instances ($>20$ qubits) are blocked by an automated guard to prevent memory exhaustion. |
-| **Dynamic Transportation & Environmental Data** (Zheng [2], Niyazi [16], Yuan [20]) | Static distance matrices fail during dynamic traffic congestion, rain, and snow; route costs must incorporate environmental conditions. | PySpark cleans 42,756 DOT traffic counts and 59,760 NOAA weather records to compute hourly speed profiles and weather friction multipliers ($\gamma = 1.0\times$ to $1.92\times$). | Currently implemented as offline batch Parquet ETL and user-driven scenario sliders, rather than automated real-time Kafka streaming. |
-| **Big Data + Quantum Computing Integration** (Chen [1], Zhu [3], El Azzaoui [11]) | Literature treats Big Data analytics and quantum computing as isolated silos; no end-to-end framework bridges raw municipal data with quantum routing circuits. | Implements cost-matrix enrichment: Big Data Parquet metrics dynamically inflate edge traversal costs on a 54,128-node road graph before matrix input to QAOA/QIGA. | Demonstrates functional coupling on classical infrastructure; does not stream live data directly into physical quantum co-processors. |
-| **Quantum Hardware & NISQ Constraints** (Sarkar et al. [9], Azad et al. [7]) | Physical quantum processors suffer from limited qubit counts, gate noise, and brief coherence times, restricting direct deployment. | Discloses and utilizes classical CPU statevector simulation (Qiskit 2.4.1 `StatevectorSampler`), accompanied by a classical Quantum-Inspired Genetic Algorithm (QIGA). | QAOA simulation is strictly limited by CPU RAM ($O(2^N)$); does not execute on physical IBM Quantum or D-Wave QPUs. |
-| **Dynamic Scenario Re-Optimization** (Issaoui [4], Hussain [6], Jagarlamudi [18]) | Delivery operations require rapid cost re-calculation and route re-planning when urban conditions change. | Interactive frontend enables dispatchers to adjust traffic congestion and weather factors, re-triggering solvers in sub-second time. | Re-optimization is currently user-initiated via scenario controls; does not autonomously ingest telematics from moving vehicles. |
+| **Scalability in Combinatorial Routing** (Azad et al. [7], Fitzek et al. 2024, Wang et al. [10]) | VRP search space grows exponentially ($O(n!)$); gate-based quantum routing has been evaluated only on minimal problem sizes ($N \le 4$) due to qubit availability. | Implements a multi-paradigm suite: Google OR-Tools for large instances, QIGA for intermediate instances (up to 20 stops), and QAOA for 3-4 stop NISQ formulation testing. | Solves 4-node instances in 0.62s via QAOA simulation; oversized instances ($>20$ qubits) are blocked by an automated guard to prevent memory exhaustion. |
+| **Dynamic Transportation & Environmental Data** (Zheng [2], Niyazi [16], Yuan et al. [20]) | Static distance matrices fail during dynamic traffic congestion, rain, and snow; route costs must incorporate environmental conditions. | PySpark cleans 42,756 DOT traffic counts and 59,760 NOAA weather records to compute hourly speed profiles and weather friction multipliers ($\gamma = 1.0\times$ to $1.92\times$). | Currently implemented as offline batch Parquet ETL and user-driven scenario sliders, rather than automated real-time Kafka streaming. |
+| **Big Data + Quantum Computing Integration** (Chen [1], Zhu et al. [3], El Azzaoui et al. [11], Acharya & Mohbey 2025) | Literature treats Big Data analytics and quantum computing as isolated silos; no end-to-end framework bridges raw municipal data with quantum routing circuits. | Implements cost-matrix enrichment: Big Data Parquet metrics dynamically inflate edge traversal costs on a 54,128-node road graph before matrix input to QAOA/QIGA. | Demonstrates functional coupling on classical infrastructure; does not stream live data directly into physical quantum co-processors. |
+| **Quantum Hardware & NISQ Constraints** (Sarkar et al. [9], Azad et al. [7], Harwood et al. 2023) | Physical quantum processors suffer from limited qubit counts, gate noise, and brief coherence times, restricting direct deployment. | Discloses and utilizes classical CPU statevector simulation (Qiskit 2.4.1 `StatevectorSampler`), accompanied by a classical Quantum-Inspired Genetic Algorithm (QIGA). | QAOA simulation is strictly limited by CPU RAM ($O(2^N)$); does not execute on physical IBM Quantum or D-Wave QPUs. |
+| **Quantum-Inspired Optimization Alternatives** (Liu, Parkinson & Best 2025) | NISQ quantum gates are intractable for industry-scale VRP; quantum-inspired algorithms (QIO) offer scalable heuristics on classical hardware. | Genuinely implements QIGA (`qiga_solver.py`) using probability-amplitude representation and trigonometric rotation gates $U(\Delta\theta)$ running on CPU. | Solves 10-node instances in 0.078s with 100% feasibility; operates on classical CPU rather than physical quantum superposition. |
+| **Dynamic Scenario Re-Optimization** (Issaoui et al. [4], Hussain [6], Jagarlamudi [18]) | Delivery operations require rapid cost re-calculation and route re-planning when urban conditions change. | Interactive frontend enables dispatchers to adjust traffic congestion and weather factors, re-triggering solvers in sub-second time. | Re-optimization is currently user-initiated via scenario controls; does not autonomously ingest telematics from moving vehicles. |
 
 ### Our Contributions
 1. **End-to-End Hybrid Architecture:** Coupled an Apache Spark 4.2.0 batch data pipeline with a multi-paradigm optimization hub, bridging raw municipal open datasets with quantum circuit formulation.
@@ -95,6 +96,8 @@ The research framework of ROUTE/IQ is grounded in our literature survey, `LITERA
 
 ## 1. Visual Showcase
 
+### Application Screenshots
+
 | Route Planning Workspace & Active Map | Live Multi-Solver Comparison & Scorecard |
 | :---: | :---: |
 | ![Planning Workspace](docs/assets/screenshots/02_route_planning_workspace.png) | ![Completed Comparison](docs/assets/screenshots/03_completed_route_comparison.png) |
@@ -109,6 +112,15 @@ The research framework of ROUTE/IQ is grounded in our literature survey, `LITERA
 | :---: |
 | ![Experiments History](docs/assets/screenshots/05_experiments_benchmark.png) |
 | *Automated trial persistence recording runtime, solver type, vehicles, and distance metrics to SQLite.* |
+
+### Dashboard Demonstrations
+
+Two authentic video assets power the dynamic visualization and 3D telemetry within the ROUTE/IQ dashboard:
+
+| 1. Dynamic Fleet Telemetry & Route Simulation | 2. 3D Holographic Quantum Logistics Cube |
+| :---: | :---: |
+| <video src="docs/assets/videos/01_dashboard_fleet_telemetry_simulation.mp4" controls width="100%" poster="docs/assets/screenshots/01_dashboard.png">Your browser does not support the video tag. [Download Simulation MP4](docs/assets/videos/01_dashboard_fleet_telemetry_simulation.mp4)</video> | <video src="docs/assets/videos/02_holographic_quantum_logistics_cube.mp4" controls width="100%" poster="frontend/public/logo.png">Your browser does not support the video tag. [Download 3D Cube MP4](docs/assets/videos/02_holographic_quantum_logistics_cube.mp4)</video> |
+| *Live simulated route progress, real-time vehicular telemetry, and active corridor tracking integrated into the overview dashboard.*<br/>🎥 **[Direct Link: Fleet Telemetry Video (MP4)](docs/assets/videos/01_dashboard_fleet_telemetry_simulation.mp4)** | *Rotating 3D quantum holographic logistics route cube integrated into the dashboard hero banner.*<br/>🎥 **[Direct Link: Holographic Cube Video (MP4)](docs/assets/videos/02_holographic_quantum_logistics_cube.mp4)** |
 
 ---
 
@@ -179,7 +191,7 @@ flowchart LR
 | **Depot Facilities** | `data/raw/locations.csv` (18 municipal IDNYC hubs) | Validates borough coordinates, filters valid dispatch yards, standardizes operating hours. | `locations_curated.parquet` | 14.2 KB |
 | **Traffic Counts** | `data/raw/traffic_nyc.csv` (42,756 DOT hourly records) | Cleans street names (e.g. ordinals, expressway acronyms), groups by roadway, aggregates mean and peak volume. | `traffic_speeds_curated.parquet` (897 roadways) | 24.5 KB |
 | **Weather Logs** | `data/raw/weather_nyc.csv` (59,760 hourly observations) | Aggregates 2016–2022 observations into 4 distinct condition groups; computes mean precipitation. | `weather_curated.parquet` (4 condition groups) | 2.8 KB |
-| **Road Network** | `data/raw/newyork.graphml` (54,128 nodes, 142,123 edges) | Extracts largest strongly connected component (53,769 nodes); indexes coordinates into SciPy cKDTree. | `road_graph_newyork.pickle` | 68.4 MB |
+| **Road Network** | `backend/data/road_network.zip` (54,128 nodes, 142,123 edges) | Extracts largest strongly connected component (53,769 nodes); indexes coordinates into SciPy cKDTree. | `road_graph_newyork.pickle` | 68.4 MB |
 
 ### Dynamic Cost Modulation Formula
 Rather than treating distance as a static Euclidean quantity, edge travel costs are dynamically inflated based on current environmental scenarios:
@@ -222,7 +234,7 @@ flowchart TD
 
 ### 2. Quantum-Inspired Genetic Algorithm (QIGA)
 
-To overcome the exponential memory bottleneck of quantum statevector simulation on classical machines, ROUTE/IQ includes an independent **Quantum-Inspired Genetic Algorithm** (`qiga_solver.py`):
+To overcome the exponential memory bottleneck of quantum statevector simulation on classical machines, ROUTE/IQ includes an independent **Quantum-Inspired Genetic Algorithm** (`qiga_solver.py`), aligned with the quantum-inspired optimization principles surveyed by Liu, Parkinson & Best (2025):
 
 ```mermaid
 flowchart TD
@@ -264,7 +276,7 @@ All 6 algorithms evaluate the identical road-network distance/cost matrix genera
 To ensure realistic vehicle routing, ROUTE/IQ rejects arbitrary straight-line paths and restricts delivery operations to the authentic street network:
 
 1. **5-Borough Dispatch Boundary:**  
-   The underlying road network (`newyork.graphml`) covers **Manhattan, Brooklyn, Queens, The Bronx, and Staten Island** with longitudinal limits `[-74.2553, -73.7005]`.
+   The underlying road network covers **Manhattan, Brooklyn, Queens, The Bronx, and Staten Island** with longitudinal limits `[-74.2553, -73.7005]`.
    * Clicks in Nassau County (e.g. `[40.7322, -73.6340]`, ~6 km east of Queens) are intercepted by `validate_nyc_coordinate()` and return an informative message:
      ```
      Coordinate (40.7322, -73.6340) is in Nassau County / Long Island, outside the active NYC 5-Borough road network (Manhattan, Brooklyn, Queens, Bronx, Staten Island).
@@ -331,7 +343,7 @@ To ensure realistic vehicle routing, ROUTE/IQ rejects arbitrary straight-line pa
 * **Operating System:** Windows 10/11, macOS, or Ubuntu Linux
 * **Python:** 3.11.x or 3.14.x
 * **Node.js:** v18+ or v20+ (with `npm`)
-* **Java Virtual Machine:** OpenJDK 17 (pre-bundled in `backend/tools/jdk-17.0.20.1+1-jre`)
+* **Java Virtual Machine:** OpenJDK 17 (pre-bundled in `backend/tools/jdk-17.0.20.1+1-jre` or system JRE)
 
 ### 1. Clone the Repository
 ```bash
@@ -358,7 +370,7 @@ python -c "from app.services.bigdata_pipeline import BigDataPipelineService; Big
 
 ### 4. Start Backend Server
 ```bash
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 *API Swagger Documentation active at: `http://127.0.0.1:8000/docs`*
 
@@ -373,6 +385,9 @@ npm run dev
 ---
 
 ## 9. API Reference
+
+### Health Endpoints
+* **`GET /`**, **`GET /health`**, **`GET /api/health`** — Liveness probe returning status, versions, and database mode.
 
 ### Optimization Endpoints
 * **`POST /api/optimization/run`** — Dispatches route optimization using specified algorithm or comparison suite.
@@ -404,12 +419,15 @@ npm run dev
 ```
 smart-delivery-route-optimization/
 ├── backend/
+│   ├── Dockerfile               # Production container definition (Python 3.11 + OpenJDK 17)
+│   ├── requirements.txt         # Production backend dependencies
+│   ├── .env.example             # Backend environment configuration template
 │   ├── app/
 │   │   ├── api/routes/          # FastAPI REST endpoints (optimization, bigdata, datasets)
-│   │   ├── core/                # Centralized settings and path configurations
+│   │   ├── core/                # Centralized settings and dynamic PORT/CORS config
 │   │   ├── db/                  # SQLite / SQLAlchemy async session manager
 │   │   ├── models/              # Experiment and delivery data database schemas
-│   │   └── services/            # Core business and computational services
+│   │   └── services/            # Core computational services
 │   │       ├── bigdata_pipeline.py    # Apache Spark 4.2.0 batch ETL service
 │   │       ├── data_processor.py      # Parquet loader and cost factor calculator
 │   │       ├── geo_validation.py      # Water body & 5-borough boundary validator
@@ -419,21 +437,28 @@ smart-delivery-route-optimization/
 │   │           ├── quantum_solver.py   # Qiskit 2.4.1 QUBO/Ising statevector solver
 │   │           └── qiga_solver.py      # Quantum-Inspired Genetic Algorithm
 │   ├── data/
-│   │   ├── raw/                 # Raw NYC CSV datasets (orders, fleet, traffic, weather)
+│   │   ├── road_network.zip     # Bundled NYC road graph archive (54,128 nodes, 142,123 edges)
 │   │   └── processed/
-│   │       ├── road_graph_newyork.pickle  # 54,128-node indexed road graph
+│   │       ├── road_graph_newyork.pickle  # Auto-unpacked runtime graph cache
 │   │       └── spark_output/              # 5 Curated Parquet datasets
 │   ├── tests/                   # Automated pytest integration and regression test suite
 │   └── tools/                   # Pre-bundled OpenJDK 17 JRE and Hadoop Winutils
 ├── frontend/
-│   ├── src/
-│   │   ├── components/Map/      # Interactive Leaflet map and route polyline layers
-│   │   ├── pages/               # PlanWorkspace, DatasetsView, ExperimentsView
-│   │   ├── services/            # Axios API client integrations
-│   │   └── utils/geoValidation.ts # Client-side 5-borough coordinate validation
+│   ├── .env.example             # Frontend environment template (VITE_API_URL)
+│   ├── vercel.json              # Vercel SPA routing rewrite rules
+│   ├── public/
+│   │   ├── _redirects           # Netlify SPA rewrite rules
+│   │   ├── cube.mp4             # 3D holographic hero cube asset
+│   │   └── delivery_route_preview.mp4 # Telemetry simulation asset
+│   └── src/
+│       ├── components/Map/      # Interactive Leaflet map and route polyline layers
+│       ├── pages/               # PlanWorkspace, DatasetsView, ExperimentsView
+│       ├── services/api.ts      # Configurable Axios API client
+│       └── utils/geoValidation.ts # Client-side 5-borough coordinate validation
 ├── docs/
-│   ├── assets/screenshots/      # Genuine UI screenshots embedded in README
-│   └── research_report.md       # Technical audit report with exact empirical benchmarks
+│   └── assets/
+│       ├── screenshots/         # Genuine UI screenshots embedded in README
+│       └── videos/              # Dashboard telemetry & 3D hero cube video demonstrations
 └── README.md                    # Project documentation
 ```
 
@@ -448,17 +473,36 @@ This project implements the theoretical framework, research gaps, and taxonomy e
 > Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh, India.  
 > Document references: `LITERATURE_SURVEY (4).pdf` and `paper_preview.pdf`.
 
-### Foundational References from Our Survey
-1. **Chen (2020):** Y.-H. Chen, *"Intelligent algorithms for cold chain logistics distribution optimization based on Big Data cloud computing analysis,"* *Journal of Cloud Computing*, Vol. 9, No. 37, 2020. [DOI: 10.1186/s13677-020-00174-x](https://doi.org/10.1186/s13677-020-00174-x).
+### Comprehensive Primary Literature References
+
+The following foundational research papers from `Research Papers/` directly ground our survey analysis and system architecture:
+
+1. **Chen (2020):** Y.-H. Chen, *"Intelligent algorithms for cold chain logistics distribution optimization based on big data cloud computing analysis,"* *Journal of Cloud Computing*, Vol. 9, Art. 37, 2020. [DOI: 10.1186/s13677-020-00174-x](https://doi.org/10.1186/s13677-020-00174-x).
 2. **Zheng (2019):** S. Zheng, *"Solving vehicle routing problem: A Big Data analytic approach,"* *IEEE Access*, Vol. 7, pp. 169565–169570, 2019. [DOI: 10.1109/ACCESS.2019.2955250](https://doi.org/10.1109/ACCESS.2019.2955250).
 3. **Zhu et al. (2019):** L. Zhu, F. R. Yu, Y. Wang, B. Ning, and T. Tang, *"Big Data analytics in intelligent transportation systems: A survey,"* *IEEE Transactions on Intelligent Transportation Systems*, Vol. 20, No. 1, pp. 383–398, 2019. [DOI: 10.1109/TITS.2018.2815678](https://doi.org/10.1109/TITS.2018.2815678).
-4. **Azad et al. (2023):** M. Azad, B. K. Behera, E. A. Ahmed, P. K. Panigrahi, and A. Farouk, *"Solving Vehicle Routing Problem Using Quantum Approximate Optimization Algorithm,"* *IEEE Transactions on Intelligent Transportation Systems*, Vol. 24, No. 7, pp. 7564–7573, 2023. [DOI: 10.1109/TITS.2022.3172241](https://doi.org/10.1109/TITS.2022.3172241).
-5. **Yarkoni et al. (2020):** E. Yarkoni et al., *"Quantum Shuttle: Traffic navigation with quantum computing,"* 2020.
-6. **Sarkar et al. (2026):** P. Sarkar, M. Hassan, A. H. Rambe, and M. Jusoh, *"Integrating quantum computing into intelligent transportation systems: A comprehensive review of emerging trends, open challenges, and future research directions,"* *Archives of Computational Methods in Engineering*, 2026. [DOI: 10.1007/s11831-026-10716-2](https://doi.org/10.1007/s11831-026-10716-2).
-7. **Wang et al. (2021):** S. Wang, Z. Pei, C. Wang, and J. Wu, *"Shaping the future of the application of quantum computing in intelligent transportation system,"* *Intelligent and Converged Networks*, Vol. 2, No. 4, pp. 259–276, 2021. [DOI: 10.23919/ICN.2021.0019](https://doi.org/10.23919/ICN.2021.0019).
-8. **El Azzaoui et al. (2021):** A. El Azzaoui, T. W. Kim, Y. Pan, and J. H. Park, *"A quantum approximate optimization algorithm based on blockchain heuristic approach for scalable and secure smart logistics systems,"* *Human-Centric Computing and Information Sciences*, Vol. 11, No. 46, 2021. [DOI: 10.22967/HCIS.2021.11.046](https://doi.org/10.22967/HCIS.2021.11.046).
-9. **Niyazi & Behnamian (2023):** M. Niyazi and J. Behnamian, *"Application of cloud computing and Big Data in three-stage dynamic modeling of disaster relief logistics and wounded transportation,"* *Environmental Science and Pollution Research*, 2023. [DOI: 10.1007/s11356-022-24770-3](https://doi.org/10.1007/s11356-022-24770-3).
-10. **Yuan et al. (2025):** Q. Yuan et al., *"Collaborative truck-UAV delivery routing optimization under dynamic weather conditions and customer demands,"* *IEEE Transactions on Consumer Electronics*, 2025. [DOI: 10.1109/TCE.2025.3622367](https://doi.org/10.1109/TCE.2025.3622367).
+4. **Issaoui et al. (2022):** Y. Issaoui, A. Khiat, K. Haricha, A. Bahnasse, and H. Ouajji, *"An advanced system to enhance and optimize delivery operations in a smart logistics environment,"* *IEEE Access*, Vol. 10, pp. 6175–6193, 2022. [DOI: 10.1109/ACCESS.2022.3141311](https://doi.org/10.1109/ACCESS.2022.3141311).
+5. **Cuzzocrea et al. (2019):** A. Cuzzocrea, M. Nolich, and W. Ukovich, *"A Big-Data-Analytics framework for supporting logistics problems in smart-city environments,"* *Procedia Computer Science*, Vol. 159, pp. 2589–2597, 2019. [DOI: 10.1016/j.procs.2019.09.257](https://doi.org/10.1016/j.procs.2019.09.257).
+6. **Hussain (2025):** K. M. Hussain, *"Revolutionizing route optimization systems with artificial intelligence for a smarter, sustainable logistics ecosystem,"* *International Journal of Computer Science and Mobile Computing*, Vol. 14, No. 2, pp. 66–68, 2025. [DOI: 10.47760/ijcsmc.2025.v14i02.008](https://doi.org/10.47760/ijcsmc.2025.v14i02.008).
+7. **Azad et al. (2023):** M. Azad, B. K. Behera, E. A. Ahmed, P. K. Panigrahi, and A. Farouk, *"Solving Vehicle Routing Problem Using Quantum Approximate Optimization Algorithm,"* *IEEE Transactions on Intelligent Transportation Systems*, Vol. 24, No. 7, pp. 7564–7573, 2023. [DOI: 10.1109/TITS.2022.3172241](https://doi.org/10.1109/TITS.2022.3172241).
+8. **Yarkoni et al. (2020):** E. Yarkoni et al., *"Quantum Shuttle: Traffic navigation with quantum computing,"* *IEEE/ACM International Conference on Connected Vehicles and Expo (ICCVE)*, pp. 1–6, 2019/2020. [DOI: 10.1109/ICCVE45908.2019.8965243](https://doi.org/10.1109/ICCVE45908.2019.8965243).
+9. **Sarkar et al. (2026):** P. Sarkar, M. Hassan, A. H. Rambe, and M. Jusoh, *"Integrating quantum computing into intelligent transportation systems: A comprehensive review of emerging trends, open challenges, and future research directions,"* *Archives of Computational Methods in Engineering*, 2026. [DOI: 10.1007/s11831-026-10716-2](https://doi.org/10.1007/s11831-026-10716-2).
+10. **Wang et al. (2021):** S. Wang, Z. Pei, C. Wang, and J. Wu, *"Shaping the future of the application of quantum computing in intelligent transportation system,"* *Intelligent and Converged Networks*, Vol. 2, No. 4, pp. 259–276, 2021. [DOI: 10.23919/ICN.2021.0019](https://doi.org/10.23919/ICN.2021.0019).
+11. **El Azzaoui et al. (2021):** A. El Azzaoui, T. W. Kim, Y. Pan, and J. H. Park, *"A quantum approximate optimization algorithm based on blockchain heuristic approach for scalable and secure smart logistics systems,"* *Human-Centric Computing and Information Sciences*, Vol. 11, No. 46, 2021. [DOI: 10.22967/HCIS.2021.11.046](https://doi.org/10.22967/HCIS.2021.11.046).
+12. **Acuña Acuña et al. (2025):** E. G. Acuña Acuña, S. C. Doriano, and F. Á. Álvarez Salgado, *"Quantum-enhanced cognitive modeling for advanced logistics route optimization,"* *Digital Technologies Research and Applications*, Vol. 4, No. 1, 2025.
+13. **Seyyedsalehi & Khansari (2022):** S. M. Seyyedsalehi and M. Khansari, *"Virtual machine placement optimization for Big Data applications in cloud computing,"* *IEEE Access*, Vol. 10, pp. 91702–91717, 2022. [DOI: 10.1109/ACCESS.2022.3203057](https://doi.org/10.1109/ACCESS.2022.3203057).
+14. **Elhoseny et al. (2018):** M. Elhoseny et al., *"A hybrid model of Internet of Things and cloud computing to manage Big Data in health services applications,"* *Future Generation Computer Systems*, Vol. 86, pp. 1383–1394, 2018. [DOI: 10.1016/j.future.2018.03.005](https://doi.org/10.1016/j.future.2018.03.005).
+15. **Jinadu et al. (2021):** O. T. Jinadu, O. V. Johnson, and M. Ganiyu, *"Distributed database system optimization for improved service delivery in mobile and cloud BigData applications,"* *International Journal of Computer Science and Mobile Computing*, Vol. 10, No. 9, pp. 38–45, 2021. [DOI: 10.47760/ijcsmc.2021.v10i09.004](https://doi.org/10.47760/ijcsmc.2021.v10i09.004).
+16. **Niyazi & Behnamian (2023):** M. Niyazi and J. Behnamian, *"Application of cloud computing and Big Data in three-stage dynamic modeling of disaster relief logistics and wounded transportation: A case study,"* *Environmental Science and Pollution Research*, 2023. [DOI: 10.1007/s11356-022-24770-3](https://doi.org/10.1007/s11356-022-24770-3).
+17. **Thai & Huh (2022):** H.-D. Thai and J.-H. Huh, *"Optimizing patient transportation by applying cloud computing and Big Data analysis,"* *The Journal of Supercomputing*, Vol. 78, pp. 18061–18090, 2022. [DOI: 10.1007/s11227-022-04576-3](https://doi.org/10.1007/s11227-022-04576-3).
+18. **Jagarlamudi (2025):** R. T. Jagarlamudi, *"Leveraging computer vision and IoT for optimized last-mile delivery in smart logistics systems,"* *Proc. International Conference on Intelligent Computing and Communication Networks (ICICNIS)*, 2025. [DOI: 10.1109/ICICNIS66685.2025.11315516](https://doi.org/10.1109/ICICNIS66685.2025.11315516).
+19. **Yuan et al. (2025):** Q. Yuan et al., *"Collaborative truck-UAV delivery routing optimization under dynamic weather conditions and customer demands,"* *IEEE Transactions on Consumer Electronics*, Vol. 71, No. 4, pp. 10950–10960, 2025. [DOI: 10.1109/TCE.2025.3622367](https://doi.org/10.1109/TCE.2025.3622367).
+20. **Osaba et al. (2022):** E. Osaba, E. Villar-Rodriguez, and I. Oregi, *"A systematic literature review of quantum computing for routing problems,"* *IEEE Access*, Vol. 10, pp. 55805–55817, 2022. [DOI: 10.1109/ACCESS.2022.3177790](https://doi.org/10.1109/ACCESS.2022.3177790).
+21. **Somvanshi et al. (2026):** S. Somvanshi et al., *"Quantum computing in transportation engineering: A survey,"* *IEEE Transactions on Intelligent Transportation Systems*, Vol. 27, No. 7, pp. 7332–7349, 2026. [DOI: 10.1109/TITS.2026.3662626](https://doi.org/10.1109/TITS.2026.3662626).
+22. **Liu, Parkinson & Best (2025):** P. Liu, S. Parkinson, and K. Best, *"Quantum and quantum-inspired optimisation in transport and logistics: A systematic review,"* *Smart Cities*, Vol. 8, No. 6, pp. 3173–3205, 2025. [DOI: 10.3390/smartcities8060206](https://doi.org/10.3390/smartcities8060206).
+23. **Fitzek et al. (2024):** D. Fitzek, T. Ghandriz, L. Laine, M. Granath, and A. F. Kockum, *"Applying quantum approximate optimization to the heterogeneous vehicle routing problem,"* *Scientific Reports*, Vol. 14, Art. 28169, 2024. [DOI: 10.1038/s41598-024-76967-w](https://doi.org/10.1038/s41598-024-76967-w).
+24. **Saxena et al. (2025):** D. Saxena et al., *"An intelligent multi-depot vehicle routing and management model for smart cities,"* *IEEE Transactions on Intelligent Transportation Systems*, Vol. 26, No. 6, pp. 7740–7754, 2025. [DOI: 10.1109/TITS.2024.3496035](https://doi.org/10.1109/TITS.2024.3496035).
+25. **Harwood / Feld et al. (2023):** S. Feld, C. Roch, T. Gabor, et al., *"Analysis of the vehicle routing problem solved via hybrid quantum algorithms in the presence of noisy channels,"* *IEEE Transactions on Quantum Engineering*, Vol. 4, pp. 1–14, 2023. [DOI: 10.1109/TQE.2023.3303989](https://doi.org/10.1109/TQE.2023.3303989).
+26. **Acharya & Mohbey (2025):** M. Acharya and K. K. Mohbey, *"Advanced optimization for Big Data streams with quantum insights for real-time Big Data analytics,"* *ADCAIJ: Advances in Distributed Computing and Artificial Intelligence Journal*, Vol. 14, e32876, 2025. [DOI: 10.14201/adcaij.32876](https://doi.org/10.14201/adcaij.32876).
 
 ---
 
