@@ -94,6 +94,19 @@ class Settings(BaseSettings):
             db_path = os.path.join(self.DATA_DIR, "sdro.db")
             self.DATABASE_URL = f"sqlite+aiosqlite:///{db_path}"
 
+        # Check standard hosting platform PORT environment variable
+        port_env = os.environ.get("PORT")
+        if port_env:
+            try:
+                self.BACKEND_PORT = int(port_env)
+            except ValueError:
+                pass
+
+        # Check standard HOST environment variable
+        host_env = os.environ.get("HOST")
+        if host_env:
+            self.BACKEND_HOST = host_env
+
         # Ensure directories exist
         for d in [self.DATA_DIR, self.RAW_DATA_DIR, self.PROCESSED_DATA_DIR,
                   self.RESULTS_DIR, self.UPLOAD_DIR]:

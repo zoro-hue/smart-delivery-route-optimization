@@ -1,7 +1,12 @@
 import axios from 'axios';
 import { Dataset, AnalyticsSummary, OptimizationResponse } from '../types';
 
-const API_BASE = '/api';
+// In production, configure VITE_API_URL (e.g. https://routeiq-backend.onrender.com)
+// In local dev, defaults to '/api' which is proxied by Vite to http://127.0.0.1:8000
+const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE = envApiUrl
+  ? (envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl.replace(/\/$/, '')}/api`)
+  : '/api';
 
 const http = axios.create({
   baseURL: API_BASE,

@@ -128,9 +128,12 @@ class RoadNetworkService:
                 logger.error(f"Failed to load {pickle_path}: {e}")
                 self.G = None
 
-        # If not available, check archive (5).zip in project root or parent dir
+        # If not available, check road_network.zip in data dir or archive (5).zip
         if self.G is None:
             zip_candidates = [
+                os.path.join(settings.DATA_DIR, "road_network.zip"),
+                os.path.join(settings.BASE_DIR, "data", "road_network.zip"),
+                os.path.join(settings.DATA_DIR, "archive (5).zip"),
                 os.path.join(settings.BASE_DIR, "..", "archive (5).zip"),
                 os.path.join(settings.BASE_DIR, "archive (5).zip"),
                 os.path.join(settings.BASE_DIR, "..", "..", "archive (5).zip"),
