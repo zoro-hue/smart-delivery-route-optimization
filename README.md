@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Leaflet](https://img.shields.io/badge/Leaflet-1.9.4-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 
 ---
 
@@ -404,6 +404,6 @@ This project implements the theoretical framework and literature taxonomy establ
 
 ## ⚖ License & Acknowledgments
 
-* **License:** Distributed under the MIT License. See `LICENSE` for details.
+* **License:** Not yet specified. Licensing and ownership permissions for this collaborative university research project are pending confirmation.
 * **Data Sources:** New York City Open Data, NYC Department of Transportation (DOT), NYC Taxi & Limousine Commission (TLC), OpenStreetMap (OSM) contributors, NOAA National Weather Service.
 * **Institution:** Department of Computer Science & Engineering, SRM University-AP.
