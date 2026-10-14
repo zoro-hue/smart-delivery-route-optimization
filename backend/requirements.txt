@@ -8,7 +8,8 @@ pydantic-settings>=2.2.0
 python-multipart>=0.0.9
 
 # Database & Async ORM
-sqlalchemy>=2.0.0
+sqlalchemy[asyncio]>=2.0.0
+greenlet>=3.0.0
 aiosqlite>=0.20.0
 
 # Scientific, Graph & Optimization Libraries

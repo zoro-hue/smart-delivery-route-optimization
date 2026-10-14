@@ -16,6 +16,7 @@ import sys
 import json
 import time
 import subprocess
+import shutil
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, List
 import pandas as pd
@@ -128,6 +129,21 @@ class BigDataPipelineService:
         self.metadata["status"] = "in_progress"
 
         ensure_spark_environment()
+
+        # Check for Java runtime before initializing JVM / PySpark session
+        has_java = shutil.which("java") is not None or (
+            os.environ.get("JAVA_HOME") and (
+                os.path.exists(os.path.join(os.environ["JAVA_HOME"], "bin", "java"))
+                or os.path.exists(os.path.join(os.environ["JAVA_HOME"], "bin", "java.exe"))
+            )
+        )
+        if not has_java:
+            self.metadata["status"] = "idle"
+            raise RuntimeError(
+                "Java runtime (JVM) was not found in the execution environment. "
+                "The ROUTE/IQ production runtime operates on pre-curated Parquet datasets via PyArrow without requiring a JVM. "
+                "Batch Spark ETL can be executed in an offline/data-engineering environment with OpenJDK 17 installed."
+            )
 
         from pyspark.sql import SparkSession
         import pyspark.sql.functions as F
