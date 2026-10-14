@@ -7,31 +7,31 @@
     "customers": {
       "raw_records": 1898,
       "curated_records": 1898,
-      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\customers_curated.parquet",
+      "parquet_path": "data/processed/spark_output/customers_curated.parquet",
       "size_bytes": 81849
     },
     "vehicles": {
       "raw_records": 10000,
       "curated_records": 10000,
-      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\vehicles_curated.parquet",
+      "parquet_path": "data/processed/spark_output/vehicles_curated.parquet",
       "size_bytes": 588507
     },
     "locations": {
       "raw_records": 18,
       "curated_records": 18,
-      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\locations_curated.parquet",
+      "parquet_path": "data/processed/spark_output/locations_curated.parquet",
       "size_bytes": 14237
     },
     "traffic": {
       "raw_records": 42756,
       "curated_records": 897,
-      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\traffic_speeds_curated.parquet",
+      "parquet_path": "data/processed/spark_output/traffic_speeds_curated.parquet",
       "size_bytes": 24512
     },
     "weather": {
       "raw_records": 59760,
       "curated_records": 4,
-      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\weather_curated.parquet",
+      "parquet_path": "data/processed/spark_output/weather_curated.parquet",
       "size_bytes": 2867
     }
   },
@@ -69,7 +69,7 @@
       }
     }
   },
-  "output_directory": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output",
+  "output_directory": "data/processed/spark_output",
   "parquet_files": [],
   "spark_version": "4.2.0",
   "java_version": "17.0.20.1"

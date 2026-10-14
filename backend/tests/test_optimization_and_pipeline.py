@@ -452,6 +452,59 @@ def test_lazy_initialization_and_cached_resource_reuse():
     assert len(veh_df) > 0
 
 
+def test_bigdata_pipeline_metadata_portability():
+    """Verify big data pipeline metadata contains only portable relative paths with no machine-specific absolute paths."""
+    import re
+    import json
+    from app.services.bigdata_pipeline import bigdata_pipeline, BigDataPipelineService, METADATA_FILE
+
+    # 1. Test live status metadata from bigdata_pipeline
+    status = bigdata_pipeline.get_status()
+    assert "output_directory" in status
+    assert status["output_directory"] == "data/processed/spark_output"
+    assert "\\" not in status["output_directory"]
+    assert not re.match(r"^[a-zA-Z]:", status["output_directory"]), "Output directory must not contain Windows drive letter"
+
+    datasets = status.get("datasets", {})
+    assert len(datasets) > 0
+    for name, d in datasets.items():
+        parquet_path = d.get("parquet_path", "")
+        assert parquet_path.startswith("data/processed/spark_output/"), (
+            f"Dataset {name} path '{parquet_path}' must be relative to project"
+        )
+        assert "\\" not in parquet_path, f"Dataset {name} path must use POSIX slashes"
+        assert not re.match(r"^[a-zA-Z]:", parquet_path), f"Dataset {name} path must not contain drive letter"
+        assert "DELL" not in parquet_path and "Users" not in parquet_path
+
+    # 2. Test _sanitize_metadata on synthetic machine-specific absolute paths (both Windows and Linux)
+    dirty_meta = {
+        "output_directory": r"D:\UROP\smart-delivery-route-optimization\backend\data\processed\spark_output",
+        "datasets": {
+            "customers": {
+                "parquet_path": r"C:\Users\DELL\smart-delivery-route-optimization\backend\data\processed\spark_output\customers_curated.parquet"
+            },
+            "vehicles": {
+                "parquet_path": "/home/runner/work/smart-delivery-route-optimization/backend/data/processed/spark_output/vehicles_curated.parquet"
+            }
+        }
+    }
+    sanitized = BigDataPipelineService._sanitize_metadata(dirty_meta)
+    assert sanitized["output_directory"] == "data/processed/spark_output"
+    assert sanitized["datasets"]["customers"]["parquet_path"] == "data/processed/spark_output/customers_curated.parquet"
+    assert sanitized["datasets"]["vehicles"]["parquet_path"] == "data/processed/spark_output/vehicles_curated.parquet"
+
+    # 3. Test on-disk pipeline_metadata.json directly
+    assert os.path.exists(METADATA_FILE), f"Metadata file not found: {METADATA_FILE}"
+    with open(METADATA_FILE, "r") as f:
+        disk_meta = json.load(f)
+    assert disk_meta.get("output_directory") == "data/processed/spark_output"
+    for name, d in disk_meta.get("datasets", {}).items():
+        p = d.get("parquet_path", "")
+        assert p.startswith("data/processed/spark_output/"), f"Disk metadata {name} path '{p}' is not relative"
+        assert "\\" not in p
+        assert not re.match(r"^[a-zA-Z]:", p)
+
+
 
 
 

@@ -66,15 +66,43 @@ class BigDataPipelineService:
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         self.metadata: Dict[str, Any] = self._load_or_init_metadata()
 
+    @staticmethod
+    def _sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert machine-specific absolute paths in metadata to portable relative paths."""
+        if not isinstance(meta, dict):
+            return meta
+
+        def _to_portable(val: Any) -> Any:
+            if not isinstance(val, str):
+                return val
+            norm = val.replace("\\", "/")
+            if "data/processed/spark_output" in norm:
+                idx = norm.find("data/processed/spark_output")
+                return norm[idx:]
+            return norm
+
+        if "output_directory" in meta:
+            meta["output_directory"] = _to_portable(meta["output_directory"])
+        else:
+            meta["output_directory"] = "data/processed/spark_output"
+
+        datasets = meta.get("datasets", {})
+        if isinstance(datasets, dict):
+            for k, d in datasets.items():
+                if isinstance(d, dict) and "parquet_path" in d:
+                    d["parquet_path"] = _to_portable(d["parquet_path"])
+
+        return meta
+
     def _load_or_init_metadata(self) -> Dict[str, Any]:
         if os.path.exists(METADATA_FILE):
             try:
                 with open(METADATA_FILE, "r") as f:
-                    return json.load(f)
+                    return self._sanitize_metadata(json.load(f))
             except Exception as e:
                 logger.warning(f"Failed to read existing Spark metadata: {e}")
 
-        return {
+        return self._sanitize_metadata({
             "status": "idle",
             "engine": "Apache Spark 4.2.0 (PySpark on OpenJDK 17, local[*])",
             "spark_version": "4.2.0",
@@ -95,9 +123,9 @@ class BigDataPipelineService:
                 "total_records": 0,
                 "scenarios": {},
             },
-            "output_directory": OUTPUT_DIR,
+            "output_directory": "data/processed/spark_output",
             "parquet_files": [],
-        }
+        })
 
     def get_status(self) -> Dict[str, Any]:
         """Return real observability telemetry for the Big Data pipeline."""
@@ -112,7 +140,7 @@ class BigDataPipelineService:
                         "modified_at": datetime.fromtimestamp(os.path.getmtime(fpath)).isoformat(),
                     })
         self.metadata["parquet_files"] = files
-        return self.metadata
+        return self._sanitize_metadata(self.metadata)
 
     def run_pipeline(self) -> Dict[str, Any]:
         """
@@ -189,7 +217,7 @@ class BigDataPipelineService:
                 stats["customers"] = {
                     "raw_records": raw_cust_count,
                     "curated_records": curated_cust_count,
-                    "parquet_path": cust_parquet,
+                    "parquet_path": "data/processed/spark_output/customers_curated.parquet",
                     "size_bytes": os.path.getsize(cust_parquet),
                 }
 
@@ -213,7 +241,7 @@ class BigDataPipelineService:
                 stats["vehicles"] = {
                     "raw_records": raw_veh_count,
                     "curated_records": curated_veh_count,
-                    "parquet_path": veh_parquet,
+                    "parquet_path": "data/processed/spark_output/vehicles_curated.parquet",
                     "size_bytes": os.path.getsize(veh_parquet),
                 }
 
@@ -236,7 +264,7 @@ class BigDataPipelineService:
                 stats["locations"] = {
                     "raw_records": raw_loc_count,
                     "curated_records": curated_loc_count,
-                    "parquet_path": loc_parquet,
+                    "parquet_path": "data/processed/spark_output/locations_curated.parquet",
                     "size_bytes": os.path.getsize(loc_parquet),
                 }
 
@@ -272,7 +300,7 @@ class BigDataPipelineService:
                 stats["traffic"] = {
                     "raw_records": raw_traf_count,
                     "curated_records": unique_traf_roadways,
-                    "parquet_path": traf_parquet,
+                    "parquet_path": "data/processed/spark_output/traffic_speeds_curated.parquet",
                     "size_bytes": os.path.getsize(traf_parquet),
                 }
 
@@ -308,7 +336,7 @@ class BigDataPipelineService:
                 stats["weather"] = {
                     "raw_records": raw_wth_count,
                     "curated_records": len(pdf_wth),
-                    "parquet_path": wth_parquet,
+                    "parquet_path": "data/processed/spark_output/weather_curated.parquet",
                     "size_bytes": os.path.getsize(wth_parquet),
                 }
 
@@ -355,7 +383,10 @@ class BigDataPipelineService:
                 "total_records": stats.get("weather", {}).get("raw_records", 59760),
                 "scenarios": weather_scenarios_stats,
             },
+            "output_directory": "data/processed/spark_output",
         })
+
+        self.metadata = self._sanitize_metadata(self.metadata)
 
         with open(METADATA_FILE, "w") as f:
             json.dump(self.metadata, f, indent=2)
