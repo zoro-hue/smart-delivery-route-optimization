@@ -1,0 +1,76 @@
+{
+  "status": "completed",
+  "engine": "Apache Spark 4.2.0 (PySpark on OpenJDK 17 Temurin, local[*])",
+  "last_run_timestamp": "2026-10-14T17:12:16.391184",
+  "processing_duration_sec": 18.555,
+  "datasets": {
+    "customers": {
+      "raw_records": 1898,
+      "curated_records": 1898,
+      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\customers_curated.parquet",
+      "size_bytes": 81849
+    },
+    "vehicles": {
+      "raw_records": 10000,
+      "curated_records": 10000,
+      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\vehicles_curated.parquet",
+      "size_bytes": 588507
+    },
+    "locations": {
+      "raw_records": 18,
+      "curated_records": 18,
+      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\locations_curated.parquet",
+      "size_bytes": 14237
+    },
+    "traffic": {
+      "raw_records": 42756,
+      "curated_records": 897,
+      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\traffic_speeds_curated.parquet",
+      "size_bytes": 24512
+    },
+    "weather": {
+      "raw_records": 59760,
+      "curated_records": 4,
+      "parquet_path": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output\\weather_curated.parquet",
+      "size_bytes": 2867
+    }
+  },
+  "traffic_integration": {
+    "total_traffic_observations": 42756,
+    "unique_traffic_roadways": 897,
+    "matched_unique_roadways": 554,
+    "unique_roadway_coverage_pct": 61.8,
+    "matched_graph_edges": 47190,
+    "total_named_graph_edges": 138132,
+    "total_graph_edges": 142123,
+    "matching_coverage_pct": 34.2,
+    "join_key": "NYC DOT Roadway Name <-> OSM GraphML edge name",
+    "matching_method": "Normalized street name & abbreviation intersection",
+    "normalization_rules": "Ordinals (103RD ST), standard street suffixes (AVE/ST/RD/BLVD/PKWY/EXPY), standard NYC acronyms"
+  },
+  "weather_integration": {
+    "total_records": 59760,
+    "scenarios": {
+      "heavy_rain": {
+        "count": 115,
+        "mean_precipitation_mm": 6.75
+      },
+      "windy": {
+        "count": 304,
+        "mean_precipitation_mm": 0.183
+      },
+      "rain": {
+        "count": 2230,
+        "mean_precipitation_mm": 2.044
+      },
+      "clear": {
+        "count": 57111,
+        "mean_precipitation_mm": 0.045
+      }
+    }
+  },
+  "output_directory": "D:\\UROP\\smart-delivery-route-optimization\\backend\\data\\processed\\spark_output",
+  "parquet_files": [],
+  "spark_version": "4.2.0",
+  "java_version": "17.0.20.1"
+}
