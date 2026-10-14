@@ -320,13 +320,15 @@ async def run_optimization(
 
             try:
                 if algo in ("ortools", "classical_ortools"):
+                    # Responsive time limit: 5s is optimal for <= 30 customers; prevents Cloudflare 502 timeouts on shared CPU
+                    effective_time_limit = min(req.classical_time_limit_sec or 5, 6) if n <= 35 else min(req.classical_time_limit_sec or 15, 15)
                     algo_res = classical_solver.solve_ortools(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
                         demands=demands_int,
                         vehicle_capacities=capacities,
-                        time_limit_sec=req.classical_time_limit_sec,
+                        time_limit_sec=effective_time_limit,
                         objective_weights=objective_weights,
                     )
                     algo_res["algorithm_name"] = "OR-Tools (CVRP)"
@@ -1011,7 +1013,8 @@ def _prepare_problem(req: OptimizationRequest):
                 lat = float(req.depot_lat + 0.01)
                 lon = float(req.depot_lon + 0.01)
 
-            if check_water_body(lat, lon):
+            is_valid, _ = validate_nyc_coordinate(lat, lon)
+            if not is_valid:
                 lat = 40.7500 + (len(locations) % 15) * 0.003
                 lon = -73.9850 + ((len(locations) % 10) - 5) * 0.002
 

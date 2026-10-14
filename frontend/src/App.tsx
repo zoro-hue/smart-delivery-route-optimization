@@ -28,13 +28,7 @@ export const App: React.FC = () => {
   const [datasetsError, setDatasetsError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [backendHealth, setBackendHealth] = useState<any>(null);
-  const [lastResult, setLastResult] = useState<OptimizationResponse | null>(() => {
-    try {
-      const saved = localStorage.getItem('routeiq_last_result');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return null;
-  });
+  const [lastResult, setLastResult] = useState<OptimizationResponse | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -82,8 +76,11 @@ export const App: React.FC = () => {
     setIsScanning(true);
     setDatasetsError(null);
     try {
-      await api.scanWorkspace();
+      const res = await api.scanWorkspace();
       await refreshData();
+      if (res?.message) {
+        alert(res.message);
+      }
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message || 'Auto-discovery error';
       setDatasetsError(`Ingestion error: ${msg}`);
@@ -127,7 +124,7 @@ export const App: React.FC = () => {
           />
         </div>
 
-        <div className={activeTab === 'plan' ? 'tab-pane-active h-full w-full relative' : 'tab-pane-inactive'}>
+        <div className={activeTab === 'plan' ? 'tab-pane-active absolute inset-0 w-full h-full' : 'tab-pane-inactive'}>
           <ErrorBoundary fallbackTitle="Delivery Planning Map Workspace">
             <PlanWorkspace
               onOptimizationComplete={(res) => {

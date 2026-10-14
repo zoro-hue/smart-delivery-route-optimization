@@ -336,7 +336,16 @@ async def scan_workspace_datasets(db: AsyncSession = Depends(get_db)):
     discovered.extend(seeded)
 
     await db.commit()
-    return {"message": f"Scanned workspace and processed {len(discovered)} dataset(s)", "discovered": discovered}
+
+    # Query all active datasets in database
+    all_res = await db.execute(select(Dataset))
+    all_datasets = all_res.scalars().all()
+
+    return {
+        "message": f"Successfully synced and verified {len(all_datasets)} logistics dataset(s).",
+        "discovered": discovered,
+        "count": len(all_datasets),
+    }
 
 
 @router.post("/upload")

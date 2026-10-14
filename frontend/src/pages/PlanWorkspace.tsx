@@ -800,7 +800,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
   const safeDepotLon = !isNaN(depot?.lon) ? depot.lon : -73.8292;
 
   return (
-    <div className="relative w-full h-full min-h-[400px] overflow-hidden select-none bg-[#F4F4F2] dark:bg-[#09090B]">
+    <div className="relative w-full h-full overflow-hidden select-none bg-[#F4F4F2] dark:bg-[#09090B]">
       {/* ─── FULL-SIZE DOMINANT LEAFLET MAP WORKSPACE ─────────────────── */}
       <div className="absolute inset-0 w-full h-full z-0">
         <MapContainer
@@ -917,11 +917,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       </div>
 
       {/* ─── FLOATING TOP-CENTER WORKSPACE TOOLBAR ────────────────── */}
-      <div
-        className={`absolute top-3 z-[1000] flex items-center gap-2 max-w-[calc(100vw-2rem)] flex-wrap justify-center pointer-events-auto transition-all duration-300 ease-out ${
-          sidebarOpen ? 'left-1/2 -translate-x-1/2 lg:left-[calc(50%+215px)]' : 'left-1/2 -translate-x-1/2'
-        }`}
-      >
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 max-w-[calc(100vw-2rem)] flex-wrap justify-center pointer-events-auto transition-all duration-300 ease-out">
         {/* Contextual Primary Action: Run Optimization / Compare */}
         <button
           onClick={handleRunOptimization}
@@ -946,6 +942,18 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             </>
           )}
         </button>
+
+        {/* View in Results CTA when solution has been computed */}
+        {executionResponse && !isRunning && (
+          <button
+            onClick={onNavigateToResults}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#B7FF2A] hover:bg-[#a4f01d] text-[#080808] rounded-full text-xs font-heading font-bold shadow-xl transition-all cursor-pointer border border-black/10"
+            title="Inspect computed solution in the Results tab"
+          >
+            <span>View Solution in Results</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        )}
 
         {/* Reset Stops button */}
         <button

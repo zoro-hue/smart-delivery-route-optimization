@@ -110,10 +110,7 @@ class RoadNetworkService:
         self._is_loaded = False
         self._lock = threading.Lock()
         self._path_cache: Dict[Tuple[str, str], List[str]] = {}
-        self._dijkstra_cache: Dict[str, Dict[str, float]] = {}
-        self._pred_cache: Dict[str, Dict[str, List[str]]] = {}
-        self._undir_dijkstra_cache: Dict[str, Dict[str, float]] = {}
-        self._undir_pred_cache: Dict[str, Dict[str, List[str]]] = {}
+        self._dist_cache: Dict[Tuple[str, str], float] = {}
         # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
         # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
 
@@ -305,14 +302,16 @@ class RoadNetworkService:
             return path
 
         for i, src_node in enumerate(snapped_nodes):
-            if src_node in self._dijkstra_cache:
-                lengths = self._dijkstra_cache[src_node]
-                pred = self._pred_cache.get(src_node)
-            else:
+            # Check if all pairwise distances for this src_node are already in _dist_cache
+            all_cached = all(
+                (src_node, tgt_node) in self._dist_cache or i == j
+                for j, tgt_node in enumerate(snapped_nodes)
+            )
+
+            pred, lengths = None, None
+            if not all_cached:
                 try:
                     pred, lengths = nx.dijkstra_predecessor_and_distance(self.G, src_node, weight="length")
-                    self._dijkstra_cache[src_node] = lengths
-                    self._pred_cache[src_node] = pred
                 except Exception as e:
                     logger.error(f"Dijkstra calculation error for node {src_node}: {e}")
                     pred, lengths = {}, {}
@@ -325,48 +324,32 @@ class RoadNetworkService:
                     physical_matrix[i][j] = 0.0
                     continue
 
-                if tgt_node in lengths:
+                if (src_node, tgt_node) in self._dist_cache:
+                    road_km = self._dist_cache[(src_node, tgt_node)]
+                elif lengths and tgt_node in lengths:
                     road_km = lengths[tgt_node] / 1000.0
+                    self._dist_cache[(src_node, tgt_node)] = road_km
                     if (src_node, tgt_node) not in self._path_cache:
                         p = _reconstruct_path(pred, src_node, tgt_node) if pred else None
                         if p:
                             self._path_cache[(src_node, tgt_node)] = p
-                        else:
-                            try:
-                                self._path_cache[(src_node, tgt_node)] = nx.shortest_path(
-                                    self.G, source=src_node, target=tgt_node, weight="length"
-                                )
-                            except Exception:
-                                pass
                 else:
-                    # Targeted fallback on undirected road graph for one-way street / bridge gaps
+                    # Targeted fallback on undirected road graph view for one-way street / bridge gaps
                     if undir_lengths is None:
-                        if src_node in self._undir_dijkstra_cache:
-                            undir_lengths = self._undir_dijkstra_cache[src_node]
-                            undir_pred = self._undir_pred_cache.get(src_node)
-                        else:
-                            try:
-                                undir_pred, undir_lengths = nx.dijkstra_predecessor_and_distance(
-                                    self.G_undir, src_node, weight="length"
-                                )
-                                self._undir_dijkstra_cache[src_node] = undir_lengths
-                                self._undir_pred_cache[src_node] = undir_pred
-                            except Exception:
-                                undir_pred, undir_lengths = {}, {}
+                        try:
+                            undir_pred, undir_lengths = nx.dijkstra_predecessor_and_distance(
+                                self.G_undir, src_node, weight="length"
+                            )
+                        except Exception:
+                            undir_pred, undir_lengths = {}, {}
 
-                    if tgt_node in undir_lengths:
+                    if undir_lengths and tgt_node in undir_lengths:
                         road_km = undir_lengths[tgt_node] / 1000.0
+                        self._dist_cache[(src_node, tgt_node)] = road_km
                         if (src_node, tgt_node) not in self._path_cache:
                             p = _reconstruct_path(undir_pred, src_node, tgt_node) if undir_pred else None
                             if p:
                                 self._path_cache[(src_node, tgt_node)] = p
-                            else:
-                                try:
-                                    self._path_cache[(src_node, tgt_node)] = nx.shortest_path(
-                                        self.G_undir, source=src_node, target=tgt_node, weight="length"
-                                    )
-                                except Exception:
-                                    pass
                     else:
                         logger.error(f"No connected road path between node {src_node} and {tgt_node}")
                         road_km = 99999.0
@@ -374,6 +357,12 @@ class RoadNetworkService:
 
                 physical_matrix[i][j] = round(road_km, 3)
                 cost_matrix[i][j] = round(road_km * combined_factor, 3)
+
+            # Explicitly release large 54k-element Dijkstra dictionaries to prevent OOM
+            del pred, lengths, undir_pred, undir_lengths
+
+        import gc
+        gc.collect()
 
         if return_physical:
             return cost_matrix, snapped_nodes, warnings, physical_matrix
