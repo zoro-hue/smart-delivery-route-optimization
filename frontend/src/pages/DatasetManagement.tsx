@@ -26,6 +26,8 @@ interface DatasetManagementProps {
   onRefresh: () => void;
   onScanDatasets: () => void;
   isScanning: boolean;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 export const DatasetManagement: React.FC<DatasetManagementProps> = ({
@@ -33,6 +35,8 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
   onRefresh,
   onScanDatasets,
   isScanning,
+  isLoading = false,
+  error = null,
 }) => {
   const [selectedType, setSelectedType] = useState<string>('customer');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -256,13 +260,40 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
           </span>
         </div>
 
-        {datasets.length === 0 ? (
+        {isLoading ? (
+          <div className="p-12 text-center text-[#777777] dark:text-[#71717A] animate-pulse">
+            <RefreshCw className="h-8 w-8 mx-auto mb-3 text-[#B7FF00] animate-spin" />
+            <p className="text-sm font-bold text-[#080808] dark:text-white">Connecting to backend datasets...</p>
+            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1">Retrieving curated schemas and record telemetry</p>
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center bg-red-500/5 dark:bg-red-950/20 border-b border-red-500/20">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-sm font-bold text-red-600 dark:text-red-400">Failed to connect to backend datasets</p>
+            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 mb-3 max-w-md mx-auto font-mono text-[11px]">{error}</p>
+            <button
+              onClick={onRefresh}
+              className="px-4 py-1.5 rounded-full bg-[#080808] dark:bg-white text-white dark:text-black text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span>Retry Connection</span>
+            </button>
+          </div>
+        ) : datasets.length === 0 ? (
           <div className="p-8 text-center text-[#777777] dark:text-[#71717A]">
             <FileText className="h-10 w-10 mx-auto mb-2 text-[#777777]/50" />
             <p className="text-sm font-bold text-[#080808] dark:text-white">No datasets loaded yet.</p>
-            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1">
+            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 mb-3">
               Click &quot;Ingest Datasets&quot; to auto-discover and load the existing NYC datasets.
             </p>
+            <button
+              onClick={onScanDatasets}
+              disabled={isScanning}
+              className="px-4 py-2 bg-[#B7FF00] hover:bg-[#a6ec00] text-black rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              <span>{isScanning ? 'Ingesting Datasets...' : 'Ingest Datasets'}</span>
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">

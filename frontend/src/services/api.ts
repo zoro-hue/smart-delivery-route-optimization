@@ -1,12 +1,21 @@
 import axios from 'axios';
 import { Dataset, AnalyticsSummary, OptimizationResponse } from '../types';
 
-// In production, configure VITE_API_URL (e.g. https://routeiq-backend.onrender.com)
+// In production, configure VITE_API_URL (e.g. https://route-iq-backend.onrender.com)
 // In local dev, defaults to '/api' which is proxied by Vite to http://127.0.0.1:8000
-const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '';
-const API_BASE = envApiUrl
-  ? (envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl.replace(/\/$/, '')}/api`)
-  : '/api';
+const PRODUCTION_BACKEND_URL = 'https://route-iq-backend.onrender.com';
+const rawApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+
+const isBrowserProd =
+  typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1';
+
+const API_BASE = rawApiUrl
+  ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`)
+  : (import.meta.env.PROD || isBrowserProd
+      ? `${PRODUCTION_BACKEND_URL}/api`
+      : '/api');
 
 const http = axios.create({
   baseURL: API_BASE,
@@ -23,6 +32,13 @@ export const api = {
   // Datasets
   getDatasets: async (): Promise<Dataset[]> => {
     const res = await http.get('/datasets');
+    if (!Array.isArray(res.data)) {
+      throw new Error(
+        typeof res.data === 'string' && res.data.includes('<!doctype')
+          ? 'Backend endpoint returned HTML. Please verify deployment routing.'
+          : 'Invalid response format from datasets endpoint'
+      );
+    }
     return res.data;
   },
 

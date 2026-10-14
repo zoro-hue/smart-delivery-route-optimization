@@ -788,6 +788,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     } catch (err: any) {
       const msg = err.response?.data?.detail || err.message || 'Optimization request failed';
       setValidationError(`Optimization failed: ${msg}`);
+      setTimeout(() => {
+        setValidationError((prev) => (prev?.includes(msg) ? null : prev));
+      }, 10000);
     } finally {
       setIsRunning(false);
     }
@@ -797,7 +800,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
   const safeDepotLon = !isNaN(depot?.lon) ? depot.lon : -73.8292;
 
   return (
-    <div className="relative w-full h-[calc(100vh-4rem)] min-h-[500px] overflow-hidden select-none bg-[#F4F4F2] dark:bg-[#09090B]">
+    <div className="relative w-full h-full min-h-[400px] overflow-hidden select-none bg-[#F4F4F2] dark:bg-[#09090B]">
       {/* ─── FULL-SIZE DOMINANT LEAFLET MAP WORKSPACE ─────────────────── */}
       <div className="absolute inset-0 w-full h-full z-0">
         <MapContainer
@@ -913,8 +916,12 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         </MapContainer>
       </div>
 
-      {/* ─── FLOATING TOP-CENTER WORKSPACE TOOLBAR (PREV VERSION RESTORED) ── */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[990] flex items-center gap-2 max-w-[calc(100vw-6rem)] flex-wrap justify-center pointer-events-auto">
+      {/* ─── FLOATING TOP-CENTER WORKSPACE TOOLBAR ────────────────── */}
+      <div
+        className={`absolute top-3 z-[1000] flex items-center gap-2 max-w-[calc(100vw-2rem)] flex-wrap justify-center pointer-events-auto transition-all duration-300 ease-out ${
+          sidebarOpen ? 'left-1/2 -translate-x-1/2 lg:left-[calc(50%+215px)]' : 'left-1/2 -translate-x-1/2'
+        }`}
+      >
         {/* Contextual Primary Action: Run Optimization / Compare */}
         <button
           onClick={handleRunOptimization}
@@ -1566,6 +1573,35 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Sticky Sidebar Action Bar for Quick Execution on Desktop & Mobile */}
+          <div className="p-3 bg-white/90 dark:bg-[#111113]/95 backdrop-blur-md border-t border-black/10 dark:border-[#29292E] flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleRunOptimization}
+              disabled={isRunning || activeStops.length < 1}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF2A] dark:hover:bg-[#a4f01d] text-[#B7FF2A] dark:text-[#080808] rounded-xl text-xs font-heading font-bold shadow-md transition-all cursor-pointer disabled:opacity-40 border border-[#B7FF2A]/20"
+            >
+              {isRunning ? (
+                <>
+                  <RotateCw className="h-3.5 w-3.5 animate-spin text-[#B7FF2A] dark:text-[#080808]" />
+                  <span>Computing Solution...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  <span>Run Optimization ({activeStops.length} Stops)</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={loadStops}
+              disabled={isLoadingStops || isRunning}
+              className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] hover:bg-black/10 text-[#171717] dark:text-[#F4F4F5] border border-black/10 dark:border-[#29292E] transition-all cursor-pointer disabled:opacity-50"
+              title="Reset Stops"
+            >
+              <RotateCw className={`h-3.5 w-3.5 ${isLoadingStops ? 'animate-spin text-[#22C55E]' : ''}`} />
+            </button>
+          </div>
         </aside>
       ) : (
         /* Minimized Floating Button when Sidebar is Collapsed */
@@ -1602,17 +1638,25 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
       {/* ─── TOAST / VALIDATION ALERTS ──────────────────────────────── */}
       {validationError && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-600/90 backdrop-blur-xl text-white text-xs font-heading font-semibold shadow-2xl border border-red-400 animate-fadeIn max-w-md">
+        <div
+          className={`absolute top-16 z-[1000] flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-600/90 backdrop-blur-xl text-white text-xs font-heading font-semibold shadow-2xl border border-red-400 animate-fadeIn max-w-md transition-all duration-300 ${
+            sidebarOpen ? 'left-1/2 -translate-x-1/2 lg:left-[calc(50%+215px)]' : 'left-1/2 -translate-x-1/2'
+          }`}
+        >
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1">{validationError}</span>
-          <button onClick={() => setValidationError(null)} className="p-0.5 hover:bg-white/20 rounded">
+          <button onClick={() => setValidationError(null)} className="p-0.5 hover:bg-white/20 rounded cursor-pointer">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
       {feedbackMessage && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full bg-[#080808]/90 backdrop-blur-xl text-[#B7FF2A] text-xs font-heading font-bold shadow-xl border border-[#B7FF2A]/30 animate-fadeIn">
+        <div
+          className={`absolute top-16 z-[1000] flex items-center gap-2 px-4 py-2 rounded-full bg-[#080808]/90 backdrop-blur-xl text-[#B7FF2A] text-xs font-heading font-bold shadow-xl border border-[#B7FF2A]/30 animate-fadeIn transition-all duration-300 ${
+            sidebarOpen ? 'left-1/2 -translate-x-1/2 lg:left-[calc(50%+215px)]' : 'left-1/2 -translate-x-1/2'
+          }`}
+        >
           <CheckCircle2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
           <span>{feedbackMessage}</span>
         </div>

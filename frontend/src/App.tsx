@@ -24,6 +24,8 @@ export const App: React.FC = () => {
   };
 
   const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [isDatasetsLoading, setIsDatasetsLoading] = useState<boolean>(true);
+  const [datasetsError, setDatasetsError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [backendHealth, setBackendHealth] = useState<any>(null);
   const [lastResult, setLastResult] = useState<OptimizationResponse | null>(() => {
@@ -53,12 +55,21 @@ export const App: React.FC = () => {
         api.checkHealth(),
       ]);
 
-      if (ds.status === 'fulfilled') setDatasets(ds.value);
+      if (ds.status === 'fulfilled') {
+        setDatasets(ds.value);
+        setDatasetsError(null);
+      } else {
+        const msg = ds.reason?.response?.data?.detail || ds.reason?.message || 'Failed to load datasets';
+        setDatasetsError(msg);
+        console.error('Data refresh datasets error:', ds.reason);
+      }
+
       if (an.status === 'fulfilled') setAnalytics(an.value);
       if (hl.status === 'fulfilled') setBackendHealth(hl.value);
     } catch (e) {
       console.error('Data refresh error:', e);
     } finally {
+      setIsDatasetsLoading(false);
       setTimeout(() => setIsRefreshing(false), 400);
     }
   };
@@ -69,11 +80,14 @@ export const App: React.FC = () => {
 
   const handleScanWorkspace = async () => {
     setIsScanning(true);
+    setDatasetsError(null);
     try {
       await api.scanWorkspace();
       await refreshData();
     } catch (err: any) {
-      alert(`Auto-discovery error: ${err.message}`);
+      const msg = err.response?.data?.detail || err.message || 'Auto-discovery error';
+      setDatasetsError(`Ingestion error: ${msg}`);
+      alert(`Auto-discovery error: ${msg}`);
     } finally {
       setIsScanning(false);
     }
@@ -98,7 +112,7 @@ export const App: React.FC = () => {
       <main
         className={`flex-1 w-full ${
           activeTab === 'plan'
-            ? 'p-0 h-[calc(100vh-4rem)] overflow-hidden relative'
+            ? 'p-0 h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] overflow-hidden relative'
             : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4'
         }`}
       >
@@ -113,7 +127,7 @@ export const App: React.FC = () => {
           />
         </div>
 
-        <div className={activeTab === 'plan' ? 'tab-pane-active h-[calc(100vh-4rem)] w-full relative' : 'tab-pane-inactive'}>
+        <div className={activeTab === 'plan' ? 'tab-pane-active h-full w-full relative' : 'tab-pane-inactive'}>
           <ErrorBoundary fallbackTitle="Delivery Planning Map Workspace">
             <PlanWorkspace
               onOptimizationComplete={(res) => {
@@ -133,6 +147,8 @@ export const App: React.FC = () => {
             onRefresh={refreshData}
             onScanDatasets={handleScanWorkspace}
             isScanning={isScanning}
+            isLoading={isDatasetsLoading}
+            error={datasetsError}
           />
         </div>
 
