@@ -434,7 +434,6 @@ smart-delivery-route-optimization/
 ├── docs/
 │   ├── assets/screenshots/      # Genuine UI screenshots embedded in README
 │   └── research_report.md       # Technical audit report with exact empirical benchmarks
-├── PROJECT_VS_SURVEY_APPROACH_DIFFERENCES.md # Detailed audit against LITERATURE_SURVEY (4).pdf
 └── README.md                    # Project documentation
 ```
 
