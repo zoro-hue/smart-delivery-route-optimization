@@ -459,6 +459,9 @@ smart-delivery-route-optimization/
 │       ├── pages/               # PlanWorkspace, DatasetsView, ExperimentsView
 │       ├── services/api.ts      # Configurable Axios API client
 │       └── utils/geoValidation.ts # Client-side 5-borough coordinate validation
+├── Dockerfile                   # Root production Dockerfile for Render / Cloud deployment
+├── .dockerignore                # Build context optimization rules
+├── render.yaml                  # Render deployment blueprint
 ├── docs/
 │   └── assets/
 │       └── screenshots/         # Genuine UI screenshots embedded in README

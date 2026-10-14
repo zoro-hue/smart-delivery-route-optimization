@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: routeiq-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: PORT
+        value: "8000"
+      - key: ALLOWED_ORIGINS
+        value: "https://*,http://localhost:5173"

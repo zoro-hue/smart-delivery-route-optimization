@@ -1,0 +1,40 @@
+# Version control & repository documentation
+.git
+.github
+*.md
+docs/
+Our Research Papers/
+Reference Research Papers/
+
+# Frontend (deployed separately, e.g., on Vercel / Netlify)
+frontend/
+node_modules/
+
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Backend transient data & heavy local binaries (OpenJDK 17 is installed in container via apt)
+backend/data/raw/
+backend/data/uploads/
+backend/data/results/
+backend/data/*.db
+backend/data/*.sqlite3
+backend/tools/jdk-17.0.20.1+1-jre/
+backend/tools/jre17.zip
+
+# OS Specific
+.DS_Store
+Thumbs.db
+desktop.ini
+*.bak
