@@ -42,6 +42,8 @@ yarn-error.log*
 *.sqlite3
 backend/data/sdro.db
 backend/data/processed/*.pickle
+!backend/data/processed/road_graph_newyork.pickle
+!backend/data/processed/road_graph_newyork.pickle.gz
 backend/data/processed/.spark-warehouse/
 derby.log
 metastore_db/

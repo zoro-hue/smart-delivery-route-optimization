@@ -419,5 +419,39 @@ def test_harlem_river_drive_and_madison_ave_grid_routing():
     assert len(stops_marked) == len(stop_seq)
 
 
+def test_lazy_initialization_and_cached_resource_reuse():
+    """Verify lazy initialization and single shared in-memory graph representation."""
+    from app.services.road_network_service import RoadNetworkService, road_network_service
+    from app.services.data_processor import data_processor
+
+    # 1. Fresh service instance starts unloaded
+    fresh_service = RoadNetworkService()
+    assert fresh_service._is_loaded is False
+    assert fresh_service.G is None
+
+    # 2. ensure_loaded() loads graph on demand
+    loaded = road_network_service.ensure_loaded()
+    assert loaded is True
+    assert road_network_service.is_ready() is True
+    assert road_network_service.G is not None
+
+    # 3. Subsequent ensure_loaded() calls reuse the existing graph without reallocating
+    g_id_before = id(road_network_service.G)
+    road_network_service.ensure_loaded()
+    assert id(road_network_service.G) == g_id_before
+
+    # 4. DataProcessor shares the exact same graph in memory (zero duplicate representation)
+    assert data_processor.road_graph is road_network_service.G
+
+    # 5. Lazy datasets load on demand and return valid DataFrames
+    cust_df = data_processor.customers_df
+    assert cust_df is not None
+    assert len(cust_df) > 0
+    veh_df = data_processor.vehicles_df
+    assert veh_df is not None
+    assert len(veh_df) > 0
+
+
+
 
 

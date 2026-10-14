@@ -98,14 +98,18 @@ app.include_router(bigdata.router, prefix="/api")
 async def health_check():
     """Health check endpoint for platform monitoring and frontend heartbeat."""
     import sys
-    import qiskit
+    import importlib.metadata
+    try:
+        qiskit_ver = importlib.metadata.version("qiskit")
+    except Exception:
+        qiskit_ver = "unknown"
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
         "python_version": sys.version.split()[0],
-        "qiskit_version": getattr(qiskit, "__version__", "unknown"),
+        "qiskit_version": qiskit_ver,
         "database": "sqlite" if not settings.USE_POSTGRES else "postgresql",
     }
 

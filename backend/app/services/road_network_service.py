@@ -9,6 +9,8 @@ import os
 import math
 import pickle
 import zipfile
+import gzip
+import threading
 import re
 from typing import List, Tuple, Dict, Any, Optional
 import numpy as np
@@ -104,20 +106,30 @@ class RoadNetworkService:
         self.G_undir: Optional[nx.MultiGraph] = None
         self.tree: Optional[cKDTree] = None
         self.nodes_list: List[str] = []
-        self.node_coords: List[Tuple[float, float]] = [] # [(lat, lon), ...]
+        self.node_coords: List[Tuple[float, float]] = []  # [(lat, lon), ...]
         self._is_loaded = False
+        self._lock = threading.Lock()
         self._path_cache: Dict[Tuple[str, str], List[str]] = {}
         self._dijkstra_cache: Dict[str, Dict[str, float]] = {}
-        self._load_network()
+        # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
+        # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
+
+    def ensure_loaded(self) -> bool:
+        """Thread-safe lazy initialization of NYC road network."""
+        if self._is_loaded and self.G is not None:
+            return True
+        with self._lock:
+            if not self._is_loaded or self.G is None:
+                self._load_network()
+        return self._is_loaded and self.G is not None
 
     def _load_network(self):
-        """Load road graph from processed pickle or convert from archive (5).zip."""
+        """Load road graph from processed pickle, gzip pickle, or convert from archive (5).zip."""
         pickle_path = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_newyork.pickle")
+        gzip_pickle_path = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_newyork.pickle.gz")
         fallback_pickle = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_manhatten.pickle")
 
-        t0 = os.times().elapsed if hasattr(os, 'times') else 0
-
-        # Try loading pre-built newyork road graph pickle
+        # 1. Try loading pre-built newyork road graph raw pickle first
         if os.path.exists(pickle_path):
             try:
                 logger.info(f"Loading NYC 5-Borough road graph from {pickle_path}...")
@@ -128,7 +140,24 @@ class RoadNetworkService:
                 logger.error(f"Failed to load {pickle_path}: {e}")
                 self.G = None
 
-        # If not available, check road_network.zip in data dir or archive (5).zip
+        # 2. Try loading compressed gzip pickle (7.7 MB on disk, memory-efficient)
+        if self.G is None and os.path.exists(gzip_pickle_path):
+            try:
+                logger.info(f"Loading NYC 5-Borough road graph from compressed {gzip_pickle_path}...")
+                with gzip.open(gzip_pickle_path, "rb") as f:
+                    self.G = pickle.load(f)
+                logger.info(f"Loaded NYC road graph from gzip: {self.G.number_of_nodes()} nodes, {self.G.number_of_edges()} edges")
+                # Also save raw pickle so subsequent loads are sub-second
+                try:
+                    with open(pickle_path, "wb") as pf:
+                        pickle.dump(self.G, pf, protocol=pickle.HIGHEST_PROTOCOL)
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.error(f"Failed to load {gzip_pickle_path}: {e}")
+                self.G = None
+
+        # 3. If not available, check road_network.zip in data dir or archive (5).zip
         if self.G is None:
             zip_candidates = [
                 os.path.join(settings.DATA_DIR, "road_network.zip"),
@@ -169,11 +198,10 @@ class RoadNetworkService:
                 self.G = pickle.load(f)
 
         if self.G is None:
-            logger.error("No valid NYC road graph found! Please ensure archive (5).zip exists.")
+            logger.error("No valid NYC road graph found! Please ensure road_graph_newyork.pickle.gz exists.")
             return
 
         # Prepare node lists and spatial index on the strongly connected component
-        # This guarantees 100% directed path reachability between any two snapped stops without one-way dead-ends
         try:
             sccs = list(nx.strongly_connected_components(self.G))
             largest_scc = max(sccs, key=len) if sccs else set(self.G.nodes())
@@ -194,6 +222,8 @@ class RoadNetworkService:
         logger.info(f"RoadNetworkService initialized: {len(self.nodes_list)} strongly connected nodes indexed in KD-Tree.")
 
     def is_ready(self) -> bool:
+        if not self._is_loaded:
+            self.ensure_loaded()
         return self._is_loaded and self.G is not None
 
     def snap_coordinate(self, lat: float, lon: float, max_dist_km: float = 5.0, raise_on_exceed: bool = False) -> Tuple[str, float, float, float]:
@@ -255,15 +285,13 @@ class RoadNetworkService:
 
         for i, src_node in enumerate(snapped_nodes):
             if src_node in self._dijkstra_cache:
-                lengths, paths = self._dijkstra_cache[src_node]
+                lengths = self._dijkstra_cache[src_node]
             else:
                 try:
-                    lengths, paths = nx.single_source_dijkstra(self.G, src_node, weight="length")
-                    sub_paths = {t: paths[t] for t in snapped_nodes if t in paths}
-                    self._dijkstra_cache[src_node] = (lengths, sub_paths)
-                    paths = sub_paths
+                    lengths = nx.single_source_dijkstra_path_length(self.G, src_node, weight="length")
+                    self._dijkstra_cache[src_node] = lengths
                 except Exception:
-                    lengths, paths = {}, {}
+                    lengths = {}
 
             for j, tgt_node in enumerate(snapped_nodes):
                 if i == j:
@@ -273,8 +301,13 @@ class RoadNetworkService:
 
                 if tgt_node in lengths:
                     road_km = lengths[tgt_node] / 1000.0
-                    if tgt_node in paths:
-                        self._path_cache[(src_node, tgt_node)] = paths[tgt_node]
+                    if (src_node, tgt_node) not in self._path_cache:
+                        try:
+                            self._path_cache[(src_node, tgt_node)] = nx.shortest_path(
+                                self.G, source=src_node, target=tgt_node, weight="length"
+                            )
+                        except Exception:
+                            pass
                 else:
                     # Targeted fallback on undirected road graph for one-way street / bridge gaps
                     try:

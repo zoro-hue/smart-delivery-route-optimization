@@ -33,70 +33,123 @@ class DataProcessor:
     """Processes and normalizes all datasets, builds road graph and cost matrices."""
 
     def __init__(self):
-        self.customers_df: Optional[pd.DataFrame] = None
-        self.vehicles_df: Optional[pd.DataFrame] = None
-        self.locations_df: Optional[pd.DataFrame] = None
-        self.weather_df: Optional[pd.DataFrame] = None
-        self.traffic_df: Optional[pd.DataFrame] = None
-        self.road_graph = None  # networkx graph
+        self._customers_df: Optional[pd.DataFrame] = None
+        self._vehicles_df: Optional[pd.DataFrame] = None
+        self._locations_df: Optional[pd.DataFrame] = None
+        self._weather_df: Optional[pd.DataFrame] = None
+        self._traffic_df: Optional[pd.DataFrame] = None
+        self._custom_road_graph = None
         self._cache_dir = settings.PROCESSED_DATA_DIR
-        self._load_cache()
+
+    def _load_dataset_cache(self, name: str):
+        """Lazy load an individual dataset from Parquet/CSV cache."""
+        spark_dir = os.path.join(self._cache_dir, "spark_output")
+        try:
+            if name == "customers" and self._customers_df is None:
+                cust_parquet = os.path.join(spark_dir, "customers_curated.parquet")
+                cust_csv = os.path.join(self._cache_dir, "customers_processed.csv")
+                if os.path.exists(cust_parquet):
+                    self._customers_df = pd.read_parquet(cust_parquet)
+                elif os.path.exists(cust_csv):
+                    self._customers_df = pd.read_csv(cust_csv)
+            elif name == "vehicles" and self._vehicles_df is None:
+                veh_parquet = os.path.join(spark_dir, "vehicles_curated.parquet")
+                veh_csv = os.path.join(self._cache_dir, "vehicles_processed.csv")
+                if os.path.exists(veh_parquet):
+                    self._vehicles_df = pd.read_parquet(veh_parquet)
+                elif os.path.exists(veh_csv):
+                    self._vehicles_df = pd.read_csv(veh_csv)
+            elif name == "locations" and self._locations_df is None:
+                loc_parquet = os.path.join(spark_dir, "locations_curated.parquet")
+                loc_csv = os.path.join(self._cache_dir, "locations_processed.csv")
+                if os.path.exists(loc_parquet):
+                    self._locations_df = pd.read_parquet(loc_parquet)
+                elif os.path.exists(loc_csv):
+                    self._locations_df = pd.read_csv(loc_csv)
+            elif name == "traffic" and self._traffic_df is None:
+                traf_parquet = os.path.join(spark_dir, "traffic_speeds_curated.parquet")
+                traf_csv = os.path.join(self._cache_dir, "traffic_processed.csv")
+                if os.path.exists(traf_parquet):
+                    self._traffic_df = pd.read_parquet(traf_parquet)
+                elif os.path.exists(traf_csv):
+                    self._traffic_df = pd.read_csv(traf_csv)
+            elif name == "weather" and self._weather_df is None:
+                wth_parquet = os.path.join(spark_dir, "weather_curated.parquet")
+                wth_csv = os.path.join(self._cache_dir, "weather_processed.csv")
+                if os.path.exists(wth_parquet):
+                    self._weather_df = pd.read_parquet(wth_parquet)
+                elif os.path.exists(wth_csv):
+                    self._weather_df = pd.read_csv(wth_csv)
+        except Exception as e:
+            logger.warning(f"Lazy dataset load warning for {name}: {e}")
+
+    @property
+    def road_graph(self):
+        """Unified road graph shared with RoadNetworkService (prevents duplicate in-memory representation)."""
+        if self._custom_road_graph is not None:
+            return self._custom_road_graph
+        from app.services.road_network_service import road_network_service
+        road_network_service.ensure_loaded()
+        return road_network_service.G
+
+    @road_graph.setter
+    def road_graph(self, value):
+        self._custom_road_graph = value
+
+    @property
+    def customers_df(self) -> Optional[pd.DataFrame]:
+        if self._customers_df is None:
+            self._load_dataset_cache("customers")
+        return self._customers_df
+
+    @customers_df.setter
+    def customers_df(self, val: Optional[pd.DataFrame]):
+        self._customers_df = val
+
+    @property
+    def vehicles_df(self) -> Optional[pd.DataFrame]:
+        if self._vehicles_df is None:
+            self._load_dataset_cache("vehicles")
+        return self._vehicles_df
+
+    @vehicles_df.setter
+    def vehicles_df(self, val: Optional[pd.DataFrame]):
+        self._vehicles_df = val
+
+    @property
+    def locations_df(self) -> Optional[pd.DataFrame]:
+        if self._locations_df is None:
+            self._load_dataset_cache("locations")
+        return self._locations_df
+
+    @locations_df.setter
+    def locations_df(self, val: Optional[pd.DataFrame]):
+        self._locations_df = val
+
+    @property
+    def traffic_df(self) -> Optional[pd.DataFrame]:
+        if self._traffic_df is None:
+            self._load_dataset_cache("traffic")
+        return self._traffic_df
+
+    @traffic_df.setter
+    def traffic_df(self, val: Optional[pd.DataFrame]):
+        self._traffic_df = val
+
+    @property
+    def weather_df(self) -> Optional[pd.DataFrame]:
+        if self._weather_df is None:
+            self._load_dataset_cache("weather")
+        return self._weather_df
+
+    @weather_df.setter
+    def weather_df(self, val: Optional[pd.DataFrame]):
+        self._weather_df = val
 
     def _load_cache(self):
-        """Auto-load processed datasets from disk cache (prioritizing Spark curated Parquet)."""
-        try:
-            spark_dir = os.path.join(self._cache_dir, "spark_output")
-
-            # Customers
-            cust_parquet = os.path.join(spark_dir, "customers_curated.parquet")
-            cust_csv = os.path.join(self._cache_dir, "customers_processed.csv")
-            if os.path.exists(cust_parquet) and self.customers_df is None:
-                self.customers_df = pd.read_parquet(cust_parquet)
-                logger.info("Loaded curated customers dataset from Spark Parquet")
-            elif os.path.exists(cust_csv) and self.customers_df is None:
-                self.customers_df = pd.read_csv(cust_csv)
-
-            # Vehicles
-            veh_parquet = os.path.join(spark_dir, "vehicles_curated.parquet")
-            veh_csv = os.path.join(self._cache_dir, "vehicles_processed.csv")
-            if os.path.exists(veh_parquet) and self.vehicles_df is None:
-                self.vehicles_df = pd.read_parquet(veh_parquet)
-            elif os.path.exists(veh_csv) and self.vehicles_df is None:
-                self.vehicles_df = pd.read_csv(veh_csv)
-
-            # Locations
-            loc_parquet = os.path.join(spark_dir, "locations_curated.parquet")
-            loc_csv = os.path.join(self._cache_dir, "locations_processed.csv")
-            if os.path.exists(loc_parquet) and self.locations_df is None:
-                self.locations_df = pd.read_parquet(loc_parquet)
-            elif os.path.exists(loc_csv) and self.locations_df is None:
-                self.locations_df = pd.read_csv(loc_csv)
-
-            # Traffic
-            traf_parquet = os.path.join(spark_dir, "traffic_speeds_curated.parquet")
-            traf_csv = os.path.join(self._cache_dir, "traffic_processed.csv")
-            if os.path.exists(traf_parquet) and self.traffic_df is None:
-                self.traffic_df = pd.read_parquet(traf_parquet)
-            elif os.path.exists(traf_csv) and self.traffic_df is None:
-                self.traffic_df = pd.read_csv(traf_csv)
-
-            # Weather
-            wth_parquet = os.path.join(spark_dir, "weather_curated.parquet")
-            wth_csv = os.path.join(self._cache_dir, "weather_processed.csv")
-            if os.path.exists(wth_parquet) and self.weather_df is None:
-                self.weather_df = pd.read_parquet(wth_parquet)
-            elif os.path.exists(wth_csv) and self.weather_df is None:
-                self.weather_df = pd.read_csv(wth_csv)
-
-            # Load road graph pickle
-            for f in os.listdir(self._cache_dir):
-                if f.startswith("road_graph_") and f.endswith(".pickle") and self.road_graph is None:
-                    p = os.path.join(self._cache_dir, f)
-                    with open(p, "rb") as gf:
-                        self.road_graph = pickle.load(gf)
-                    break
-        except Exception as e:
-            logger.warning(f"Cache load warning: {e}")
+        """Manual cache reload helper."""
+        for ds in ("customers", "vehicles", "locations", "traffic", "weather"):
+            self._load_dataset_cache(ds)
 
 
     def process_customer_data(self, file_path: str, column_mapping: Dict[str, str] = None) -> Dict[str, Any]:

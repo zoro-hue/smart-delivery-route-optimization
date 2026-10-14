@@ -16,15 +16,29 @@ import numpy as np
 from loguru import logger
 
 
+_qiskit_check_cache: Optional[Tuple[bool, str]] = None
+
+
 def _check_qiskit_available() -> Tuple[bool, str]:
-    """Check if Qiskit is installed and which version/APIs are available."""
+    """Check if Qiskit is installed and which version/APIs are available without eager heavy module imports."""
+    global _qiskit_check_cache
+    if _qiskit_check_cache is not None:
+        return _qiskit_check_cache
+
     try:
-        import qiskit
-        version = qiskit.__version__
-        logger.info(f"Qiskit version: {version}")
-        return True, version
-    except ImportError:
-        return False, ""
+        import importlib.metadata
+        version = importlib.metadata.version("qiskit")
+        _qiskit_check_cache = (True, version)
+        return _qiskit_check_cache
+    except Exception:
+        try:
+            import qiskit
+            version = getattr(qiskit, "__version__", "unknown")
+            _qiskit_check_cache = (True, version)
+            return _qiskit_check_cache
+        except ImportError:
+            _qiskit_check_cache = (False, "")
+            return _qiskit_check_cache
 
 
 class QUBOFormulator:
