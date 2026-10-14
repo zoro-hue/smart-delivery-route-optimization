@@ -30,15 +30,20 @@ import { OptimizationResponse, VehicleRoute } from '../types';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 
-const createMapPin = (bg: string, border: string, text: string, textColor: string, glow = false) => {
-  return L.divIcon({
-    className: 'custom-map-pin',
-    html: `<div style="background-color: ${bg}; border: 2px solid ${border}; color: ${textColor}; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; box-shadow: ${glow ? '0 0 16px rgba(183, 255, 42, 0.6)' : '0 4px 12px rgba(0,0,0,0.3)'};">${text}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
+const getDepotIcon = (isDark: boolean) =>
+  L.divIcon({
+    className: 'custom-map-pin-depot',
+    html: `<div style="background-color: #B7FF2A; border: 2.5px solid ${
+      isDark ? '#000000' : '#080808'
+    }; color: #080808; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: ${
+      isDark
+        ? '0 0 24px rgba(183, 255, 42, 0.7), 0 4px 14px rgba(0,0,0,0.8)'
+        : '0 4px 16px rgba(0,0,0,0.35)'
+    };">D</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18],
   });
-};
 
 const LIGHT_ROUTE_COLORS = ['#080808', '#0284C7', '#7C3AED', '#EA580C', '#059669', '#DB2777'];
 const DARK_ROUTE_COLORS = ['#B7FF2A', '#00E5FF', '#FF6B00', '#E040FB', '#38BDF8', '#FACC15'];
@@ -71,14 +76,6 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const activeRouteColors = isDark ? DARK_ROUTE_COLORS : LIGHT_ROUTE_COLORS;
-
-  const depotIcon = createMapPin(
-    '#B7FF2A',
-    isDark ? '#000000' : '#080808',
-    'D',
-    '#080808',
-    isDark
-  );
 
   const createCustomerIcon = (index: number, isDark: boolean) => {
   return L.divIcon({
@@ -418,22 +415,27 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             />
             <MapResizer isActive={isActive} />
 
-            {/* Depot Pin */}
-            <Marker position={depotPos} icon={depotIcon}>
+            {/* Origin Depot Pin (Lime-Green 'D' marker with zIndexOffset to remain prominent) */}
+            <Marker position={depotPos} icon={getDepotIcon(isDark)} zIndexOffset={1000}>
               <Popup>
-                <div className="text-xs font-sans">
-                  <strong className="text-[#080808] dark:text-[#F5F5F7]">Origin Hub Depot (D)</strong>
-                  <br />
-                  <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
-                    {depotPos[0].toFixed(4)}, {depotPos[1].toFixed(4)}
+                <div className="text-xs font-sans space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#B7FF2A] ring-1 ring-black" />
+                    <strong className="text-[#080808] dark:text-white font-bold">Origin Depot Hub (D)</strong>
+                  </div>
+                  <p className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                    {depotPos[0].toFixed(6)}, {depotPos[1].toFixed(6)}
+                  </p>
+                  <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-black text-[#B7FF2A] font-bold">
+                    Route Dispatch Facility
                   </span>
                 </div>
               </Popup>
             </Marker>
 
-            {/* Customer Pins (Numbered 1, 2, 3...) */}
-            {result.problem?.locations?.map((loc, idx) => (
-              <Marker key={idx} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark)}>
+            {/* Customer Delivery Pins (Numbered 1, 2, 3... 18) - Skip index 0 which is the Origin Depot */}
+            {result.problem?.locations?.slice(1).map((loc, idx) => (
+              <Marker key={idx + 1} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark)}>
                 <Popup>
                   <div className="text-xs font-sans">
                     <strong className="text-[#080808] dark:text-[#F5F5F7]">Customer Delivery Stop #{idx + 1}</strong>
