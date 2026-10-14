@@ -1,12 +1,22 @@
 # ROUTE/IQ
 ### Smart Delivery Route Optimization using Hybrid Big Data + Quantum Computing
 
+> 🚀 **Live Production Deployment:**  
+> • **Frontend Web Application (Vercel):** [https://route-iq-frontend-nine.vercel.app/](https://route-iq-frontend-nine.vercel.app/)  
+> • **Backend API Server (Render):** [https://route-iq-backend.onrender.com](https://route-iq-backend.onrender.com/)  
+> • **Live System Health & Diagnostics:** [https://route-iq-backend.onrender.com/health](https://route-iq-backend.onrender.com/health)  
+> • **Interactive Swagger API Docs:** [https://route-iq-backend.onrender.com/docs](https://route-iq-backend.onrender.com/docs)  
+> • **GitHub Repository:** [https://github.com/zoro-hue/smart-delivery-route-optimization](https://github.com/zoro-hue/smart-delivery-route-optimization)
+
 > **Research Program:** Undergraduate Research Opportunity Program (UROP)  
 > **Institution:** Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh, India  
 > **Faculty Supervisor:** Dr. Vishnu Prasad Verma  
 > **Student Researchers:** J. Jayanth, B. Kaivalya, P. Shyam Sai  
 > **Primary Literature Survey Reference:** [`Our Research Papers/LITERATURE_SURVEY.pdf`](Our%20Research%20Papers/LITERATURE_SURVEY.pdf) (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*)
 
+[![Live Frontend](https://img.shields.io/badge/Live%20Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://route-iq-frontend-nine.vercel.app/)
+[![Live Backend](https://img.shields.io/badge/Live%20Backend-Render-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://route-iq-backend.onrender.com/)
+[![Health Check](https://img.shields.io/badge/Health%20Check-Passing%20200-22C55E?style=for-the-badge&logo=statuspage&logoColor=white)](https://route-iq-backend.onrender.com/health)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Apache Spark](https://img.shields.io/badge/Apache%20Spark-4.2.0-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)](https://spark.apache.org/)
@@ -381,6 +391,21 @@ npm install
 npm run dev
 ```
 *Application UI active at: `http://localhost:5173`*
+
+---
+
+### 🌐 Live Cloud Deployment
+
+ROUTE/IQ is deployed as a cloud architecture without requiring local setup:
+
+| Tier | Platform | Live URL | Description |
+| :--- | :--- | :--- | :--- |
+| **Frontend Web App** | Vercel | [https://route-iq-frontend-nine.vercel.app/](https://route-iq-frontend-nine.vercel.app/) | Production React 18 + Vite SPA with Leaflet maps, multi-algorithm workspace, scorecards, and live scenario controls. |
+| **Backend API Server** | Render | [https://route-iq-backend.onrender.com](https://route-iq-backend.onrender.com/) | FastAPI ASGI engine serving routing solvers, road network graph queries, and Parquet dataset management. |
+| **Health Probe** | Render | [https://route-iq-backend.onrender.com/health](https://route-iq-backend.onrender.com/health) | Container health monitor verifying Python 3.11, Qiskit 2.4.1, and SQLite database connectivity. |
+| **API Documentation** | Render | [https://route-iq-backend.onrender.com/docs](https://route-iq-backend.onrender.com/docs) | Interactive Swagger UI for testing API endpoints. |
+| **Datasets API** | Render | [https://route-iq-backend.onrender.com/api/datasets](https://route-iq-backend.onrender.com/api/datasets) | Access to all 6 registered NYC Open Data datasets. |
+| **Optimization API** | Render | [https://route-iq-backend.onrender.com/api/optimization/run](https://route-iq-backend.onrender.com/api/optimization/run) | Multi-solver dispatch supporting OR-Tools, Clarke-Wright, 2-opt, Dijkstra, A*, QAOA, and QIGA. |
 
 ---
 
