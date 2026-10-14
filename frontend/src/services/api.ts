@@ -74,6 +74,20 @@ export const api = {
     return res.data;
   },
 
+  reprocessDataset: async (datasetId: string) => {
+    try {
+      const res = await http.post(`/datasets/${datasetId}/reprocess`);
+      return res.data;
+    } catch {
+      try {
+        await http.post(`/datasets/${datasetId}/extract`);
+      } catch {}
+      await http.post(`/datasets/${datasetId}/validate`);
+      const proc = await http.post(`/datasets/${datasetId}/process`);
+      return proc.data;
+    }
+  },
+
   getPreview: async (datasetId: string, rows = 20) => {
     const res = await http.get(`/datasets/${datasetId}/preview?rows=${rows}`);
     return res.data;

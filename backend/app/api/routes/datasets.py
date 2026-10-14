@@ -110,7 +110,7 @@ async def seed_bundled_datasets(db: AsyncSession) -> List[dict]:
 
             file_size = os.path.getsize(file_path)
             file_hash = compute_file_hash(file_path)
-            dataset_id = str(uuid.uuid4())
+            dataset_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"routeiq-{item['type']}"))
             ext = Path(file_path).suffix.lower()
 
             schema = detect_file_schema(file_path)
@@ -407,6 +407,38 @@ async def extract_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)):
     file_path = os.path.join(upload_dir, dataset.original_filename)
 
     if not os.path.exists(file_path):
+        # Check alternative locations for bundled or already-present files
+        alt_paths = [
+            os.path.join(settings.RAW_DATA_DIR, dataset_id, dataset.original_filename),
+            os.path.join(settings.PROCESSED_DATA_DIR, dataset.original_filename),
+            os.path.join(settings.DATA_DIR, dataset.original_filename),
+            dataset.processed_file_path or "",
+        ]
+        for ap in alt_paths:
+            if ap and os.path.exists(ap):
+                file_path = ap
+                break
+
+    # If already marked extracted and files exist on disk, re-verify schemas and return
+    if not os.path.exists(file_path):
+        existing_extracted = [
+            ef for ef in (dataset.extracted_files or [])
+            if os.path.exists(ef.get("extracted_path", ""))
+        ]
+        if existing_extracted:
+            schemas = []
+            for ef in existing_extracted:
+                schema = detect_file_schema(ef["extracted_path"])
+                schemas.append({"file": ef["name"], "schema": schema})
+            dataset.detected_schema = schemas
+            dataset.extraction_status = "extracted"
+            await db.flush()
+            return {
+                "status": "extracted",
+                "extracted_count": len(existing_extracted),
+                "files": existing_extracted,
+                "schemas": schemas,
+            }
         raise HTTPException(404, "File not found on disk")
 
     extract_dir = os.path.join(settings.RAW_DATA_DIR, dataset_id)
@@ -417,7 +449,8 @@ async def extract_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)):
             extracted = safe_extract_zip(file_path, extract_dir)
         else:
             dest = os.path.join(extract_dir, dataset.original_filename)
-            shutil.copy2(file_path, dest)
+            if os.path.abspath(file_path) != os.path.abspath(dest):
+                shutil.copy2(file_path, dest)
             ext = Path(dataset.original_filename).suffix.lower()
             extracted = [{
                 "name": dataset.original_filename,
@@ -573,6 +606,34 @@ async def process_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(500, f"Processing failed: {str(e)}")
 
 
+@router.post("/{dataset_id}/reprocess")
+async def reprocess_dataset(dataset_id: str, db: AsyncSession = Depends(get_db)):
+    """Full atomic reprocess: extract if needed, validate, and process."""
+    dataset = await _get_dataset(dataset_id, db)
+
+    # 1. Ensure extracted
+    try:
+        await extract_dataset(dataset_id, db)
+    except Exception as e:
+        logger.warning(f"Reprocess extract step warning for {dataset_id}: {e}")
+
+    # 2. Validate
+    val_res = await validate_dataset_endpoint(dataset_id, db)
+
+    # 3. Process
+    proc_res = await process_dataset(dataset_id, db)
+
+    await db.commit()
+    await db.refresh(dataset)
+
+    return {
+        "status": "completed",
+        "dataset": _dataset_to_dict(dataset),
+        "validation": val_res,
+        "processing": proc_res,
+    }
+
+
 @router.get("/{dataset_id}/preview")
 async def preview_dataset(dataset_id: str, rows: int = 20, db: AsyncSession = Depends(get_db)):
     """Preview first N rows of extracted dataset files."""
@@ -583,12 +644,33 @@ async def preview_dataset(dataset_id: str, rows: int = 20, db: AsyncSession = De
 
     for ef in (dataset.extracted_files or []):
         file_path = ef.get("extracted_path", os.path.join(extract_dir, ef["name"]))
+        if not os.path.exists(file_path):
+            # Check alternative locations
+            for alt in [
+                os.path.join(settings.PROCESSED_DATA_DIR, ef["name"]),
+                os.path.join(settings.DATA_DIR, ef["name"]),
+                os.path.join(settings.RAW_DATA_DIR, dataset_id, ef["name"]),
+            ]:
+                if os.path.exists(alt):
+                    file_path = alt
+                    break
+
         if os.path.exists(file_path):
             previews[ef["name"]] = get_preview_data(file_path, rows)
 
     # Fallback to processed_file_path if extracted files not found on disk
-    if not previews and dataset.processed_file_path and os.path.exists(dataset.processed_file_path):
-        previews[os.path.basename(dataset.processed_file_path)] = get_preview_data(dataset.processed_file_path, rows)
+    if not previews and dataset.processed_file_path:
+        p_path = dataset.processed_file_path
+        if not os.path.exists(p_path):
+            for alt in [
+                os.path.join(settings.PROCESSED_DATA_DIR, os.path.basename(p_path)),
+                os.path.join(settings.DATA_DIR, os.path.basename(p_path)),
+            ]:
+                if os.path.exists(alt):
+                    p_path = alt
+                    break
+        if os.path.exists(p_path):
+            previews[os.path.basename(p_path)] = get_preview_data(p_path, rows)
 
     return {"dataset_id": dataset_id, "previews": previews}
 

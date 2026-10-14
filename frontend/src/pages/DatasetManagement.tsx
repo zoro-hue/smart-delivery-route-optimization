@@ -47,6 +47,12 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
     data: any;
     filename: string;
   } | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+  const [reprocessingId, setReprocessingId] = useState<string | null>(null);
+  const [actionNotification, setActionNotification] = useState<{
+    message: string;
+    type: 'success' | 'error';
+  } | null>(null);
   const [mappingModal, setMappingModal] = useState<{
     dataset: Dataset;
     schemaCols: string[];
@@ -91,27 +97,59 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
   };
 
   const handlePreview = async (dataset: Dataset) => {
+    if (activePreview?.id === dataset.id) {
+      setActivePreview(null);
+      return;
+    }
+
+    setPreviewLoadingId(dataset.id);
     try {
       const res = await api.getPreview(dataset.id, 20);
       const filename = Object.keys(res.previews || {})[0] || dataset.original_filename;
+      const previewData = res.previews?.[filename] || { columns: [], rows: [] };
       setActivePreview({
         id: dataset.id,
         filename,
-        data: res.previews[filename] || { columns: [], rows: [] },
+        data: previewData,
       });
+      setTimeout(() => {
+        const el = document.getElementById('dataset-preview-panel');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
     } catch (err: any) {
-      alert(`Preview failed: ${err.message}`);
+      console.error('Preview failed:', err);
+      setActionNotification({
+        message: `Preview failed: ${err.response?.data?.detail || err.message}`,
+        type: 'error',
+      });
+      setTimeout(() => setActionNotification(null), 4000);
+    } finally {
+      setPreviewLoadingId(null);
     }
   };
 
   const handleReprocess = async (id: string) => {
+    if (reprocessingId) return;
+    setReprocessingId(id);
     try {
-      await api.extractDataset(id);
-      await api.validateDataset(id);
-      await api.processDataset(id);
-      onRefresh();
+      await api.reprocessDataset(id);
+      await onRefresh();
+      setActionNotification({
+        message: 'Dataset reprocessed and validated successfully.',
+        type: 'success',
+      });
+      setTimeout(() => setActionNotification(null), 3500);
     } catch (err: any) {
-      alert(`Reprocess failed: ${err.message}`);
+      console.error('Reprocess failed:', err);
+      setActionNotification({
+        message: `Reprocess failed: ${err.response?.data?.detail || err.message}`,
+        type: 'error',
+      });
+      setTimeout(() => setActionNotification(null), 4000);
+    } finally {
+      setReprocessingId(null);
     }
   };
 
@@ -187,6 +225,26 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Action Notification Banner */}
+      {actionNotification && (
+        <div
+          className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all ${
+            actionNotification.type === 'success'
+              ? 'bg-[#B7FF00]/15 border border-[#B7FF00]/30 text-[#080808] dark:text-[#B7FF00]'
+              : 'bg-red-500/15 border border-red-500/30 text-red-500'
+          }`}
+        >
+          <span>{actionNotification.message}</span>
+          <button
+            type="button"
+            onClick={() => setActionNotification(null)}
+            className="text-xs font-bold opacity-70 hover:opacity-100 cursor-pointer ml-3 px-2 py-0.5 rounded"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Upload Box */}
       <div className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-2xl p-6 shadow-sm">
@@ -312,7 +370,14 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
               </thead>
               <tbody className="divide-y divide-black/5 dark:divide-[#29292E]/60 font-normal">
                 {datasets.map((d) => (
-                  <tr key={d.id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
+                  <tr
+                    key={d.id}
+                    className={`transition-colors ${
+                      activePreview?.id === d.id
+                        ? 'bg-[#B7FF00]/10 dark:bg-[#B7FF00]/15 border-l-4 border-l-[#B7FF00]'
+                        : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+                    }`}
+                  >
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
                         <div className="h-7 w-7 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#A1A1AA] flex items-center justify-center shrink-0">
@@ -374,20 +439,40 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
                         {d.processing_status}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-right space-x-1.5">
+                    <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
                       <button
-                        onClick={() => handlePreview(d)}
-                        className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white rounded-lg transition-all cursor-pointer"
-                        title="Preview Records"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePreview(d);
+                        }}
+                        disabled={previewLoadingId === d.id}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                          activePreview?.id === d.id
+                            ? 'bg-[#B7FF00] text-black shadow-xs'
+                            : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white'
+                        }`}
+                        title={activePreview?.id === d.id ? 'Close Preview' : 'Preview Records'}
                       >
-                        <Eye className="h-4 w-4" />
+                        {previewLoadingId === d.id ? (
+                          <RefreshCw className="h-4 w-4 animate-spin text-[#080808] dark:text-[#F5F5F7]" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </button>
                       <button
-                        onClick={() => handleReprocess(d.id)}
-                        className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white rounded-lg transition-all cursor-pointer"
-                        title="Reprocess"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReprocess(d.id);
+                        }}
+                        disabled={reprocessingId === d.id}
+                        className={`p-1.5 hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 ${
+                          reprocessingId === d.id ? 'text-[#B7FF00]' : ''
+                        }`}
+                        title="Reprocess & Validate Dataset"
                       >
-                        <RefreshCw className="h-4 w-4" />
+                        <RefreshCw className={`h-4 w-4 ${reprocessingId === d.id ? 'animate-spin' : ''}`} />
                       </button>
                       <button
                         type="button"
@@ -412,28 +497,40 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
 
       {/* Row Preview Panel */}
       {activePreview && (
-        <div className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-2xl p-6 shadow-sm">
+        <div
+          id="dataset-preview-panel"
+          className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-2xl p-6 shadow-sm scroll-mt-6"
+        >
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Table className="h-4 w-4 text-[#B7FF00]" />
               <h3 className="text-sm font-bold text-[#080808] dark:text-[#F5F5F7]">
-                Data Preview: {activePreview.filename} (First 20 Records)
+                Data Preview: {activePreview.filename}
               </h3>
+              {activePreview.data.rows && (
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-black/5 dark:bg-[#1f1f23] text-[#777777] dark:text-[#A1A1AA]">
+                  {activePreview.data.rows.length} preview rows &times; {(activePreview.data.columns || []).length} columns
+                </span>
+              )}
             </div>
             <button
               onClick={() => setActivePreview(null)}
-              className="text-xs text-[#777777] dark:text-[#A1A1AA] hover:text-black dark:hover:text-white cursor-pointer font-bold"
+              className="text-xs text-[#777777] dark:text-[#A1A1AA] hover:text-black dark:hover:text-white cursor-pointer font-bold px-2.5 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
             >
               Close Preview
             </button>
           </div>
 
-          {activePreview.data.rows && activePreview.data.rows.length > 0 ? (
+          {activePreview.data.error ? (
+            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs">
+              Preview Error: {activePreview.data.error}
+            </div>
+          ) : activePreview.data.rows && activePreview.data.rows.length > 0 ? (
             <div className="overflow-x-auto max-h-80 border border-black/10 dark:border-[#29292E] rounded-xl">
               <table className="w-full text-left text-xs">
                 <thead className="bg-black/[0.03] dark:bg-[#17171A] border-b border-black/10 dark:border-[#29292E] text-[#777777] dark:text-[#A1A1AA] sticky top-0">
                   <tr>
-                    {activePreview.data.columns.map((c: string) => (
+                    {(activePreview.data.columns || []).map((c: string) => (
                       <th key={c} className="py-2 px-3 text-[11px] font-bold whitespace-nowrap">
                         {c}
                       </th>
@@ -443,7 +540,7 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
                 <tbody className="divide-y divide-black/5 dark:divide-[#29292E]/60 text-[#171717] dark:text-[#F5F5F7]">
                   {activePreview.data.rows.map((row: any, i: number) => (
                     <tr key={i} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
-                      {activePreview.data.columns.map((c: string) => (
+                      {(activePreview.data.columns || []).map((c: string) => (
                         <td key={c} className="py-2 px-3 whitespace-nowrap text-[11px] font-mono">
                           {String(row[c] !== undefined && row[c] !== null ? row[c] : '')}
                         </td>
