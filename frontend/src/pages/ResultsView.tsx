@@ -482,21 +482,21 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </MapContainer>
 
           {/* Floating Map Legend Overlay */}
-          <div className="absolute bottom-4 left-4 glass-overlay dark:bg-[#18181B]/90 dark:border-[#29292E] dark:text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg">
+          <div className="absolute bottom-4 left-4 glass-overlay bg-white/80 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg backdrop-blur-xl">
             <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">Legend:</span>
-            <span className="flex items-center gap-1.5 font-medium">
+            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
               <span className="h-3 w-3 rounded-full bg-[#B7FF00] border border-black flex items-center justify-center text-[7px] font-bold text-black">
                 D
               </span>
               <span>Origin Hub</span>
             </span>
-            <span className="flex items-center gap-1.5 font-medium">
+            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
               <span className="h-3 w-3 rounded-full bg-[#080808] dark:bg-[#141418] border border-white dark:border-[#B7FF00] flex items-center justify-center text-[7px] font-bold text-white dark:text-[#B7FF00]">
                 #
               </span>
               <span>Customer Stops (1, 2, 3...)</span>
             </span>
-            <span className="flex items-center gap-1.5 font-medium">
+            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
               <span className="px-1.5 py-0.5 rounded-full bg-[#080808] text-[#B7FF00] border border-[#B7FF00] text-[9px] font-technical font-bold">
                 V1..Vn
               </span>

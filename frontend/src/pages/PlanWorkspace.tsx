@@ -948,11 +948,14 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         {executionResponse && !isRunning && (
           <button
             onClick={onNavigateToResults}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#B7FF2A] hover:bg-[#a4f01d] text-[#080808] rounded-full text-xs font-heading font-bold shadow-xl transition-all cursor-pointer border border-black/10"
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-[#B7FF2A] hover:bg-[#a4f01d] text-black dark:text-black dark:!text-black rounded-full text-xs font-heading font-bold shadow-xl transition-all cursor-pointer border border-black/10"
+            style={{ color: '#080808' }}
             title="Inspect computed solution in the Results tab"
           >
-            <span>View Solution in Results</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <span className="text-black dark:text-black dark:!text-black" style={{ color: '#080808' }}>
+              View Solution in Results
+            </span>
+            <ArrowRight className="h-3.5 w-3.5 text-black dark:text-black dark:!text-black" style={{ color: '#080808' }} />
           </button>
         )}
 
