@@ -322,22 +322,31 @@ class DataProcessor:
         """Process GraphML road network (from archive(5).zip)."""
         logger.info(f"Processing road network from {file_path}")
         try:
-            import networkx as nx
-            G = nx.read_graphml(file_path)
+            from app.services.road_network_service import road_network_service
+            if road_network_service.is_ready() and road_network_service.G is not None:
+                G = road_network_service.G
+            else:
+                pickle_path = os.path.join(self._cache_dir, "road_graph_newyork.pickle")
+                if os.path.exists(pickle_path):
+                    with open(pickle_path, 'rb') as f:
+                        G = pickle.load(f)
+                else:
+                    import networkx as nx
+                    G = nx.read_graphml(file_path)
 
             node_count = G.number_of_nodes()
             edge_count = G.number_of_edges()
 
-            # Extract node coordinates
+            # Extract node coordinates sample
             nodes_with_coords = 0
-            for node, data in G.nodes(data=True):
+            for node, data in list(G.nodes(data=True))[:100]:
                 if 'x' in data and 'y' in data:
                     nodes_with_coords += 1
 
-            # Extract edge attributes
+            # Extract edge attributes sample
             edge_attrs = set()
             edge_lengths = []
-            for u, v, data in G.edges(data=True):
+            for u, v, data in list(G.edges(data=True))[:200]:
                 edge_attrs.update(data.keys())
                 if 'length' in data:
                     try:
@@ -347,10 +356,11 @@ class DataProcessor:
 
             self.road_graph = G
 
-            # Cache the graph
+            # Cache the graph if needed
             cache_path = os.path.join(self._cache_dir, f"road_graph_{Path(file_path).stem}.pickle")
-            with open(cache_path, 'wb') as f:
-                pickle.dump(G, f)
+            if not os.path.exists(cache_path):
+                with open(cache_path, 'wb') as f:
+                    pickle.dump(G, f)
 
             return {
                 "node_count": node_count,

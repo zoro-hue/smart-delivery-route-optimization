@@ -201,25 +201,28 @@ class RoadNetworkService:
             logger.error("No valid NYC road graph found! Please ensure road_graph_newyork.pickle.gz exists.")
             return
 
-        # Prepare node lists and spatial index on the strongly connected component
-        try:
-            sccs = list(nx.strongly_connected_components(self.G))
-            largest_scc = max(sccs, key=len) if sccs else set(self.G.nodes())
-            self.nodes_list = list(largest_scc)
-        except Exception:
-            self.nodes_list = list(self.G.nodes())
-
-        self.node_coords = []
-        for n in self.nodes_list:
+        # Prepare node lists and spatial index without heavy SCC recursion
+        self.nodes_list = list(self.G.nodes())
+        coords_arr = np.zeros((len(self.nodes_list), 2), dtype=np.float32)
+        for i, n in enumerate(self.nodes_list):
             d = self.G.nodes[n]
-            lat = float(d.get("y", 0.0))
-            lon = float(d.get("x", 0.0))
-            self.node_coords.append((lat, lon))
+            coords_arr[i, 0] = float(d.get("y", 0.0))
+            coords_arr[i, 1] = float(d.get("x", 0.0))
 
-        self.tree = cKDTree(self.node_coords)
+        self.node_coords = coords_arr
+        self.tree = cKDTree(coords_arr)
         self.G_undir = self.G.to_undirected(as_view=True)
         self._is_loaded = True
-        logger.info(f"RoadNetworkService initialized: {len(self.nodes_list)} strongly connected nodes indexed in KD-Tree.")
+        logger.info(f"RoadNetworkService initialized: {len(self.nodes_list)} nodes indexed in KD-Tree.")
+
+        # Release temporary allocation overhead back to OS
+        import gc
+        gc.collect()
+        try:
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass
 
     def is_ready(self) -> bool:
         if not self._is_loaded:
@@ -238,7 +241,8 @@ class RoadNetworkService:
         # Approx distance in km: 1 deg lat ~ 111 km
         dist_km = float(dist_deg * 111.0)
         node_id = self.nodes_list[idx]
-        snapped_lat, snapped_lon = self.node_coords[idx]
+        snapped_lat = float(self.node_coords[idx, 0])
+        snapped_lon = float(self.node_coords[idx, 1])
 
         if dist_km > max_dist_km:
             msg = f"Coordinate ({lat:.4f}, {lon:.4f}) is {dist_km:.2f}km away from nearest road node {node_id}"
@@ -277,7 +281,7 @@ class RoadNetworkService:
             except Exception as e:
                 warnings.append(f"Failed to snap stop #{idx}: {e}")
                 snapped_nodes.append(self.nodes_list[0])
-                snapped_coords.append(self.node_coords[0])
+                snapped_coords.append((float(self.node_coords[0, 0]), float(self.node_coords[0, 1])))
 
         cost_matrix = np.zeros((n, n), dtype=np.float64)
         physical_matrix = np.zeros((n, n), dtype=np.float64)
