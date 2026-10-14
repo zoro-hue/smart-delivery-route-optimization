@@ -751,6 +751,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         weight_distance: Number(weightDistance),
         weight_travel_time: Number(weightTime),
         traffic_scenario: trafficScenario,
+        classical_time_limit_sec: 4,
         qaoa_depth: Number(qaoaDepth),
         qaoa_shots: Number(qaoaShots),
         custom_customers: activeStops.map((s) => ({
