@@ -5,7 +5,7 @@
 > **Institution:** Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh, India  
 > **Faculty Supervisor:** Dr. Vishnu Prasad Verma  
 > **Student Researchers:** J. Jayanth, B. Kaivalya, P. Shyam Sai  
-> **Primary Literature Survey Reference:** `LITERATURE_SURVEY (4).pdf` (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*)
+> **Primary Literature Survey Reference:** [`Our Research Papers/LITERATURE_SURVEY.pdf`](Our%20Research%20Papers/LITERATURE_SURVEY.pdf) (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*)
 
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -54,7 +54,7 @@ The objective of this project is to evaluate the viability, algorithmic trade-of
 
 ## 🔬 Research Gaps and Project Contributions
 
-The research framework of ROUTE/IQ is grounded in our literature survey, `LITERATURE_SURVEY (4).pdf` (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*, SRM University-AP), supported by the primary literature corpus in `Research Papers/`.
+The research framework of ROUTE/IQ is grounded in our literature survey, [`Our Research Papers/LITERATURE_SURVEY.pdf`](Our%20Research%20Papers/LITERATURE_SURVEY.pdf) (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*, SRM University-AP), supported by the primary literature corpus of external reference papers in `Research Papers/`.
 
 ### Literature Observations vs. ROUTE/IQ Implementation
 
@@ -119,8 +119,8 @@ Two authentic video assets power the dynamic visualization and 3D telemetry with
 
 | 1. Dynamic Fleet Telemetry & Route Simulation | 2. 3D Holographic Quantum Logistics Cube |
 | :---: | :---: |
-| <video src="docs/assets/videos/01_dashboard_fleet_telemetry_simulation.mp4" controls width="100%" poster="docs/assets/screenshots/01_dashboard.png">Your browser does not support the video tag. [Download Simulation MP4](docs/assets/videos/01_dashboard_fleet_telemetry_simulation.mp4)</video> | <video src="docs/assets/videos/02_holographic_quantum_logistics_cube.mp4" controls width="100%" poster="frontend/public/logo.png">Your browser does not support the video tag. [Download 3D Cube MP4](docs/assets/videos/02_holographic_quantum_logistics_cube.mp4)</video> |
-| *Live simulated route progress, real-time vehicular telemetry, and active corridor tracking integrated into the overview dashboard.*<br/>🎥 **[Direct Link: Fleet Telemetry Video (MP4)](docs/assets/videos/01_dashboard_fleet_telemetry_simulation.mp4)** | *Rotating 3D quantum holographic logistics route cube integrated into the dashboard hero banner.*<br/>🎥 **[Direct Link: Holographic Cube Video (MP4)](docs/assets/videos/02_holographic_quantum_logistics_cube.mp4)** |
+| <video src="frontend/public/delivery_route_preview.mp4" controls width="100%" poster="docs/assets/screenshots/01_dashboard.png">Your browser does not support the video tag. [Download Simulation MP4](frontend/public/delivery_route_preview.mp4)</video> | <video src="frontend/public/cube.mp4" controls width="100%" poster="frontend/public/logo.png">Your browser does not support the video tag. [Download 3D Cube MP4](frontend/public/cube.mp4)</video> |
+| *Live simulated route progress, real-time vehicular telemetry, and active corridor tracking integrated into the overview dashboard.*<br/>🎥 **[Direct Link: Fleet Telemetry Video (MP4)](frontend/public/delivery_route_preview.mp4)** | *Rotating 3D quantum holographic logistics route cube integrated into the dashboard hero banner.*<br/>🎥 **[Direct Link: Holographic Cube Video (MP4)](frontend/public/cube.mp4)** |
 
 ---
 
@@ -443,13 +443,17 @@ smart-delivery-route-optimization/
 │   │       └── spark_output/              # 5 Curated Parquet datasets
 │   ├── tests/                   # Automated pytest integration and regression test suite
 │   └── tools/                   # Pre-bundled OpenJDK 17 JRE and Hadoop Winutils
+├── Our Research Papers/         # Dedicated folder for research papers authored by our project team
+│   └── LITERATURE_SURVEY.pdf    # Our UROP literature survey on hybrid Big Data & quantum routing
+├── Research Papers/             # External reference papers reviewed during literature survey
 ├── frontend/
 │   ├── .env.example             # Frontend environment template (VITE_API_URL)
 │   ├── vercel.json              # Vercel SPA routing rewrite rules
 │   ├── public/
 │   │   ├── _redirects           # Netlify SPA rewrite rules
 │   │   ├── cube.mp4             # 3D holographic hero cube asset
-│   │   └── delivery_route_preview.mp4 # Telemetry simulation asset
+│   │   ├── delivery_route_preview.mp4 # Telemetry simulation asset
+│   │   └── papers/              # Served research documents and survey PDF
 │   └── src/
 │       ├── components/Map/      # Interactive Leaflet map and route polyline layers
 │       ├── pages/               # PlanWorkspace, DatasetsView, ExperimentsView
@@ -457,8 +461,7 @@ smart-delivery-route-optimization/
 │       └── utils/geoValidation.ts # Client-side 5-borough coordinate validation
 ├── docs/
 │   └── assets/
-│       ├── screenshots/         # Genuine UI screenshots embedded in README
-│       └── videos/              # Dashboard telemetry & 3D hero cube video demonstrations
+│       └── screenshots/         # Genuine UI screenshots embedded in README
 └── README.md                    # Project documentation
 ```
 
@@ -468,14 +471,19 @@ smart-delivery-route-optimization/
 
 This project implements the theoretical framework, research gaps, and taxonomy established in our UROP literature survey:
 
+### Our Research Papers (`Our Research Papers/`)
+*Dedicated repository directory for research papers authored by our project team:*
+
 > **A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization**  
-> *J. Jayanth, B. Kaivalya, P. Shyam Sai, and Prof. Vishnu Prasad Varma*  
+> *J. Jayanth, B. Kaivalya, P. Shyam Sai, and Dr. Vishnu Prasad Verma*  
 > Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh, India.  
-> Document references: `LITERATURE_SURVEY (4).pdf` and `paper_preview.pdf`.
+> Document file: [`Our Research Papers/LITERATURE_SURVEY.pdf`](Our%20Research%20Papers/LITERATURE_SURVEY.pdf)  
+> *(Undergraduate Research Opportunity Program literature survey manuscript)*
 
-### Comprehensive Primary Literature References
+---
 
-The following foundational research papers from `Research Papers/` directly ground our survey analysis and system architecture:
+### External Reference Literature (`Research Papers/`)
+*The following foundational research papers from `Research Papers/` were reviewed during our literature survey and directly inform our understanding of vehicle routing, quantum optimization, and Big Data in intelligent transportation:*
 
 1. **Chen (2020):** Y.-H. Chen, *"Intelligent algorithms for cold chain logistics distribution optimization based on big data cloud computing analysis,"* *Journal of Cloud Computing*, Vol. 9, Art. 37, 2020. [DOI: 10.1186/s13677-020-00174-x](https://doi.org/10.1186/s13677-020-00174-x).
 2. **Zheng (2019):** S. Zheng, *"Solving vehicle routing problem: A Big Data analytic approach,"* *IEEE Access*, Vol. 7, pp. 169565–169570, 2019. [DOI: 10.1109/ACCESS.2019.2955250](https://doi.org/10.1109/ACCESS.2019.2955250).
