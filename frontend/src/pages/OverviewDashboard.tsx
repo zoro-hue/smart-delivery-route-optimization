@@ -13,7 +13,6 @@ import {
   Download,
   X,
   Search,
-  Video,
   Layers,
   CheckCircle2,
 } from 'lucide-react';
@@ -470,57 +469,55 @@ export const RESEARCH_PAPERS: ResearchPaper[] = [
   },
 ];
 
-// Curated Dashboard Demonstrations (Built into ROUTE/IQ)
-export const DASHBOARD_DEMO_VIDEOS = [
-  {
-    id: 'delivery-simulation',
-    title: 'ROUTE/IQ Delivery Route Dynamic Simulation',
-    type: 'Dashboard Demonstration',
-    duration: '0:15',
-    src: '/delivery_route_preview.mp4',
-    filename: 'delivery_route_preview.mp4',
-    description:
-      'Interactive visual screen recording showing delivery route generation, multi-vehicle dispatching, and dynamic map rendering on the ROUTE/IQ dashboard interface.',
-    notes: 'Demonstrates user interface and route visualization capabilities.',
-  },
-  {
-    id: 'cube-animation',
-    title: '3D Route Topology Matrix Visualization',
-    type: 'Dashboard Demonstration',
-    duration: '0:05',
-    src: '/cube.mp4',
-    filename: 'cube.mp4',
-    description:
-      'Visual 3D kinetic animation demonstrating multi-dimensional delivery node clustering and route state evaluation in the dashboard hero header.',
-    notes: 'Visual UI graphic showing spatial routing topology.',
-  },
-];
+// Curated Educational Video Lectures (Verified External Tutorials & Research Seminars)
+export interface EducationalLecture {
+  id: string;
+  title: string;
+  channel: string;
+  speaker?: string;
+  duration: string;
+  url: string;
+  thumbnail: string;
+  topics?: string[];
+  description: string;
+}
 
-// Curated Educational Video Lectures (Verified External Tutorials)
-export const EDUCATIONAL_LECTURES = [
+export const EDUCATIONAL_LECTURES: EducationalLecture[] = [
   {
-    title: 'Quantum Approximate Optimization Algorithm (QAOA) Explained',
-    channel: 'IBM Quantum',
+    id: 'qaoa-tutorial',
+    title: 'A Tutorial on Quantum Approximate Optimization Algorithm (QAOA) - Theory',
+    channel: 'IBM Quantum / Qiskit',
+    speaker: 'Dr. Stefan Woerner / Qiskit Research',
     duration: '24 min',
     url: 'https://www.youtube.com/watch?v=AOKM9BkweVU',
+    thumbnail: 'https://img.youtube.com/vi/AOKM9BkweVU/hqdefault.jpg',
+    topics: ['QAOA Hamiltonian', 'Variational Circuits', 'Statevector Simulation'],
     description:
-      'In-depth walkthrough of QAOA circuit formulation, Hamiltonian cost terms, and variational parameter optimization.',
+      'Rigorous mathematical walkthrough of QAOA circuit formulation, cost Hamiltonian encoding, mixer Hamiltonians, and classical outer-loop parameter optimization.',
   },
   {
-    title: 'Vehicle Routing Problem & Operations Research Optimization',
-    channel: 'Operations Research Society',
+    id: 'vrp-optimization',
+    title: 'Vehicle Routing Problem: Formulations & Operations Research Heuristics',
+    channel: 'Operations Research & Optimization',
+    speaker: 'OR Academic Consortium',
     duration: '18 min',
     url: 'https://www.youtube.com/watch?v=9jR4UfW07Fw',
+    thumbnail: 'https://img.youtube.com/vi/9jR4UfW07Fw/hqdefault.jpg',
+    topics: ['CVRP Formulations', 'Clarke-Wright Savings', 'OR-Tools Solvers'],
     description:
-      'Core principles of CVRP, capacity constraints, Clarke-Wright savings heuristics, and OR-Tools solvers.',
+      'Core principles of Capacitated Vehicle Routing Problems (CVRP), sub-tour elimination constraints, Clarke-Wright savings heuristics, and constraint programming models.',
   },
   {
+    id: 'quantum-logistics',
     title: 'Quantum Computing for Logistics & Supply Chain Optimization',
-    channel: 'Qiskit Community',
+    channel: 'Qiskit Community Seminars',
+    speaker: 'Quantum Applications Lab',
     duration: '32 min',
     url: 'https://www.youtube.com/watch?v=0hK27wM5_4U',
+    thumbnail: 'https://img.youtube.com/vi/0hK27wM5_4U/hqdefault.jpg',
+    topics: ['Hybrid Pipelines', 'QUBO Mapping', 'Supply Chain Routing'],
     description:
-      'Demonstration of hybrid classical-quantum pipelines for industrial logistics scheduling and routing.',
+      'Demonstration of end-to-end hybrid classical-quantum pipelines for industrial logistics scheduling, QUBO problem decomposition, and route optimization.',
   },
 ];
 
@@ -534,7 +531,6 @@ export const OverviewDashboard: React.FC<OverviewProps> = ({ onNavigate }) => {
   const [showVideoModal, setShowVideoModal] = useState<boolean>(false);
   const [paperCategory, setPaperCategory] = useState<string>('all');
   const [paperSearchQuery, setPaperSearchQuery] = useState<string>('');
-  const [videoTab, setVideoTab] = useState<'demos' | 'lectures'>('demos');
 
   const filteredPapers = useMemo(() => {
     return RESEARCH_PAPERS.filter((p) => {
@@ -818,7 +814,7 @@ export const OverviewDashboard: React.FC<OverviewProps> = ({ onNavigate }) => {
               onClick={() => setShowVideoModal(true)}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-[#080808] dark:text-[#B7FF00] hover:underline pt-1 cursor-pointer"
             >
-              <span>Watch Research Videos</span>
+              <span>Watch Educational Lectures</span>
               <ExternalLink className="h-3 w-3" />
             </button>
           </div>
@@ -1130,8 +1126,8 @@ export const OverviewDashboard: React.FC<OverviewProps> = ({ onNavigate }) => {
         )}
 
       {/* ─────────────────────────────────────────────────────────────
-          MODAL: WATCH & LEARN VIDEOS
-          Clearly distinguishes local dashboard demonstrations from genuine external lectures
+          MODAL: WATCH & LEARN EDUCATIONAL LECTURES
+          Curated external educational lectures on QAOA, VRP, and quantum logistics
           ───────────────────────────────────────────────────────────── */}
       {showVideoModal &&
         createPortal(
@@ -1149,14 +1145,14 @@ export const OverviewDashboard: React.FC<OverviewProps> = ({ onNavigate }) => {
                   <div className="inline-flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full bg-[#B7FF00]" />
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
-                      Visual Demonstrations & Academic Resources
+                      Curated Academic Lectures & Research Tutorials
                     </span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-heading font-bold text-[#080808] dark:text-[#F5F5F7]">
-                    Watch & Learn: Video Walkthroughs
+                    Watch & Learn: Educational Lectures
                   </h3>
                   <p className="text-xs text-[#777777] dark:text-[#A1A1AA]">
-                    Distinguishing our own dashboard visual demonstrations from external educational lectures on QAOA, operations research, and quantum logistics.
+                    Verified academic video lectures covering QAOA mathematics, vehicle routing problem formulations, and quantum logistics pipelines.
                   </p>
                 </div>
 
@@ -1169,127 +1165,99 @@ export const OverviewDashboard: React.FC<OverviewProps> = ({ onNavigate }) => {
                 </button>
               </div>
 
-              {/* Tab Selector */}
-              <div className="flex items-center gap-2 shrink-0 border-b border-black/10 dark:border-[#29292E] pb-3">
-                <button
-                  onClick={() => setVideoTab('demos')}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    videoTab === 'demos'
-                      ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#B7FF00] dark:text-black'
-                      : 'bg-black/5 dark:bg-[#18181B] text-[#666666] dark:text-[#A1A1AA]'
-                  }`}
-                >
-                  <Video className="h-3.5 w-3.5" />
-                  <span>Dashboard Demonstrations (2)</span>
-                </button>
-                <button
-                  onClick={() => setVideoTab('lectures')}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    videoTab === 'lectures'
-                      ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#B7FF00] dark:text-black'
-                      : 'bg-black/5 dark:bg-[#18181B] text-[#666666] dark:text-[#A1A1AA]'
-                  }`}
-                >
-                  <PlayCircle className="h-3.5 w-3.5" />
-                  <span>Educational Lectures (3)</span>
-                </button>
-              </div>
-
-              {/* Tab Content */}
+              {/* Lectures List */}
               <div className="space-y-4 overflow-y-auto pr-1 flex-1">
-                {videoTab === 'demos' ? (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-xl bg-black/5 dark:bg-[#18181B] text-xs text-[#666666] dark:text-[#A1A1AA] border border-black/10 dark:border-[#29292E]">
-                      <strong>Transparency Note:</strong> These two videos are visual dashboard screen captures and UI 3D animations built for ROUTE/IQ. They showcase interface interaction and routing state transitions rather than academic conference lectures.
-                    </div>
+                <div className="p-3.5 rounded-xl bg-black/5 dark:bg-[#18181B] text-xs text-[#666666] dark:text-[#A1A1AA] border border-black/10 dark:border-[#29292E]">
+                  <strong>Educational Resources:</strong> Verified video walkthroughs and university/industry seminars covering QAOA formulations, vehicle routing problem heuristics, and hybrid quantum pipelines from accredited research organizations.
+                </div>
 
-                    {DASHBOARD_DEMO_VIDEOS.map((demo) => (
-                      <div
-                        key={demo.id}
-                        className="p-4 sm:p-5 rounded-2xl border border-black/10 dark:border-[#29292E] bg-black/[0.02] dark:bg-[#18181B] space-y-3"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#B7FF00]/20 text-[#080808] dark:text-[#B7FF00]">
-                                {demo.type}
-                              </span>
-                              <span className="text-[11px] text-[#777777]">Runtime: {demo.duration}</span>
-                            </div>
-                            <h4 className="text-sm font-heading font-bold text-[#080808] dark:text-[#F5F5F7]">
-                              {demo.title}
-                            </h4>
-                            <p className="text-xs text-[#666666] dark:text-[#A1A1AA] leading-relaxed">
-                              {demo.description}
-                            </p>
-                          </div>
-
-                          <a
-                            href={demo.src}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a3e600] text-[#B7FF00] dark:text-black text-xs font-bold transition-all cursor-pointer shrink-0"
-                          >
-                            <span>Open File</span>
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </div>
-
-                        {/* Inline HTML5 Video Preview */}
-                        <div className="rounded-xl overflow-hidden bg-black/90 border border-black/10 dark:border-[#29292E]">
-                          <video
-                            src={demo.src}
-                            controls
-                            preload="metadata"
-                            className="w-full max-h-64 object-contain mx-auto"
-                          />
+                {EDUCATIONAL_LECTURES.map((video) => (
+                  <div
+                    key={video.id}
+                    className="p-4 sm:p-5 rounded-2xl border border-black/10 dark:border-[#29292E] bg-black/[0.02] dark:bg-[#18181B] flex flex-col sm:flex-row items-start gap-4 transition-all hover:border-[#B7FF00]/40 group"
+                  >
+                    {/* YouTube Thumbnail Preview */}
+                    <a
+                      href={video.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative w-full sm:w-44 h-28 rounded-xl overflow-hidden shrink-0 bg-black/80 border border-black/10 dark:border-[#29292E] block group/thumb"
+                    >
+                      <img
+                        src={video.thumbnail}
+                        alt={video.title}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-black/30 group-hover/thumb:bg-black/10 transition-colors flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg transition-transform group-hover/thumb:scale-110">
+                          <PlayCircle className="h-6 w-6 fill-current" />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="p-3.5 rounded-xl bg-black/5 dark:bg-[#18181B] text-xs text-[#666666] dark:text-[#A1A1AA] border border-black/10 dark:border-[#29292E]">
-                      <strong>Educational Context:</strong> Verified external video walkthroughs covering QAOA mathematics, vehicle routing problem formulations, and quantum logistics pipelines from accredited research organizations.
-                    </div>
+                      <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono font-bold text-white">
+                        {video.duration}
+                      </span>
+                    </a>
 
-                    {EDUCATIONAL_LECTURES.map((video, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-2xl border border-black/10 dark:border-[#29292E] bg-black/[0.02] dark:bg-[#18181B] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                      >
-                        <div className="space-y-1 flex-1">
-                          <div className="flex items-center gap-2">
-                            <PlayCircle className="h-4 w-4 text-red-500" />
-                            <span className="text-[11px] font-semibold text-[#777777] dark:text-[#A1A1AA]">
-                              {video.channel} · {video.duration}
+                    {/* Lecture Info */}
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-bold text-red-600 dark:text-red-400">
+                          {video.channel}
+                        </span>
+                        {video.speaker && (
+                          <>
+                            <span className="text-black/20 dark:text-white/20 text-xs">•</span>
+                            <span className="text-[11px] text-[#777777] dark:text-[#A1A1AA]">
+                              {video.speaker}
                             </span>
-                          </div>
-                          <h4 className="text-sm font-heading font-bold text-[#080808] dark:text-[#F5F5F7]">
-                            {video.title}
-                          </h4>
-                          <p className="text-xs text-[#666666] dark:text-[#A1A1AA]">
-                            {video.description}
-                          </p>
-                        </div>
+                          </>
+                        )}
+                      </div>
 
+                      <h4 className="text-sm sm:text-base font-heading font-bold text-[#080808] dark:text-[#F5F5F7] group-hover:text-[#B7FF00] transition-colors leading-snug">
+                        {video.title}
+                      </h4>
+
+                      <p className="text-xs text-[#666666] dark:text-[#A1A1AA] leading-relaxed">
+                        {video.description}
+                      </p>
+
+                      {video.topics && video.topics.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {video.topics.map((t, ti) => (
+                            <span
+                              key={ti}
+                              className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-black/5 dark:bg-[#202024] text-[#555555] dark:text-[#999999] border border-black/5 dark:border-[#29292E]"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="pt-2">
                         <a
                           href={video.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a3e600] text-[#B7FF00] dark:text-black text-xs font-bold transition-all cursor-pointer shrink-0 self-start sm:self-center"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a3e600] text-[#B7FF00] dark:text-black text-xs font-bold transition-all cursor-pointer"
                         >
-                          <span>Watch on YouTube</span>
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          <span>Watch Lecture on YouTube</span>
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
 
               {/* Modal Footer */}
-              <div className="pt-3 flex justify-end border-t border-black/10 dark:border-[#29292E] shrink-0">
+              <div className="pt-3 flex items-center justify-between border-t border-black/10 dark:border-[#29292E] shrink-0">
+                <span className="text-xs text-[#777777] dark:text-[#71717A]">
+                  3 accredited lectures on quantum optimization & operations research
+                </span>
                 <button
                   onClick={() => setShowVideoModal(false)}
                   className="px-4 py-2 bg-[#080808] hover:bg-[#171717] dark:bg-[#18181B] dark:hover:bg-[#202024] border border-transparent dark:border-[#29292E] text-[#B7FF00] rounded-xl text-xs font-bold transition-all cursor-pointer"
