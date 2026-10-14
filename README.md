@@ -54,7 +54,7 @@ The objective of this project is to evaluate the viability, algorithmic trade-of
 
 ## 🔬 Research Gaps and Project Contributions
 
-The research framework of ROUTE/IQ is grounded in our literature survey, [`Our Research Papers/LITERATURE_SURVEY.pdf`](Our%20Research%20Papers/LITERATURE_SURVEY.pdf) (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*, SRM University-AP), supported by the primary literature corpus of external reference papers in `Research Papers/`.
+The research framework of ROUTE/IQ is grounded in our literature survey, [`Our Research Papers/LITERATURE_SURVEY.pdf`](Our%20Research%20Papers/LITERATURE_SURVEY.pdf) (*A Literature Survey of Hybrid Big Data and Quantum Computing for Smart Delivery Route Optimization*, SRM University-AP), supported by the primary literature corpus of external reference papers in `Reference Research Papers/`.
 
 ### Literature Observations vs. ROUTE/IQ Implementation
 
@@ -445,7 +445,7 @@ smart-delivery-route-optimization/
 │   └── tools/                   # Pre-bundled OpenJDK 17 JRE and Hadoop Winutils
 ├── Our Research Papers/         # Dedicated folder for research papers authored by our project team
 │   └── LITERATURE_SURVEY.pdf    # Our UROP literature survey on hybrid Big Data & quantum routing
-├── Research Papers/             # External reference papers reviewed during literature survey
+├── Reference Research Papers/   # 26 External reference papers reviewed during literature survey
 ├── frontend/
 │   ├── .env.example             # Frontend environment template (VITE_API_URL)
 │   ├── vercel.json              # Vercel SPA routing rewrite rules
@@ -482,8 +482,8 @@ This project implements the theoretical framework, research gaps, and taxonomy e
 
 ---
 
-### External Reference Literature (`Research Papers/`)
-*The following foundational research papers from `Research Papers/` were reviewed during our literature survey and directly inform our understanding of vehicle routing, quantum optimization, and Big Data in intelligent transportation:*
+### External Reference Literature (`Reference Research Papers/`)
+*The following foundational research papers from `Reference Research Papers/` were reviewed during our literature survey and directly inform our understanding of vehicle routing, quantum optimization, and Big Data in intelligent transportation:*
 
 1. **Chen (2020):** Y.-H. Chen, *"Intelligent algorithms for cold chain logistics distribution optimization based on big data cloud computing analysis,"* *Journal of Cloud Computing*, Vol. 9, Art. 37, 2020. [DOI: 10.1186/s13677-020-00174-x](https://doi.org/10.1186/s13677-020-00174-x).
 2. **Zheng (2019):** S. Zheng, *"Solving vehicle routing problem: A Big Data analytic approach,"* *IEEE Access*, Vol. 7, pp. 169565–169570, 2019. [DOI: 10.1109/ACCESS.2019.2955250](https://doi.org/10.1109/ACCESS.2019.2955250).
