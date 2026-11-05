@@ -331,6 +331,7 @@ class QuantumGuidedAdaptiveRouter:
             )
             core_custs = payload["core_customers"]
             boundary_custs = payload["boundary_customers"]
+            influence_res = {}
 
             # Execute QAOA on core microcluster if enabled
             if enable_qaoa and len(core_custs) > 1:
@@ -385,14 +386,37 @@ class QuantumGuidedAdaptiveRouter:
 
             # ─── PHASE 3: DIRECTED DP BOUNDARY RECONSTRUCTION ───
             t_r0 = time.perf_counter()
-            reconstructed_stops = self._reconstruct_route_dp_insertion(
+            reconstructed_qaoa = self._reconstruct_route_dp_insertion(
                 adopted_backbone, boundary_custs, distance_matrix, location_indices, depot_idx
             )
-            t_reconstruct_total += (time.perf_counter() - t_r0) * 1000.0
-
-            route_dist = self._calculate_route_distance(
-                reconstructed_stops, depot_idx, distance_matrix, location_indices
+            dist_qaoa = self._calculate_route_distance(
+                reconstructed_qaoa, depot_idx, distance_matrix, location_indices
             )
+
+            # End-to-End Non-Degradation Certification:
+            # If a QAOA backbone was adopted and boundary points were inserted,
+            # verify that the final reconstructed route does not exceed the spatial baseline route.
+            if enable_adaptive_influence and influence_res.get("adopted_source") == "QAOA" and boundary_custs:
+                reconstructed_spatial = self._reconstruct_route_dp_insertion(
+                    core_custs, boundary_custs, distance_matrix, location_indices, depot_idx
+                )
+                dist_spatial = self._calculate_route_distance(
+                    reconstructed_spatial, depot_idx, distance_matrix, location_indices
+                )
+                if dist_qaoa <= dist_spatial + 1e-4:
+                    reconstructed_stops = reconstructed_qaoa
+                    route_dist = dist_qaoa
+                else:
+                    # Non-monotonic DP insertion divergence detected: enforce strict campaign non-degradation
+                    reconstructed_stops = reconstructed_spatial
+                    route_dist = dist_spatial
+                    qaoa_adopted_count -= 1
+                    spatial_retained_count += 1
+            else:
+                reconstructed_stops = reconstructed_qaoa
+                route_dist = dist_qaoa
+
+            t_reconstruct_total += (time.perf_counter() - t_r0) * 1000.0
             route_load = sum(c.get("demand", 1.0) for c in cluster_custs)
             total_distance += route_dist
 

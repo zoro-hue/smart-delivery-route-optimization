@@ -432,6 +432,7 @@ class QAOASubproblemOptimizer:
             "eval_count": eval_count,
             "projection_applied": projection_applied,
             "raw_bitstring": best_bstr,
+            "raw_counts": final_counts,
             "valid_raw_sample": is_valid_permutation
         }
 

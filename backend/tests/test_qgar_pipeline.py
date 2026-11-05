@@ -154,3 +154,52 @@ def test_qgar_router_end_to_end_preservation():
     assert tele["qaoa_subproblems_solved"] > 0
     assert tele["quantum_influence_lambda_mean"] >= 0.0
 
+
+def test_end_to_end_non_degradation_certification():
+    """Verifies that Cost(QGAR) <= Cost(SpatialBaseline) is strictly certified."""
+    ensure_spark_environment()
+    router = QuantumGuidedAdaptiveRouter(qaoa_p=1, qaoa_shots=256, use_spark=False)
+
+    depot = {"id": "depot", "latitude": 40.7580, "longitude": -73.9855, "demand": 0}
+    customers = [
+        {"id": f"c_{i+1}", "latitude": 40.750 + (i % 4) * 0.006, "longitude": -73.980 + (i // 4) * 0.005, "demand": 3}
+        for i in range(12)
+    ]
+    loc_map = {"depot": 0}
+    for i, c in enumerate(customers):
+        loc_map[c["id"]] = i + 1
+
+    n_nodes = 13
+    matrix = np.zeros((n_nodes, n_nodes))
+    nodes = [depot] + customers
+    for i in range(n_nodes):
+        for j in range(n_nodes):
+            if i != j:
+                dx = nodes[i]["latitude"] - nodes[j]["latitude"]
+                dy = nodes[i]["longitude"] - nodes[j]["longitude"]
+                matrix[i, j] = np.sqrt(dx*dx + dy*dy) * 111.0
+
+    res_spatial = router.optimize_delivery_campaign(
+        customers=customers,
+        depot=depot,
+        distance_matrix=matrix,
+        vehicle_capacity=15.0,
+        location_indices=loc_map,
+        enable_qaoa=False
+    )
+
+    res_qgar = router.optimize_delivery_campaign(
+        customers=customers,
+        depot=depot,
+        distance_matrix=matrix,
+        vehicle_capacity=15.0,
+        location_indices=loc_map,
+        enable_qaoa=True,
+        enable_adaptive_influence=True,
+        enable_quality_selection=True
+    )
+
+    # Formal Monotonic Non-Degradation Verification
+    assert res_qgar["total_distance_km"] <= res_spatial["total_distance_km"] + 1e-4
+
+
