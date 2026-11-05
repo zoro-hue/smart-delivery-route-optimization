@@ -62,3 +62,4 @@ backend/data/uploads/
 Thumbs.db
 desktop.ini
 *.bak
+scratch/
