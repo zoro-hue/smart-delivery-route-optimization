@@ -17,7 +17,7 @@ The primary intellectual contribution of ROUTE/IQ is:
 
 ### Contribution 1: Active Dual-Pillar Big Data + Quantum Architecture
 - **Prior State of the Art:** Quantum routing literature has treated quantum algorithms in total isolation from enterprise data infrastructure, evaluating synthetic vectors on toy graphs ($N \le 10$) without dynamic traffic. Big Data systems (Spark) were utilized exclusively for offline static batch ETL.
-- **ROUTE/IQ Innovation:** Integrates **Apache Spark 4.2.0** as an active runtime engine that ingests streaming delivery orders, calculates real-time edge travel delays using a calibrated Bureau of Public Roads (BPR) volume-delay model, and partitions customer clusters to extract structured, qubit-bounded subproblem payloads ($m \le 4$, $m^2 \le 16$ qubits) for QAOA.
+- **ROUTE/IQ Innovation:** Integrates **Apache Spark 4.2.0** as an active runtime engine that ingests high-throughput batch delivery orders, calculates edge travel delays using a calibrated Bureau of Public Roads (BPR) volume-delay model, and partitions customer clusters via polar sweeps to extract structured, qubit-bounded subproblem payloads ($m \le 4$, $m^2 \le 16$ qubits) for QAOA.
 - **Status:** **Experimentally Demonstrated** up to $50,000$ orders ($6,678$ clusters) with $100\%$ customer preservation and capacity compliance.
 
 ### Contribution 2: Identification and Formalization of the "Angular Disruption Effect"
@@ -36,7 +36,7 @@ The primary intellectual contribution of ROUTE/IQ is:
 - **Prior State of the Art:** No existing quantum optimization framework guarantees that quantum noise will not worsen final solutions. Furthermore, prior routing papers overlook that cheapest insertion of boundary nodes into a cheaper core tour can produce a longer full route (proven by the Trial 19 counterexample).
 - **ROUTE/IQ Innovation:** Implements the **End-to-End Route Certification Guardrail** (`dist_qaoa <= dist_spatial + 1e-4`), comparing the reconstructed complete fleet routes and formally certifying:
   $$C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + \epsilon \quad (\epsilon = 10^{-4}\text{ km})$$
-- **Status:** **Mathematically Proven Theorem** for all graph topologies and metric spaces, verified across 21 benchmark instances and 10 adversarial edge cases without a single violation.
+- **Status:** **Algorithmic Guarantee by Construction** via the dual-evaluation Route Certification Guardrail, verified across 21 benchmark instances and 10 adversarial edge cases without a single violation.
 
 ---
 
@@ -44,10 +44,10 @@ The primary intellectual contribution of ROUTE/IQ is:
 
 To preserve research integrity, every claim is classified into its exact scientific status:
 
-| Claim | Mathematical Theorem | Empirically Demonstrated | Engineering System | Research Hypothesis |
+| Claim | Mathematical Status | Empirically Demonstrated | Engineering System | Research Hypothesis |
 |:---|:---:|:---:|:---:|:---:|
-| **Microcluster Core Non-Degradation** ($C_{\text{core}}^* \le C_{\text{core}}^{\text{spatial}}$) | **YES** | **YES** | Implemented | Validated |
-| **End-to-End Campaign Non-Degradation** ($C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + \epsilon$) | **YES** | **YES** | Implemented | Validated |
+| **Microcluster Core Non-Degradation** ($C_{\text{core}}^* \le C_{\text{core}}^{\text{spatial}}$) | **Guaranteed by Guardrail** | **YES** | Implemented | Validated |
+| **End-to-End Campaign Non-Degradation** ($C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + \epsilon$) | **Guaranteed by Guardrail** | **YES** | Implemented | Validated |
 | **Customer Preservation Invariant** (0 unassigned, 0 duplicates) | **YES** | **YES** (50,000 orders) | Implemented | Validated |
 | **Vehicle Capacity Compliance** (0 violations across all $K$ routes) | **YES** | **YES** (6,678 clusters) | Implemented | Validated |
 | **Angular Disruption Mitigation** | No (Empirical bias) | **YES** (149 crossings prevented) | Implemented | Validated |

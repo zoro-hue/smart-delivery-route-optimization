@@ -2,7 +2,7 @@
 
 **Manuscript Title:** ROUTE/IQ: A Big Data–Quantum Hybrid Framework for Directed Urban Vehicle Routing with Quality-Aware QAOA and End-to-End Route Certification  
 **Repository Branch:** `research/journal-readiness`  
-**Certified Baseline Commit:** `9268fd7`  
+**Certified Baseline Commit:** `22c3a27` (Phase M review baseline)  
 
 ---
 
