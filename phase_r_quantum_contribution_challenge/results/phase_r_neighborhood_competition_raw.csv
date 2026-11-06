@@ -1,0 +1,13 @@
+seed_cost_km,exact_min_cost_km,t_exact_ms,qaoa_cost_km,t_qaoa_ms,rand_cost_km,t_rand_ms,c_2opt_cost_km,t_2opt_ms,qiga_cost_km,t_qiga_ms,qaoa_2opt_cost_km,t_qaoa_2opt_ms,qaoa_found_exact,2opt_found_exact,qaoa_beat_2opt,test_id,seed_type
+131.524,76.839,0.085,76.839,628.0,76.839,17.2,102.022,0.094,131.524,5.2,76.839,628.0,True,False,True,1,Suboptimal_Heuristic_Seed
+74.625,67.906,0.134,67.906,660.2,67.906,7.2,74.625,0.051,74.625,3.0,67.906,660.2,True,False,True,2,2opt_Local_Minimum_Seed
+153.904,84.799,0.128,84.799,588.8,84.799,6.3,110.048,0.052,153.904,2.3,84.799,588.8,True,False,True,3,Suboptimal_Heuristic_Seed
+95.256,94.311,0.081,95.256,542.3,94.311,6.4,95.256,0.028,95.256,2.2,95.256,542.4,False,False,False,4,2opt_Local_Minimum_Seed
+153.597,73.914,0.117,107.462,492.4,73.914,6.3,73.914,0.041,116.675,2.6,107.462,492.4,False,True,False,5,Suboptimal_Heuristic_Seed
+92.529,79.841,0.12,92.529,494.0,79.841,6.5,92.529,0.049,92.529,2.4,92.529,494.1,False,False,False,6,2opt_Local_Minimum_Seed
+148.787,83.67,0.112,119.175,497.2,83.67,6.5,85.917,0.032,148.787,2.7,119.175,497.3,False,False,False,7,Suboptimal_Heuristic_Seed
+95.121,95.121,0.118,95.121,628.4,95.121,6.8,95.121,0.055,95.121,2.3,95.121,628.4,True,True,False,8,2opt_Local_Minimum_Seed
+125.693,85.793,0.117,111.209,502.3,85.793,7.4,96.969,0.083,112.075,3.0,96.496,502.3,False,False,False,9,Suboptimal_Heuristic_Seed
+63.436,63.436,0.118,63.436,563.5,63.436,7.4,63.436,0.047,63.436,2.8,63.436,563.6,True,True,False,10,2opt_Local_Minimum_Seed
+122.716,64.591,0.117,64.591,468.8,64.591,5.7,64.591,0.084,122.716,2.1,64.591,468.9,True,True,False,11,Suboptimal_Heuristic_Seed
+94.482,94.482,0.065,94.482,582.7,94.482,7.6,94.482,0.049,94.482,3.0,94.482,582.7,True,True,False,12,2opt_Local_Minimum_Seed
