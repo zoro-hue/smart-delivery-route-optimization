@@ -25,3 +25,4 @@
 - **Experiment:** Continuing to pass 4-customer sub-tours to QAOA after OR-Tools GLS.
 - **Result:** **REJECTED (0.00 km Net Fleet Improvement across all tests).**
 - **Root Cause:** Fully verified in Phase S; micro-route tours are already at their global minima post-OR-Tools.
+

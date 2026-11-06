@@ -55,3 +55,4 @@ flowchart TD
    Directed Variable Neighborhood Descent (VND) reduced fleet tour distances on large networks by **$49.54\text{ km}$** ($N=1,000$) in $330\text{ ms}$, resolving local routing traps.
 4. **Safety & Zero Degradation:**  
    Proposition 1 guarantees that quantum simulation noise never degrades production delivery schedules.
+

@@ -40,3 +40,4 @@ Simulating the boundary bipartition circuit on CPU using Qiskit Aer:
 - $N_{\text{sub}} = 16 \to 9,343.4\text{ ms}$
 
 Simulation runtime scales exponentially with qubit count ($O(2^{N_q})$). At $N_q = 16$ qubits, classical simulation takes $9.34\text{ seconds}$, confirming that classical CPU simulators cannot scale beyond $\approx 20$ qubits. True quantum advantage requires **physical QPU hardware** executing circuits in microseconds.
+

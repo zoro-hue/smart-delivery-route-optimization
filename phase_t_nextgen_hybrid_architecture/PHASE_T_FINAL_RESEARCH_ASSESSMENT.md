@@ -71,3 +71,4 @@ Dispatching the IP-CQE v3 boundary bipartition circuits to physical quantum hard
 - Never claim simulated QAOA runs faster than classical algorithms.
 - Never claim multi-node Spark scaling based on local[*] benchmarks.
 - Always distinguish demonstrated classical simulation metrics from hypothetical physical QPU capabilities.
+

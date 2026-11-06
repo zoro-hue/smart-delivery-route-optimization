@@ -51,3 +51,4 @@ While OR-Tools GLS produces near-optimal cluster routes for small instances ($N 
 
 ### 3.3 QAOA Quantum Engine (Pillar 2)
 The boundary bipartition formulation achieved **100% state-space validity**, completely eliminating the column collisions and Hungarian matching overhead of previous phases. Because Proposition 1 was strictly active, zero solution degradation occurred across all scales.
+

@@ -55,3 +55,4 @@ C:\Python314\python.exe -m pytest backend/tests/ -q
 | File Path | Description | Records |
 | :--- | :--- | :---: |
 | `phase_t_nextgen_hybrid_architecture/results/phase_t_comprehensive_benchmark_raw.csv` | Comprehensive benchmark across 7 problem scales ($N=10$ to $1,000$) | 7 |
+
