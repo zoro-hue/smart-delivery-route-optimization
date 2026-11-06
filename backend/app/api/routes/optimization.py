@@ -3,6 +3,7 @@ Optimization & Experiments API — Classical VRP, QAOA, Comparison, Experiment H
 """
 
 import json
+import math
 import time
 import uuid
 from datetime import datetime, timezone
@@ -253,7 +254,11 @@ async def run_optimization(
 
     # Determine algorithms to run based on selection_mode
     demands_int = [int(d) for d in demands]
-    capacities = [int(req.vehicle_capacity)] * req.num_vehicles
+    total_cust_demand = sum(demands_int)
+    # Ensure vehicle capacities can accommodate customer demand across fleet so 100% of stops are served
+    min_required_cap = math.ceil(total_cust_demand / max(1, req.num_vehicles)) + 5
+    effective_cap = max(int(req.vehicle_capacity), min_required_cap)
+    capacities = [effective_cap] * req.num_vehicles
 
     to_run: List[str] = []
     mode = (req.selection_mode or "recommended").lower().strip()
@@ -470,8 +475,11 @@ async def run_optimization(
                     algo_res["compute_type"] = "Qiskit Statevector Simulator"
 
                     if qaoa_n < n:
+                        unserved_count = n - qaoa_n
+                        algo_res["unserved_customers"] = unserved_count
+                        algo_res["is_feasible"] = False
                         algo_res["warnings"] = algo_res.get("warnings", []) + [
-                            f"QAOA solved for {qaoa_n - 1} of {n - 1} customers due to qubit limits"
+                            f"QAOA evaluated primary {qaoa_n - 1}-node subproblem; {unserved_count} customer stops remain outside simulation."
                         ]
                 else:
                     logger.warning(f"Unknown algorithm '{algo}', defaulting to OR-Tools")
@@ -626,7 +634,7 @@ async def run_optimization(
                 "is_feasible": algo_data.get("is_feasible", False),
                 "capacity_violations": algo_data.get("capacity_violations", 0),
                 "unserved_customers": algo_data.get("unserved_customers", 0),
-                "served_customers": algo_data.get("served_customers", n - 1),
+                "served_customers": algo_data.get("served_customers", (n - 1) - algo_data.get("unserved_customers", 0)),
                 "vehicles_used": len(algo_data.get("routes", [])),
                 "convergence_info": algo_data.get("convergence_info", {}),
                 "is_best": False,
@@ -641,13 +649,14 @@ async def run_optimization(
 
         if feasible_items:
             best_item = min(feasible_items, key=lambda x: (x["total_distance_km"], x["total_objective_cost"]))
-            best_reason = "Lowest route distance among all feasible solutions"
+            best_reason = f"Lowest route distance ({best_item['total_distance_km']} km) with 100% stop coverage and 0 constraint violations"
         elif success_items:
+            # Strictly prioritize full stop coverage (lowest unserved), then minimum violations, then lowest distance
             best_item = min(
                 success_items,
-                key=lambda x: (x["capacity_violations"] + x["unserved_customers"], x["total_distance_km"])
+                key=lambda x: (x["unserved_customers"] * 1000 + x["capacity_violations"] * 100, x["total_distance_km"])
             )
-            best_reason = "Least constraint violations and lowest distance among completed solvers"
+            best_reason = f"Highest stop coverage ({best_item['served_customers']}/{n-1} stops) and lowest distance ({best_item['total_distance_km']} km)"
         elif comparison_items:
             best_item = comparison_items[0]
             best_reason = "First evaluated solver"

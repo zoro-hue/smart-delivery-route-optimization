@@ -210,6 +210,30 @@ class CooperativeVRPSolver:
                     except Exception as e:
                         logger.warning(f"Cooperative subproblem optimization error for routes ({idx_a}, {idx_b}): {e}")
 
+        # Ensure 100% customer coverage: greedily insert any remaining unserved customers
+        coop_served = set()
+        for r in routes:
+            coop_served.update(r.get("customer_stops", []))
+        coop_unserved = set(range(1, n)) - coop_served
+        if coop_unserved:
+            logger.info(f"Cooperative Solver: Greedily inserting {len(coop_unserved)} unserved stops to ensure 100% coverage.")
+            for u in sorted(list(coop_unserved)):
+                best_r = None
+                best_pos = None
+                best_extra = float("inf")
+                for r in routes:
+                    st = r["stops"]
+                    for p in range(len(st) - 1):
+                        extra = distance_matrix[st[p]][u] + distance_matrix[u][st[p+1]] - distance_matrix[st[p]][st[p+1]]
+                        if extra < best_extra:
+                            best_extra = extra
+                            best_r = r
+                            best_pos = p + 1
+                if best_r and best_pos is not None:
+                    best_r["stops"].insert(best_pos, u)
+                    best_r["customer_stops"] = [node for node in best_r["stops"] if node != depot]
+                    best_r["load"] += demands[u]
+
         # Step 3: Algorithmic VND Intra-Route Refinement
         final_total_dist = 0.0
         final_total_time = 0.0

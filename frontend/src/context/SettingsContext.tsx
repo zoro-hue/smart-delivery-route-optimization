@@ -16,7 +16,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultVehicles: 2,
-  defaultCapacity: 50,
+  defaultCapacity: 100,
   distanceUnit: 'km',
   returnToDepot: true,
   maxQaoaQubits: 20,

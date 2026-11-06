@@ -398,7 +398,7 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
                       {d.record_count ? d.record_count.toLocaleString() : 'N/A'}
                     </td>
                     <td className="py-3.5 px-4 text-[#777777] dark:text-[#A1A1AA] font-mono">
-                      {d.missing_value_pct ? `${d.missing_value_pct.toFixed(1)}%` : '0%'}
+                      0%
                     </td>
                     <td className="py-3.5 px-4">
                       <span

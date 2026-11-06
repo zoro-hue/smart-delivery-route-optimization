@@ -232,6 +232,42 @@ class ClassicalVRPSolver:
             fallback["solver_log"] = "\n".join(log_lines) + "\n" + fallback.get("solver_log", "")
             return fallback
 
+        # Guarantee 100% customer coverage: greedily insert any dropped/unserved nodes
+        served_nodes = set()
+        for r in routes:
+            served_nodes.update(r.get("customer_stops", []))
+        unserved_nodes = set(range(1, n)) - served_nodes
+
+        if unserved_nodes:
+            log_lines.append(f"Guaranteed Coverage: inserting {len(unserved_nodes)} unserved stops into fleet routes: {sorted(list(unserved_nodes))}")
+            for u in sorted(list(unserved_nodes)):
+                best_r = None
+                best_pos = None
+                best_extra = float("inf")
+
+                for r in routes:
+                    st = r["stops"]
+                    for p in range(len(st) - 1):
+                        i_node = st[p]
+                        j_node = st[p + 1]
+                        extra_dist = distance_matrix[i_node][u] + distance_matrix[u][j_node] - distance_matrix[i_node][j_node]
+                        if extra_dist < best_extra:
+                            best_extra = extra_dist
+                            best_r = r
+                            best_pos = p + 1
+
+                if best_r and best_pos is not None:
+                    best_r["stops"].insert(best_pos, u)
+                    best_r["customer_stops"] = [node for node in best_r["stops"] if node != depot]
+                    best_r["load"] += demands[u]
+                    st = best_r["stops"]
+                    best_r["distance_km"] = round(float(sum(distance_matrix[st[k]][st[k+1]] for k in range(len(st) - 1))), 3)
+                    if best_r.get("capacity", 0) > 0:
+                        best_r["utilization_pct"] = round(best_r["load"] / best_r["capacity"] * 100, 1)
+
+            total_distance = sum(r["distance_km"] for r in routes)
+            total_load = sum(r["load"] for r in routes)
+
         # Calculate travel time
         speed_kmh = 40.0
         total_travel_time = (total_distance / speed_kmh) * 60  # minutes
