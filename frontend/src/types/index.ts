@@ -58,7 +58,7 @@ export interface SolverResult {
   success: boolean;
   algorithm: string;
   algorithm_name?: string;
-  category?: 'classical' | 'quantum_hybrid' | 'quantum_inspired';
+  category?: 'classical' | 'quantum_hybrid' | 'quantum_inspired' | 'cooperative' | string;
   category_label?: string;
   compute_type?: string;
   status?: string;

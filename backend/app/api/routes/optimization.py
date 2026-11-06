@@ -22,6 +22,7 @@ from app.services.data_processor import data_processor, haversine
 from app.services.optimization.classical_solver import classical_solver
 from app.services.optimization.quantum_solver import quantum_solver
 from app.services.optimization.qiga_solver import qiga_solver
+from app.services.optimization.cooperative_solver import cooperative_solver
 from app.services.geo_validation import check_water_body, validate_nyc_coordinate
 from app.services.road_network_service import road_network_service
 
@@ -29,6 +30,18 @@ settings = get_settings()
 router = APIRouter(prefix="/api", tags=["Optimization"])
 
 AVAILABLE_ALGORITHMS = [
+    {
+        "id": "routeiq_cooperative",
+        "name": "ROUTE/IQ Cooperative Engine",
+        "category": "cooperative",
+        "category_label": "Cooperative Hybrid (Big Data + Quantum)",
+        "tag": "Spark + Adaptive + QAOA/Tabu + VND",
+        "description": "End-to-end cooperative optimization unifying Spark spatial decomposition, Multi-Armed Bandit adaptive control, QAOA/Tabu candidate generation, VND refinement, and Proposition 1 non-degradation guardrail.",
+        "operational": True,
+        "max_customers": 200,
+        "is_primary": False,
+        "compute_type": "Hybrid (Spark + Classical CPU + Simulated QPU)",
+    },
     {
         "id": "ortools",
         "name": "OR-Tools",
@@ -319,7 +332,25 @@ async def run_optimization(
             t_algo_0 = time.time()
 
             try:
-                if algo in ("ortools", "classical_ortools"):
+                if algo in ("routeiq_cooperative", "cooperative", "routeiq"):
+                    effective_time_limit = min(req.classical_time_limit_sec or 10, 15)
+                    algo_res = cooperative_solver.solve(
+                        distance_matrix=adjusted_matrix,
+                        num_vehicles=req.num_vehicles,
+                        depot=0,
+                        demands=demands_int,
+                        vehicle_capacities=capacities,
+                        time_limit_sec=effective_time_limit,
+                        objective_weights=objective_weights,
+                        locations=locations,
+                        seed=req.random_seed,
+                    )
+                    algo_res["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
+                    algo_res["category"] = "cooperative"
+                    algo_res["category_label"] = "Cooperative Hybrid"
+                    algo_res["compute_type"] = "Hybrid (Spark + Adaptive + QAOA/Tabu + VND)"
+
+                elif algo in ("ortools", "classical_ortools"):
                     # Responsive time limit: 5s is optimal for <= 30 customers; prevents Cloudflare 502 timeouts on shared CPU
                     effective_time_limit = min(req.classical_time_limit_sec or 5, 6) if n <= 35 else min(req.classical_time_limit_sec or 15, 15)
                     algo_res = classical_solver.solve_ortools(

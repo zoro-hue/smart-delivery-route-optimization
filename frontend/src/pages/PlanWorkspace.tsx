@@ -47,7 +47,7 @@ import { validateDeliveryCoordinate } from '../utils/geoValidation';
 export interface AlgorithmConfigItem {
   id: string;
   name: string;
-  group: 'classical' | 'quantum';
+  group: 'classical' | 'quantum' | 'cooperative';
   groupLabel: string;
   role: string;
   badge: string;
@@ -56,6 +56,16 @@ export interface AlgorithmConfigItem {
 }
 
 export const WORKSPACE_ALGORITHMS: AlgorithmConfigItem[] = [
+  // Cooperative Hybrid Engine
+  {
+    id: 'routeiq_cooperative',
+    name: 'ROUTE/IQ Cooperative Engine',
+    group: 'cooperative',
+    groupLabel: 'Cooperative Hybrid Engine',
+    role: 'Pillar 1 Spark + Adaptive Controller + QAOA/Tabu + VND with Proposition 1 Guardrail.',
+    badge: 'Spark + QAOA/Tabu + Prop 1',
+    computeType: 'Hybrid (Spark + Classical + Quantum)',
+  },
   // Classical algorithms
   {
     id: 'dijkstra',
@@ -1272,8 +1282,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                     if (selectedAlgorithms.length < 2) {
                       const compSet =
                         activeStops.length <= 8
-                          ? ['ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
-                          : ['ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga'];
+                          ? ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
+                          : ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga'];
                       setSelectedAlgorithms(compSet);
                     }
                   }}
@@ -1383,6 +1393,46 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                             </div>
                           </div>
                           <span className="text-[9px] font-technical text-[#A855F7] shrink-0 ml-1">
+                            {algo.badge}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Cooperative Hybrid Engine */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                      Cooperative Hybrid Engine
+                    </span>
+                    {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'cooperative').map((algo) => {
+                      const isChecked = selectedAlgorithms.includes(algo.id);
+
+                      return (
+                        <div
+                          key={algo.id}
+                          onClick={() => handleToggleAlgorithm(algo.id)}
+                          className={`flex items-start justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
+                            isChecked
+                              ? 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/50 shadow-xs'
+                              : 'bg-black/5 dark:bg-[#17171A] border-transparent dark:border-[#29292E]/60 hover:bg-black/10'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleAlgorithm(algo.id)}
+                              className="rounded accent-[#080808] dark:accent-[#B7FF00] cursor-pointer h-3.5 w-3.5 mt-0.5"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block">{algo.name}</span>
+                              <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-tight mt-0.5">
+                                {algo.role}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-technical text-[#10B981] shrink-0 ml-1">
                             {algo.badge}
                           </span>
                         </div>
