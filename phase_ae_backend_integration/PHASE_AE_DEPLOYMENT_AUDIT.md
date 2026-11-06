@@ -62,3 +62,4 @@ npm run dev
 | **QPU / Qiskit Statevector Simulator Timeout** | Subproblem execution exceeds latency budget | Adaptive Strategy Controller overrides to `Tabu_Search` or `Multistart_KL`. Response returned within interactive limits. |
 | **OR-Tools No Solution** | Solver status is `NOT_SOLVED` | Automatic fallback to Clarke-Wright savings heuristic to produce valid initial incumbent. |
 | **Candidate Rejection** | $f(\mathbf{x}_{\text{cand}}) > f(\mathbf{x}_{\text{inc}})$ or capacity exceeded | Proposition 1 Guardrail discards candidate and strictly preserves incumbent. |
+

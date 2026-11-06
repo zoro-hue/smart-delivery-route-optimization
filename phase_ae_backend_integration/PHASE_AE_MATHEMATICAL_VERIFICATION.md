@@ -88,3 +88,4 @@ A core requirement of Phase AE is to rigorously audit every mathematical formula
    - 11 adversarial stress tests (0 failures, 0 bypasses).
    - Tabu Search superior empirical distance (595.45 km vs QAOA 606.36 km).
    - Spark 99.984% problem size reduction on 100,000 stops in 3.37 seconds.
+

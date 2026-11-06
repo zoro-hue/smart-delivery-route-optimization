@@ -214,3 +214,4 @@ Executes vehicle routing optimization across specified algorithms.
    $$\forall k \in \{1, \dots, M\}, \quad \sum_{i \in \text{customer\_stops}_k} q_i \le Q_k$$
 4. **Monotonic Non-Degradation:**
    $$\text{total\_distance\_km}(\text{routeiq\_cooperative}) \le \text{initial\_incumbent\_distance\_km}$$
+

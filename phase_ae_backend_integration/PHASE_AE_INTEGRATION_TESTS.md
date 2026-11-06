@@ -48,3 +48,4 @@ $$\text{Status} = \begin{cases} \text{ACCEPTED}, & \text{if } f(\mathbf{x}_{\tex
 - **Degradation Frequency:** $0.00\%$ ($0$ out of $N$ evaluations experienced distance increase).
 - **Feasibility Violation Frequency:** $0.00\%$ ($0$ out of $N$ evaluations produced capacity or unserved customer violations).
 - **Proposition 1 Monotonic Non-Degradation:** Strictly verified across all test runs.
+

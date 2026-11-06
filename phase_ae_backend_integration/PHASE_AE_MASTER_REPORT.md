@@ -87,3 +87,4 @@ A live API call to `POST /api/optimization/run` with `selected_algorithms: ["rou
 - **Current Branch:** `research/phase-ae-backend-integration`
 - **Protected Main Baseline:** `a8eb849988201d7929566f331c1ae3afac09b632` (Strictly untouched).
 - **Working Tree:** All newly created files organized cleanly under `phase_ae_backend_integration/` and registered backend/frontend integration files.
+

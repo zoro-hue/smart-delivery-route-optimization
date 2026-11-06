@@ -160,3 +160,4 @@ $$\mathbf{x}_{\text{next}} = \begin{cases} \mathbf{x}_{\text{cand}}, & \text{if 
    $$f(\mathbf{x}_{\text{final}}) \le f(\mathbf{x}_{\text{inc}})$$
 2. **100% Invariant Feasibility:** If the initial incumbent is capacity-feasible, the output solution is guaranteed to remain strictly capacity-feasible.
 3. **Safe Quantum Exploration:** Experimental QAOA candidate generation can be deployed freely without risk of deteriorating operational logistics performance.
+

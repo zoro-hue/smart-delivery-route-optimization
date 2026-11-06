@@ -157,3 +157,4 @@ To preserve **100% of the existing frontend layout, styling, and typography** wh
 - [x] All 2 quantum algorithms (`qaoa`, `qiga`) remain completely independent and unmodified.
 - [x] API contracts remain 100% backward-compatible.
 - [x] Frontend page layout, colors, margins, fonts, and responsive behaviors remain identical.
+

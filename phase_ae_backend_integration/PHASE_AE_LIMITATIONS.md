@@ -45,3 +45,4 @@ The state space of an $N$-qubit system scales as $2^N$ complex amplitudes:
    The polar sweep clustering heuristic is geometrically effective for radial customer distributions centered around a central depot. For elongated or multi-depot geographies, K-means or Voronoi tessellation may be required.
 3. **Execution Latency Tradeoff:**
    While classical heuristics (Tabu Search, 2-Opt) complete within 2–15 ms, simulated QAOA circuits require 50–250 ms per subproblem on classical CPU.
+
