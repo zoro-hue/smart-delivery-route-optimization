@@ -308,7 +308,7 @@ class CooperativeVRPSolver:
             "category": "cooperative",
             "category_label": "Hybrid Big Data + Quantum",
             "compute_type": "Hybrid (Spark + Adaptive Controller + QAOA/Tabu + VND)",
-            "status": "OPTIMAL" if final_val["is_valid"] else ("FEASIBLE" if final_val["capacity_feasible"] else "PENALIZED"),
+            "status": "FEASIBLE" if final_val["is_valid"] else "PENALIZED",
             "execution_time_sec": round(float(exec_time), 3),
             "routes": routes,
             "total_distance_km": round(float(final_total_dist), 3),

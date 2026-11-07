@@ -656,7 +656,7 @@ async def run_optimization(
         # Identify Best Feasible Result (Universal Policy: strictly requires is_feasible, 0 unserved, 0 violations)
         feasible_items = [
             it for it in comparison_items
-            if it.get("status") in ("SUCCESS", "OPTIMAL") and it["is_feasible"] and it["capacity_violations"] == 0 and it["unserved_customers"] == 0
+            if it.get("status") in ("SUCCESS", "FEASIBLE") and it["is_feasible"] and it["capacity_violations"] == 0 and it["unserved_customers"] == 0
         ]
 
         if feasible_items:

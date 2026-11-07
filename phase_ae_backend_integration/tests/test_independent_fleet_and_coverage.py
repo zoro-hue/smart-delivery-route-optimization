@@ -189,3 +189,4 @@ async def test_end_to_end_user_fleet_and_coverage_invariants():
         assert data["capacity_violations"] > 0, f"{a_key} recorded no capacity violations"
         for r in data["routes"]:
             assert r["capacity"] == 25.0, f"Capacity was silently changed to {r['capacity']}"
+

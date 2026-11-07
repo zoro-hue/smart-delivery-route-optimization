@@ -365,7 +365,7 @@ class ClassicalVRPSolver:
             from ortools.constraint_solver import routing_enums_pb2
             status_map = {
                 routing_enums_pb2.RoutingModel.ROUTING_NOT_SOLVED: "NOT_SOLVED",
-                routing_enums_pb2.RoutingModel.ROUTING_SUCCESS: "OPTIMAL",
+                routing_enums_pb2.RoutingModel.ROUTING_SUCCESS: "FEASIBLE",
                 routing_enums_pb2.RoutingModel.ROUTING_PARTIAL_SUCCESS_LOCAL_OPTIMUM_NOT_REACHED: "PARTIAL_SUCCESS",
                 routing_enums_pb2.RoutingModel.ROUTING_FAIL: "FAIL",
                 routing_enums_pb2.RoutingModel.ROUTING_FAIL_TIMEOUT: "TIMEOUT",
