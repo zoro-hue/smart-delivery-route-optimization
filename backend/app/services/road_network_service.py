@@ -111,6 +111,7 @@ class RoadNetworkService:
         self._lock = threading.Lock()
         self._path_cache: Dict[Tuple[str, str], List[str]] = {}
         self._dist_cache: Dict[Tuple[str, str], float] = {}
+        self._snap_cache: Dict[Tuple[float, float], Tuple[str, float, float, float]] = {}
         # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
         # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
 
@@ -237,6 +238,10 @@ class RoadNetworkService:
         if not self.is_ready():
             raise RuntimeError("RoadNetworkService is not loaded.")
 
+        cache_key = (round(float(lat), 6), round(float(lon), 6))
+        if cache_key in self._snap_cache:
+            return self._snap_cache[cache_key]
+
         dist_deg, idx = self.tree.query((lat, lon))
         # Approx distance in km: 1 deg lat ~ 111 km
         dist_km = float(dist_deg * 111.0)
@@ -250,7 +255,9 @@ class RoadNetworkService:
             if raise_on_exceed:
                 raise ValueError(f"Coordinate ({lat:.4f}, {lon:.4f}) is outside active road network coverage (nearest road is {dist_km:.2f}km away, exceeding {max_dist_km}km threshold).")
 
-        return node_id, snapped_lat, snapped_lon, dist_km
+        res = (node_id, snapped_lat, snapped_lon, dist_km)
+        self._snap_cache[cache_key] = res
+        return res
 
     def build_road_matrix(
         self,

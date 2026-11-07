@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from app.services.optimization.classical_solver import classical_solver
+from app.services.optimization.route_validator import repair_fleet_coverage, validate_fleet_coverage
 from phase_ab_cooperative_optimization_engine.engine.cooperative_engine import CooperativeOptimizationEngine
 from phase_ab_cooperative_optimization_engine.engine.spark_preprocessor import SparkWorkloadOrganizer
 from phase_ab_cooperative_optimization_engine.engine.classical_engine import ClassicalOptimizationEngine
@@ -67,15 +68,16 @@ class CooperativeVRPSolver:
         if vehicle_capacities is None:
             vehicle_capacities = [100] * num_vehicles
 
-        # Step 1: Classical Initial Incumbent via OR-Tools
-        logger.info(f"Cooperative Solver: Generating initial incumbent for {n} nodes, {num_vehicles} vehicles...")
+        # Step 1: High-quality fast incumbent initialization (150ms budget)
+        logger.info(f"Cooperative Solver: Generating fast initial incumbent for {n} nodes, {num_vehicles} vehicles...")
         incumbent_res = classical_solver.solve_ortools(
             distance_matrix=distance_matrix,
             num_vehicles=num_vehicles,
             depot=depot,
             demands=demands,
             vehicle_capacities=vehicle_capacities,
-            time_limit_sec=min(time_limit_sec, 10),
+            time_limit_sec=0.15,
+            time_limit_ms=150,
             objective_weights=objective_weights,
             travel_time_matrix=travel_time_matrix,
         )
@@ -92,12 +94,22 @@ class CooperativeVRPSolver:
                 objective_weights=objective_weights,
             )
 
-        incumbent_routes = copy.deepcopy(incumbent_res.get("routes", []))
+        input_cust_ids = [i for i in range(n) if i != depot]
+        # Guarantee initial incumbent has 100% stop coverage
+        incumbent_routes, init_val = repair_fleet_coverage(
+            incumbent_res.get("routes", []),
+            input_cust_ids,
+            distance_matrix,
+            demands,
+            vehicle_capacities,
+            num_vehicles,
+            depot,
+        )
         routes = copy.deepcopy(incumbent_routes)
         if not routes:
             return incumbent_res
 
-        initial_distance = float(sum(r.get("distance_km", 0.0) for r in routes))
+        initial_distance = float(sum(r.get("distance_km", 0.0) for r in incumbent_routes))
         subproblem_telemetry = []
 
         # Step 2: Inter-Route Boundary Optimization (if >= 2 routes exist)
@@ -210,29 +222,16 @@ class CooperativeVRPSolver:
                     except Exception as e:
                         logger.warning(f"Cooperative subproblem optimization error for routes ({idx_a}, {idx_b}): {e}")
 
-        # Ensure 100% customer coverage: greedily insert any remaining unserved customers
-        coop_served = set()
-        for r in routes:
-            coop_served.update(r.get("customer_stops", []))
-        coop_unserved = set(range(1, n)) - coop_served
-        if coop_unserved:
-            logger.info(f"Cooperative Solver: Greedily inserting {len(coop_unserved)} unserved stops to ensure 100% coverage.")
-            for u in sorted(list(coop_unserved)):
-                best_r = None
-                best_pos = None
-                best_extra = float("inf")
-                for r in routes:
-                    st = r["stops"]
-                    for p in range(len(st) - 1):
-                        extra = distance_matrix[st[p]][u] + distance_matrix[u][st[p+1]] - distance_matrix[st[p]][st[p+1]]
-                        if extra < best_extra:
-                            best_extra = extra
-                            best_r = r
-                            best_pos = p + 1
-                if best_r and best_pos is not None:
-                    best_r["stops"].insert(best_pos, u)
-                    best_r["customer_stops"] = [node for node in best_r["stops"] if node != depot]
-                    best_r["load"] += demands[u]
+        # Ensure 100% customer coverage before VND
+        routes, pre_vnd_val = repair_fleet_coverage(
+            routes,
+            input_cust_ids,
+            distance_matrix,
+            demands,
+            vehicle_capacities,
+            num_vehicles,
+            depot,
+        )
 
         # Step 3: Algorithmic VND Intra-Route Refinement
         final_total_dist = 0.0
@@ -278,13 +277,25 @@ class CooperativeVRPSolver:
 
         exec_time = time.perf_counter() - t0
 
-        # Proposition 1 Verification: final distance cannot exceed initial distance
+        # Proposition 1 Verification: final distance cannot exceed initial complete distance
         if final_total_dist > initial_distance + 1e-4:
             logger.warning(f"Proposition 1 violation detected: final ({final_total_dist}) > initial ({initial_distance}). Reverting to initial incumbent.")
             routes = copy.deepcopy(incumbent_routes)
             final_total_dist = initial_distance
 
-        validation = classical_solver._validate_solution(routes, demands, vehicle_capacities, n, depot)
+        # Final Guaranteed 100% Coverage Validation & Repair
+        routes, final_val = repair_fleet_coverage(
+            routes,
+            input_cust_ids,
+            distance_matrix,
+            demands,
+            vehicle_capacities,
+            num_vehicles,
+            depot,
+        )
+        final_total_dist = float(sum(r.get("distance_km", 0.0) for r in routes))
+        final_total_time = float(sum(r.get("travel_time_min", r.get("distance_km", 0.0) / 40.0 * 60.0) for r in routes))
+        final_obj_cost = final_total_dist
 
         # Telemetry packaging
         primary_strategy = subproblem_telemetry[0]["strategy"] if subproblem_telemetry else "VND_Refinement"
@@ -297,17 +308,18 @@ class CooperativeVRPSolver:
             "category": "cooperative",
             "category_label": "Hybrid Big Data + Quantum",
             "compute_type": "Hybrid (Spark + Adaptive Controller + QAOA/Tabu + VND)",
-            "status": "OPTIMAL" if validation["is_feasible"] else "FEASIBLE",
+            "status": "OPTIMAL" if final_val["is_valid"] else ("FEASIBLE" if final_val["capacity_feasible"] else "PENALIZED"),
             "execution_time_sec": round(float(exec_time), 3),
             "routes": routes,
             "total_distance_km": round(float(final_total_dist), 3),
             "total_travel_time_min": round(float(final_total_time), 2),
             "total_objective_cost": round(float(final_obj_cost), 3),
-            "is_feasible": validation["is_feasible"],
-            "capacity_violations": validation["capacity_violations"],
-            "unserved_customers": validation["unserved_count"],
-            "served_customers": validation["served_count"],
-            "warnings": validation.get("warnings", []),
+            "is_feasible": final_val["is_valid"],
+            "capacity_violations": final_val["capacity_violations"],
+            "unserved_customers": len(final_val["missing_delivery_ids"]),
+            "served_customers": final_val["visited_delivery_count"],
+            "validation_report": final_val,
+            "warnings": [f"Missing stops repaired: {final_val['missing_delivery_ids']}"] if final_val['missing_delivery_ids'] else [],
             "cooperative_telemetry": {
                 "spark_mode": spark_mode,
                 "initial_incumbent_distance_km": round(initial_distance, 3),

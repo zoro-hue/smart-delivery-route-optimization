@@ -79,9 +79,10 @@ class ClassicalVRPSolver:
         depot: int = 0,
         demands: Optional[List[int]] = None,
         vehicle_capacities: Optional[List[int]] = None,
-        time_limit_sec: int = 30,
+        time_limit_sec: float = 30,
         objective_weights: Optional[Dict[str, float]] = None,
         travel_time_matrix: Optional[np.ndarray] = None,
+        time_limit_ms: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Solve CVRP using OR-Tools.
@@ -169,9 +170,20 @@ class ClassicalVRPSolver:
         search_params = pywrapcp.DefaultRoutingSearchParameters()
         search_params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
         search_params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-        search_params.time_limit.FromSeconds(min(time_limit_sec, 3))
 
-        log_lines.append(f"Solver: OR-Tools CVRP, time limit: {min(time_limit_sec, 3)}s")
+        if time_limit_ms is not None:
+            effective_ms = max(10, int(time_limit_ms))
+            search_params.time_limit.FromMilliseconds(effective_ms)
+            log_lines.append(f"Solver: OR-Tools CVRP, time limit: {effective_ms}ms")
+        elif time_limit_sec < 1.0:
+            effective_ms = max(10, int(time_limit_sec * 1000))
+            search_params.time_limit.FromMilliseconds(effective_ms)
+            log_lines.append(f"Solver: OR-Tools CVRP, time limit: {effective_ms}ms")
+        else:
+            effective_s = max(1, min(int(time_limit_sec), 2 if n <= 35 else 5))
+            search_params.time_limit.FromSeconds(effective_s)
+            log_lines.append(f"Solver: OR-Tools CVRP, time limit: {effective_s}s")
+
         log_lines.append(f"Strategy: PATH_CHEAPEST_ARC + GUIDED_LOCAL_SEARCH")
 
         # Solve

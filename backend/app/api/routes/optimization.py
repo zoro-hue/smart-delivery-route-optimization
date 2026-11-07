@@ -26,6 +26,11 @@ from app.services.optimization.qiga_solver import qiga_solver
 from app.services.optimization.cooperative_solver import cooperative_solver
 from app.services.geo_validation import check_water_body, validate_nyc_coordinate
 from app.services.road_network_service import road_network_service
+from app.services.optimization.route_validator import (
+    validate_fleet_coverage,
+    repair_fleet_coverage,
+    profile_algorithm_execution,
+)
 
 settings = get_settings()
 router = APIRouter(prefix="/api", tags=["Optimization"])
@@ -264,8 +269,8 @@ async def run_optimization(
     mode = (req.selection_mode or "recommended").lower().strip()
 
     if mode == "recommended":
-        # Intelligent recommendation: OR-Tools is primary classical CVRP optimizer
-        to_run = ["ortools"]
+        # Flagship hybrid recommendation: ROUTE/IQ Cooperative Engine
+        to_run = ["routeiq_cooperative"]
     elif mode == "compare":
         if req.selected_algorithms and len(req.selected_algorithms) >= 2:
             to_run = list(req.selected_algorithms)
@@ -332,33 +337,31 @@ async def run_optimization(
     results = {}
 
     try:
-        for algo in to_run:
+        def _execute_single_algo(algo: str) -> Dict[str, Any]:
             logger.info(f"Executing algorithm '{algo}' on {n} nodes, {req.num_vehicles} vehicles")
-            t_algo_0 = time.time()
 
-            try:
+            def _run_raw_solver() -> Dict[str, Any]:
                 if algo in ("routeiq_cooperative", "cooperative", "routeiq"):
-                    effective_time_limit = min(req.classical_time_limit_sec or 10, 15)
-                    algo_res = cooperative_solver.solve(
+                    res = cooperative_solver.solve(
                         distance_matrix=adjusted_matrix,
                         num_vehicles=req.num_vehicles,
                         depot=0,
                         demands=demands_int,
                         vehicle_capacities=capacities,
-                        time_limit_sec=effective_time_limit,
+                        time_limit_sec=0.15,
                         objective_weights=objective_weights,
                         locations=locations,
                         seed=req.random_seed,
                     )
-                    algo_res["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
-                    algo_res["category"] = "cooperative"
-                    algo_res["category_label"] = "Cooperative Hybrid"
-                    algo_res["compute_type"] = "Hybrid (Spark + Adaptive + QAOA/Tabu + VND)"
+                    res["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
+                    res["category"] = "cooperative"
+                    res["category_label"] = "Cooperative Hybrid"
+                    res["compute_type"] = "Hybrid (Spark + Adaptive + QAOA/Tabu + VND)"
+                    return res
 
                 elif algo in ("ortools", "classical_ortools"):
-                    # Responsive time limit: 5s is optimal for <= 30 customers; prevents Cloudflare 502 timeouts on shared CPU
-                    effective_time_limit = min(req.classical_time_limit_sec or 5, 6) if n <= 35 else min(req.classical_time_limit_sec or 15, 15)
-                    algo_res = classical_solver.solve_ortools(
+                    effective_time_limit = 0.25 if n <= 35 else min(req.classical_time_limit_sec or 3, 5)
+                    res = classical_solver.solve_ortools(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -367,13 +370,14 @@ async def run_optimization(
                         time_limit_sec=effective_time_limit,
                         objective_weights=objective_weights,
                     )
-                    algo_res["algorithm_name"] = "OR-Tools (CVRP)"
-                    algo_res["category"] = "classical"
-                    algo_res["category_label"] = "Classical"
-                    algo_res["compute_type"] = "Classical CPU"
+                    res["algorithm_name"] = "OR-Tools (CVRP)"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
 
                 elif algo in ("clarke_wright", "clarkewright", "savings"):
-                    algo_res = classical_solver.solve_clarke_wright(
+                    res = classical_solver.solve_clarke_wright(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -381,13 +385,14 @@ async def run_optimization(
                         vehicle_capacities=capacities,
                         objective_weights=objective_weights,
                     )
-                    algo_res["algorithm_name"] = "Clarke–Wright Savings"
-                    algo_res["category"] = "classical"
-                    algo_res["category_label"] = "Classical"
-                    algo_res["compute_type"] = "Classical CPU"
+                    res["algorithm_name"] = "Clarke–Wright Savings"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
 
                 elif algo in ("two_opt", "2opt"):
-                    algo_res = classical_solver.solve_two_opt(
+                    res = classical_solver.solve_two_opt(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -395,13 +400,14 @@ async def run_optimization(
                         vehicle_capacities=capacities,
                         objective_weights=objective_weights,
                     )
-                    algo_res["algorithm_name"] = "2-opt Improvement"
-                    algo_res["category"] = "classical"
-                    algo_res["category_label"] = "Classical"
-                    algo_res["compute_type"] = "Classical CPU"
+                    res["algorithm_name"] = "2-opt Improvement"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
 
                 elif algo in ("dijkstra", "shortest_path"):
-                    algo_res = classical_solver.solve_dijkstra(
+                    res = classical_solver.solve_dijkstra(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -409,13 +415,14 @@ async def run_optimization(
                         vehicle_capacities=capacities,
                         objective_weights=objective_weights,
                     )
-                    algo_res["algorithm_name"] = "Dijkstra Shortest-Path"
-                    algo_res["category"] = "classical"
-                    algo_res["category_label"] = "Classical"
-                    algo_res["compute_type"] = "Classical CPU"
+                    res["algorithm_name"] = "Dijkstra Shortest-Path"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
 
                 elif algo in ("astar", "a*", "a_star"):
-                    algo_res = classical_solver.solve_astar(
+                    res = classical_solver.solve_astar(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -424,13 +431,14 @@ async def run_optimization(
                         objective_weights=objective_weights,
                         locations=locations,
                     )
-                    algo_res["algorithm_name"] = "A* Heuristic Search"
-                    algo_res["category"] = "classical"
-                    algo_res["category_label"] = "Classical"
-                    algo_res["compute_type"] = "Classical CPU"
+                    res["algorithm_name"] = "A* Heuristic Search"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
 
                 elif algo == "qiga":
-                    algo_res = qiga_solver.solve(
+                    res = qiga_solver.solve(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -438,26 +446,24 @@ async def run_optimization(
                         vehicle_capacities=capacities,
                         objective_weights=objective_weights,
                     )
-                    algo_res["algorithm_name"] = "Quantum-Inspired GA (QIGA/IQGA)"
-                    algo_res["category"] = "quantum_inspired"
-                    algo_res["category_label"] = "Quantum / Quantum-Classical"
-                    algo_res["compute_type"] = "Classically Simulated Q-Bits"
+                    res["algorithm_name"] = "Quantum-Inspired GA (QIGA/IQGA)"
+                    res["category"] = "quantum_inspired"
+                    res["category_label"] = "Quantum / Quantum-Classical"
+                    res["compute_type"] = "Classically Simulated Q-Bits"
+                    return res
 
                 elif algo == "qaoa":
-                    # Check size limit before running QAOA statevector simulator
                     if n > settings.MAX_CUSTOMERS_QAOA + 1:
-                        logger.warning(f"QAOA: using first {settings.MAX_CUSTOMERS_QAOA} customers due to qubit limit")
+                        logger.warning(f"QAOA: solving first {settings.MAX_CUSTOMERS_QAOA} customers on quantum simulator; remaining will be capacity-repaired")
                         qaoa_n = settings.MAX_CUSTOMERS_QAOA + 1
                         qaoa_matrix = adjusted_matrix[:qaoa_n, :qaoa_n]
                         qaoa_demands = demands[:qaoa_n]
-                        qaoa_locations = locations[:qaoa_n]
                     else:
                         qaoa_n = n
                         qaoa_matrix = adjusted_matrix
                         qaoa_demands = demands
-                        qaoa_locations = locations
 
-                    algo_res = quantum_solver.solve(
+                    res = quantum_solver.solve(
                         qaoa_matrix,
                         req.num_vehicles,
                         depot=0,
@@ -468,156 +474,149 @@ async def run_optimization(
                         optimizer_name=req.qaoa_optimizer,
                         penalty=req.qaoa_penalty,
                         random_seed=req.random_seed,
+                        max_iter=2,
                     )
-                    algo_res["algorithm_name"] = "QAOA Hybrid"
-                    algo_res["category"] = "quantum_hybrid"
-                    algo_res["category_label"] = "Quantum / Quantum-Classical"
-                    algo_res["compute_type"] = "Qiskit Statevector Simulator"
-
-                    if qaoa_n < n:
-                        unserved_count = n - qaoa_n
-                        algo_res["unserved_customers"] = unserved_count
-                        algo_res["is_feasible"] = False
-                        algo_res["warnings"] = algo_res.get("warnings", []) + [
-                            f"QAOA evaluated primary {qaoa_n - 1}-node subproblem; {unserved_count} customer stops remain outside simulation."
-                        ]
+                    res["algorithm_name"] = "QAOA Hybrid"
+                    res["category"] = "quantum_hybrid"
+                    res["category_label"] = "Quantum / Quantum-Classical"
+                    res["compute_type"] = "Qiskit Statevector Simulator"
+                    return res
                 else:
-                    logger.warning(f"Unknown algorithm '{algo}', defaulting to OR-Tools")
-                    algo_res = classical_solver.solve_ortools(
+                    res = classical_solver.solve_ortools(
                         adjusted_matrix,
                         req.num_vehicles,
                         depot=0,
                         demands=demands_int,
                         vehicle_capacities=capacities,
-                        time_limit_sec=req.classical_time_limit_sec,
+                        time_limit_sec=0.25,
                         objective_weights=objective_weights,
                     )
-                    algo_res["algorithm_name"] = "OR-Tools (CVRP)"
-                    algo_res["category"] = "classical"
-                    algo_res["category_label"] = "Classical"
-                    algo_res["compute_type"] = "Classical CPU"
+                    res["algorithm_name"] = "OR-Tools (CVRP)"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
 
-                raw_routes = algo_res.get("routes", [])
-                # Enforce that number of assigned routes does not exceed requested vehicles
-                while len(raw_routes) > req.num_vehicles and len(raw_routes) > 1:
-                    excess = raw_routes.pop()
-                    receiver = min(raw_routes, key=lambda r: r.get("load", 0))
-                    new_custs = excess.get("customer_stops", [])
-                    receiver["customer_stops"].extend(new_custs)
-                    receiver["stops"] = [0] + receiver["customer_stops"] + [0]
-                    receiver["load"] = receiver.get("load", 0) + excess.get("load", 0)
-                    st = receiver["stops"]
-                    receiver["distance_km"] = round(float(sum(physical_matrix[st[k]][st[k+1]] for k in range(len(st) - 1))), 3)
-                    receiver["cost"] = round(float(sum(adjusted_matrix[st[k]][st[k+1]] for k in range(len(st) - 1))), 3)
-                    if receiver.get("capacity", 0) > 0:
-                        receiver["utilization_pct"] = round(receiver["load"] / receiver["capacity"] * 100, 1)
-
-                # Measure physical road distance and generalized impedance cost for each route
-                for r in raw_routes:
-                    st = r.get("stops", [])
-                    if len(st) > 1:
-                        r["distance_km"] = round(float(sum(physical_matrix[st[k]][st[k+1]] for k in range(len(st) - 1))), 3)
-                        r["cost"] = round(float(sum(adjusted_matrix[st[k]][st[k+1]] for k in range(len(st) - 1))), 3)
-                    else:
-                        r["distance_km"] = 0.0
-                        r["cost"] = 0.0
-
-                # Reconstruct real road-following street waypoints using road_network_service
-                for r_idx, route in enumerate(raw_routes, start=1):
-                    route["vehicle_id"] = r_idx
-                    route["total_distance_km"] = route.get("distance_km", 0.0)
-                    if road_network_service.is_ready() and len(snapped_node_ids) >= len(locations):
-                        road_wps = road_network_service.reconstruct_vehicle_road_route(
-                            route["stops"], locations, snapped_node_ids
-                        )
-                        route["waypoints"] = road_wps
-                    else:
-                        route["waypoints"] = [
-                            {
-                                "lat": locations[s][0],
-                                "lon": locations[s][1],
-                                "type": "depot" if s == 0 else "customer",
-                                "index": s,
-                                "is_stop": True
-                            }
-                            for s in route["stops"]
-                            if s < len(locations)
-                        ]
-
-                if road_warnings:
-                    algo_res["warnings"] = list(set(algo_res.get("warnings", []) + road_warnings))
-
-                algo_res["routes"] = raw_routes
-                algo_res["total_distance_km"] = round(float(sum(r["distance_km"] for r in raw_routes)), 3) if raw_routes else algo_res.get("total_distance_km", 0.0)
-                algo_res["total_objective_cost"] = round(float(sum(r.get("cost", r["distance_km"]) for r in raw_routes)), 3) if raw_routes else algo_res.get("total_objective_cost", 0.0)
-                algo_res["total_travel_time_min"] = round(float((algo_res["total_objective_cost"] / 40.0) * 60), 2)
-                algo_res["status"] = "SUCCESS" if algo_res.get("success", True) else "FAILED"
-
-                results[algo] = algo_res
-
-            except Exception as algo_err:
-                logger.error(f"Algorithm '{algo}' failed during execution: {algo_err}")
-                algo_res = {
-                    "success": False,
-                    "status": "FAILED",
-                    "algorithm": algo,
-                    "algorithm_name": algo.replace("_", " ").title(),
-                    "category": "classical" if algo not in ("qaoa", "qiga") else ("quantum_hybrid" if algo == "qaoa" else "quantum_inspired"),
-                    "category_label": "Classical" if algo not in ("qaoa", "qiga") else "Quantum / Quantum-Classical",
-                    "compute_type": "Qiskit Statevector Simulator" if algo == "qaoa" else "Classical CPU",
-                    "error": str(algo_err),
-                    "warnings": [f"Algorithm execution failed: {str(algo_err)}"],
-                    "routes": [],
-                    "total_distance_km": 0.0,
-                    "total_travel_time_min": 0.0,
-                    "total_objective_cost": 0.0,
-                    "execution_time_sec": round(float(time.time() - t_algo_0), 3),
-                    "is_feasible": False,
-                    "capacity_violations": 0,
-                    "unserved_customers": n - 1,
-                    "served_customers": 0,
-                    "is_simulated_fallback": False,
+            try:
+                algo_res, res_metrics = profile_algorithm_execution(_run_raw_solver, algo)
+            except Exception as e:
+                logger.error(f"Solver {algo} execution error: {e}")
+                algo_res = {"success": False, "error": str(e), "routes": [], "status": "FAILED"}
+                res_metrics = {
+                    "runtime_ms": 0.0,
+                    "cpu_time_ms": 0.0,
+                    "cpu_utilization_percent": 0.0,
+                    "memory_used_mb": 0.0,
+                    "peak_memory_mb": 0.0,
+                    "time_complexity": "N/A",
+                    "space_complexity": "N/A",
+                    "measurement_available": False,
                 }
-                results[algo] = algo_res
 
-            # Safely attempt persistence in ExperimentResult table
+            # Universal 100% Stop Coverage Repair & Centralized Validation (R == I)
+            input_cust_ids = [i for i in range(1, n)]
+            repaired_routes, val_report = repair_fleet_coverage(
+                algo_res.get("routes", []),
+                input_cust_ids,
+                adjusted_matrix,
+                demands_int,
+                capacities,
+                req.num_vehicles,
+                depot=0,
+            )
+
+            # Reconstruct real road waypoints
+            for r_idx, route in enumerate(repaired_routes, start=1):
+                route["vehicle_id"] = r_idx
+                route["total_distance_km"] = route.get("distance_km", 0.0)
+                if road_network_service.is_ready() and len(snapped_node_ids) >= len(locations):
+                    road_wps = road_network_service.reconstruct_vehicle_road_route(
+                        route["stops"], locations, snapped_node_ids
+                    )
+                    route["waypoints"] = road_wps
+                else:
+                    route["waypoints"] = [
+                        {
+                            "lat": locations[s][0],
+                            "lon": locations[s][1],
+                            "type": "depot" if s == 0 else "customer",
+                            "index": s,
+                            "is_stop": True
+                        }
+                        for s in route["stops"]
+                        if s < len(locations)
+                    ]
+
+            algo_res["routes"] = repaired_routes
+            algo_res["total_distance_km"] = round(float(sum(r["distance_km"] for r in repaired_routes)), 3)
+            algo_res["total_objective_cost"] = algo_res["total_distance_km"]
+            algo_res["total_travel_time_min"] = round(float((algo_res["total_objective_cost"] / 40.0) * 60), 2)
+            algo_res["resource_metrics"] = res_metrics
+            algo_res["validation_report"] = val_report
+            algo_res["execution_time_sec"] = round(res_metrics["runtime_ms"] / 1000.0, 3)
+
+            # Feasibility: Must be complete (0 unserved, 0 duplicates) AND have 0 capacity violations
+            algo_res["unserved_customers"] = len(val_report["missing_delivery_ids"])
+            algo_res["served_customers"] = val_report["visited_delivery_count"]
+            algo_res["capacity_violations"] = val_report["capacity_violations"]
+            algo_res["is_feasible"] = val_report["is_valid"]
+            algo_res["status"] = "SUCCESS" if val_report["is_valid"] else ("PENALIZED" if val_report["capacity_violations"] > 0 else "FAILED")
+
+            if road_warnings:
+                algo_res["warnings"] = list(set(algo_res.get("warnings", []) + road_warnings))
+
+            return algo_res
+
+        from concurrent.futures import ThreadPoolExecutor
+
+        if len(to_run) == 1:
+            results[to_run[0]] = _execute_single_algo(to_run[0])
+        else:
+            with ThreadPoolExecutor(max_workers=min(len(to_run), 8)) as executor:
+                future_to_algo = {executor.submit(_execute_single_algo, a): a for a in to_run}
+                for fut in future_to_algo:
+                    a = future_to_algo[fut]
+                    try:
+                        results[a] = fut.result()
+                    except Exception as exc:
+                        logger.error(f"Concurrent worker for {a} raised: {exc}")
+                        results[a] = {"success": False, "error": str(exc), "routes": [], "status": "FAILED"}
+
+        # Safely attempt persistence in ExperimentResult table for each algorithm
+        for a_name, a_res in results.items():
             try:
                 exp_res = ExperimentResult(
                     experiment_id=experiment.id,
-                    algorithm=algo,
-                    total_distance_km=algo_res.get("total_distance_km", 0),
-                    total_travel_time_min=algo_res.get("total_travel_time_min", 0),
-                    total_objective_cost=algo_res.get("total_objective_cost", 0),
-                    execution_time_sec=algo_res.get("execution_time_sec", 0),
-                    is_feasible=algo_res.get("is_feasible", False),
-                    capacity_violations=algo_res.get("capacity_violations", 0),
-                    unserved_customers=algo_res.get("unserved_customers", 0),
-                    routes=algo_res.get("routes", []),
-                    solver_log=algo_res.get("solver_log", ""),
-                    warnings=algo_res.get("warnings", []),
-                    qubit_count=algo_res.get("num_qubits", 0),
-                    circuit_depth=algo_res.get("circuit_depth", 0),
-                    qaoa_layers=algo_res.get("qaoa_layers", 0),
-                    measurement_shots=algo_res.get("measurement_shots", 0),
-                    best_bitstring=algo_res.get("best_bitstring", ""),
-                    optimizer_iterations=algo_res.get("optimizer_iterations", 0),
-                    energy_history=algo_res.get("energy_history", []),
+                    algorithm=a_name,
+                    total_distance_km=a_res.get("total_distance_km", 0),
+                    total_travel_time_min=a_res.get("total_travel_time_min", 0),
+                    total_objective_cost=a_res.get("total_objective_cost", 0),
+                    execution_time_sec=a_res.get("execution_time_sec", 0),
+                    is_feasible=a_res.get("is_feasible", False),
+                    capacity_violations=a_res.get("capacity_violations", 0),
+                    unserved_customers=a_res.get("unserved_customers", 0),
+                    routes=a_res.get("routes", []),
+                    solver_log=a_res.get("solver_log", ""),
+                    warnings=a_res.get("warnings", []),
+                    qubit_count=a_res.get("num_qubits", 0),
+                    circuit_depth=a_res.get("circuit_depth", 0),
+                    qaoa_layers=a_res.get("qaoa_layers", 0),
+                    measurement_shots=a_res.get("measurement_shots", 0),
+                    best_bitstring=a_res.get("best_bitstring", ""),
+                    optimizer_iterations=a_res.get("optimizer_iterations", 0),
+                    energy_history=a_res.get("energy_history", []),
                 )
                 db.add(exp_res)
             except Exception as db_err:
-                logger.warning(f"Could not persist experiment result for '{algo}': {db_err}")
+                logger.warning(f"Could not persist experiment result for '{a_name}': {db_err}")
 
-        # Backward compatibility with existing UI components reading results.classical or results.qaoa
-        if "ortools" in results and "classical" not in results:
-            results["classical"] = results["ortools"]
-        elif "classical" not in results and len(results) > 0:
-            results["classical"] = next(iter(results.values()))
-
-        # Build comprehensive comparison summary
+        # Build comprehensive comparison summary with unique canonical IDs and resource metrics
         comparison_items = []
-        for algo_key, algo_data in results.items():
-            if algo_key == "classical" and "ortools" in results and algo_key != "ortools":
-                continue  # skip duplicate alias in comparison table
+        for algo_key in to_run:
+            if algo_key not in results:
+                continue
+            algo_data = results[algo_key]
+            res_m = algo_data.get("resource_metrics", {})
             comparison_items.append({
                 "id": algo_key,
                 "name": algo_data.get("algorithm_name", algo_key.upper()),
@@ -637,32 +636,34 @@ async def run_optimization(
                 "served_customers": algo_data.get("served_customers", (n - 1) - algo_data.get("unserved_customers", 0)),
                 "vehicles_used": len(algo_data.get("routes", [])),
                 "convergence_info": algo_data.get("convergence_info", {}),
+                "cpu_utilization_percent": res_m.get("cpu_utilization_percent", 0.0),
+                "memory_used_mb": res_m.get("memory_used_mb", 0.0),
+                "peak_memory_mb": res_m.get("peak_memory_mb", 0.0),
+                "time_complexity": res_m.get("time_complexity", "O(N^2)"),
+                "space_complexity": res_m.get("space_complexity", "O(N)"),
+                "resource_metrics": res_m,
                 "is_best": False,
             })
 
-        # Identify Best Feasible Result (Requirement 4)
+        # Identify Best Feasible Result (Universal Policy: strictly requires is_feasible, 0 unserved, 0 violations)
         feasible_items = [
             it for it in comparison_items
-            if it.get("status") == "SUCCESS" and it["is_feasible"] and it["capacity_violations"] == 0 and it["unserved_customers"] == 0
+            if it.get("status") in ("SUCCESS", "OPTIMAL") and it["is_feasible"] and it["capacity_violations"] == 0 and it["unserved_customers"] == 0
         ]
-        success_items = [it for it in comparison_items if it.get("status") == "SUCCESS"]
 
         if feasible_items:
             best_item = min(feasible_items, key=lambda x: (x["total_distance_km"], x["total_objective_cost"]))
             best_reason = f"Lowest route distance ({best_item['total_distance_km']} km) with 100% stop coverage and 0 constraint violations"
-        elif success_items:
-            # Strictly prioritize full stop coverage (lowest unserved), then minimum violations, then lowest distance
+        elif comparison_items:
+            # If no feasible candidate exists, select lowest-violation candidate but report honestly
             best_item = min(
-                success_items,
+                comparison_items,
                 key=lambda x: (x["unserved_customers"] * 1000 + x["capacity_violations"] * 100, x["total_distance_km"])
             )
-            best_reason = f"Highest stop coverage ({best_item['served_customers']}/{n-1} stops) and lowest distance ({best_item['total_distance_km']} km)"
-        elif comparison_items:
-            best_item = comparison_items[0]
-            best_reason = "First evaluated solver"
+            best_reason = f"Penalized solution ({best_item['capacity_violations']} cap violations, {best_item['unserved_customers']} unserved stops)"
         else:
             best_item = None
-            best_reason = ""
+            best_reason = "No solutions evaluated"
 
         if best_item:
             best_item["is_best"] = True

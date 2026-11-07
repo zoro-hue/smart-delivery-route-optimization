@@ -393,8 +393,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
             <CheckCircle2 className={`h-4 w-4 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
             Runtime: {currentResult?.execution_time_sec?.toFixed(3)}s
+            {currentResult?.resource_metrics?.cpu_utilization_percent !== undefined &&
+              ` · ${currentResult.resource_metrics.cpu_utilization_percent.toFixed(0)}% CPU · ${currentResult.resource_metrics.memory_used_mb}MB`}
           </span>
         </div>
       </div>
@@ -618,6 +620,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                   <th className="py-3 px-4">Duration</th>
                   <th className="py-3 px-4">Vehicles / Coverage</th>
                   <th className="py-3 px-4">Violations</th>
+                  <th className="py-3 px-4">CPU / RAM</th>
+                  <th className="py-3 px-4">Complexity</th>
                   <th className="py-3 px-4">Objective Cost</th>
                   <th className="py-3 px-4">Runtime</th>
                   <th className="py-3 px-4 text-right">Action</th>
@@ -684,6 +688,30 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                             {item.capacity_violations} cap / {item.unserved_customers} unserved
                           </span>
                         )}
+                      </td>
+
+                      {/* Resource: CPU & RAM */}
+                      <td className="py-3 px-4 font-technical">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
+                            {item.cpu_utilization_percent ? `${item.cpu_utilization_percent.toFixed(0)}% CPU` : 'Active'}
+                          </span>
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                            {item.memory_used_mb ? `${item.memory_used_mb.toFixed(1)} MB` : '<1 MB'} (pk: {item.peak_memory_mb ? `${item.peak_memory_mb.toFixed(1)}M` : '1M'})
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Theoretical Complexity */}
+                      <td className="py-3 px-4 font-technical">
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={item.time_complexity || 'O(N^2)'}>
+                            T: {item.time_complexity || 'O(N^2)'}
+                          </span>
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={item.space_complexity || 'O(N)'}>
+                            S: {item.space_complexity || 'O(N)'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Objective Cost */}

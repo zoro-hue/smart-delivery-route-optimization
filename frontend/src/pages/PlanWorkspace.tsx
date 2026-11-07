@@ -738,16 +738,16 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     try {
       const algosToRun =
         selectionMode === 'recommended'
-          ? ['ortools']
+          ? ['routeiq_cooperative']
           : selectionMode === 'compare'
           ? (selectedAlgorithms.length >= 2
               ? selectedAlgorithms
               : (activeStops.length <= 8
-                  ? ['ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
-                  : ['ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga']))
+                  ? ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
+                  : ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga']))
           : selectedAlgorithms.length > 0
           ? selectedAlgorithms
-          : ['ortools'];
+          : ['routeiq_cooperative'];
 
       const payload = {
         algorithm,
@@ -1246,7 +1246,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   type="button"
                   onClick={() => {
                     setSelectionMode('recommended');
-                    setSelectedAlgorithms(['ortools']);
+                    setSelectedAlgorithms(['routeiq_cooperative']);
                     localStorage.setItem('routeiq_selection_mode', 'recommended');
                   }}
                   className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
@@ -1301,13 +1301,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               {selectionMode === 'recommended' && (
                 <div className="p-3 rounded-xl bg-black/5 dark:bg-[#17171A] border border-black/5 dark:border-[#29292E] space-y-2 animate-fadeIn">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7]">Google OR-Tools CVRP Solver</span>
+                    <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7]">ROUTE/IQ Cooperative Engine</span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
-                      Default
+                      Recommended
                     </span>
                   </div>
                   <p className="text-[11px] text-[#666666] dark:text-[#A1A1AA] leading-snug">
-                    Standard classical vehicle routing optimizer with guided local search.
+                    Flagship hybrid optimizer: Spark 4.2 partitioning, Adaptive MAB controller, and Proposition 1 Guardrail.
                   </p>
                 </div>
               )}
@@ -1441,6 +1441,21 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Glassmorphic Algorithm Resource & Coverage Capsule */}
+              <div className="p-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#B7FF00] animate-pulse shrink-0" />
+                  <span className="font-technical text-[#555555] dark:text-[#A1A1AA] truncate">
+                    {selectionMode === 'recommended'
+                      ? 'Cooperative O(N log N) · Invariant R == I'
+                      : `${selectedAlgorithms.length} Solvers · Fleet Lower Bound K ≥ ⌈D/Q⌉`}
+                  </span>
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-md bg-[#B7FF00]/15 text-[#080808] dark:text-[#B7FF00] font-bold shrink-0">
+                  tracemalloc
+                </span>
+              </div>
             </div>
 
             {/* 4. Delivery Stops Table */}
