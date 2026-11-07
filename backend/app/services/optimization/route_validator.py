@@ -174,6 +174,17 @@ def repair_fleet_coverage(
         }]
 
     # Ensure vehicle count matches fleet limit
+    if len(repaired_routes) > num_vehicles:
+        # If solver produced more routes than user-requested fleet size, merge excess routes
+        merged_routes = repaired_routes[:num_vehicles]
+        for extra_r in repaired_routes[num_vehicles:]:
+            for stop in extra_r.get("stops", []):
+                if stop != depot and stop not in visited_nodes:
+                    # append to the route with smallest load
+                    min_load_r = min(merged_routes, key=lambda r: sum(demands[s] for s in r.get("stops", []) if s != depot))
+                    min_load_r["stops"].insert(-1, stop)
+        repaired_routes = merged_routes
+
     while len(repaired_routes) < num_vehicles:
         new_v_id = len(repaired_routes) + 1
         cap = vehicle_capacities[new_v_id - 1] if new_v_id - 1 < len(vehicle_capacities) else 100.0
@@ -188,7 +199,7 @@ def repair_fleet_coverage(
         })
 
     # Find which customers are currently visited
-    visited_nodes: Set[int] = set()
+    visited_nodes = set()
     for r in repaired_routes:
         c_stops = [s for s in r.get("stops", []) if s != depot]
         visited_nodes.update(c_stops)
@@ -207,7 +218,8 @@ def repair_fleet_coverage(
             best_is_cap_feasible = False
 
             # Search across all vehicles and all edge insertion positions
-            for r_idx, r in enumerate(repaired_routes):
+            for r_idx in range(min(len(repaired_routes), num_vehicles)):
+                r = repaired_routes[r_idx]
                 st = r.get("stops", [depot, depot])
                 current_load = sum(demands[s] if s < len(demands) else 1.0 for s in st if s != depot)
                 v_cap = vehicle_capacities[r_idx] if r_idx < len(vehicle_capacities) else 100.0
@@ -223,6 +235,10 @@ def repair_fleet_coverage(
                     d_ij = float(distance_matrix[i_node, j_node])
                     extra = d_iu + d_uj - d_ij
 
+                    # If edge or node is inaccessible / infinite cost, skip insertion position
+                    if math.isinf(d_iu) or math.isinf(d_uj) or math.isnan(extra) or math.isinf(extra):
+                        continue
+
                     # Priority 1: Capacity-feasible insertion with minimal extra distance
                     # Priority 2: Infeasible insertion with minimal extra distance (only if no vehicle has room)
                     if can_fit and not best_is_cap_feasible:
@@ -236,11 +252,10 @@ def repair_fleet_coverage(
                             best_r_idx = r_idx
                             best_pos = p + 1
 
-            if best_r_idx is not None and best_pos is not None:
+            if best_r_idx is not None and best_pos is not None and not math.isinf(best_extra_cost):
                 repaired_routes[best_r_idx]["stops"].insert(best_pos, u)
             else:
-                # Fallback: append to first route
-                repaired_routes[0]["stops"].insert(1, u)
+                logger.warning(f"Stop {u} cannot be feasibly reached on road network. Remains unserved.")
 
     # Recalculate metrics for all routes
     for r_idx, r in enumerate(repaired_routes, start=1):
@@ -286,8 +301,11 @@ def profile_algorithm_execution(
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Executes an algorithm while measuring actual OS wall-clock time, CPU process time,
-    and memory usage (heap delta & peak memory) via tracemalloc.
+    Python heap allocation (tracemalloc), and process resident RAM (psutil).
+    Keeps theoretical asymptotic complexity strictly separated from empirical measurements.
     """
+    import psutil
+    process = psutil.Process()
     tracemalloc.start()
     t0_wall = time.perf_counter()
     t0_cpu = time.process_time()
@@ -297,15 +315,21 @@ def profile_algorithm_execution(
     finally:
         t1_cpu = time.process_time()
         t1_wall = time.perf_counter()
-        current_mem, peak_mem = tracemalloc.get_traced_memory()
+        current_heap, peak_heap = tracemalloc.get_traced_memory()
         tracemalloc.stop()
+        try:
+            process_rss_bytes = process.memory_info().rss
+        except Exception:
+            process_rss_bytes = 0
 
     wall_ms = round((t1_wall - t0_wall) * 1000.0, 2)
     cpu_ms = round((t1_cpu - t0_cpu) * 1000.0, 2)
-    cpu_pct = round((cpu_ms / max(wall_ms, 0.001)) * 100.0, 1)
+    # CPU Core Time Ratio: Ratio of accumulated CPU time relative to elapsed wall time
+    cpu_ratio = round((cpu_ms / max(wall_ms, 0.001)) * 100.0, 1)
 
-    mem_used_mb = round(current_mem / (1024.0 * 1024.0), 3)
-    peak_mem_mb = round(peak_mem / (1024.0 * 1024.0), 3)
+    heap_alloc_mb = round(current_heap / (1024.0 * 1024.0), 3)
+    heap_peak_mb = round(peak_heap / (1024.0 * 1024.0), 3)
+    process_rss_mb = round(process_rss_bytes / (1024.0 * 1024.0), 2)
 
     complexity = ALGORITHM_COMPLEXITIES.get(
         algo_key,
@@ -319,13 +343,26 @@ def profile_algorithm_execution(
     resource_metrics = {
         "runtime_ms": wall_ms,
         "cpu_time_ms": cpu_ms,
-        "cpu_utilization_percent": min(cpu_pct, 100.0),
-        "memory_used_mb": mem_used_mb,
-        "peak_memory_mb": peak_mem_mb,
+        "cpu_utilization_percent": min(cpu_ratio, 100.0),
+        "cpu_core_ratio_percent": cpu_ratio,
+        "memory_used_mb": heap_alloc_mb,
+        "peak_memory_mb": heap_peak_mb,
+        "heap_allocated_mb": heap_alloc_mb,
+        "heap_peak_mb": heap_peak_mb,
+        "process_rss_mb": process_rss_mb,
         "time_complexity": complexity["time_complexity"],
         "space_complexity": complexity["space_complexity"],
         "measurement_available": True,
-        "measurement_method": "tracemalloc + high-res OS process timers",
+        "measurement_method": "psutil (Process RSS) + tracemalloc (Python Heap) + high-res OS process timers",
+        "measurement_nature": {
+            "wall_clock": "Empirically measured via time.perf_counter monotonic clock",
+            "cpu_time": "Empirically measured via time.process_time system/user counters",
+            "cpu_utilization": "Derived ratio: (CPU time / Wall time) * 100",
+            "heap_memory": "Empirically measured via tracemalloc (Python heap delta & peak)",
+            "process_rss": "Empirically measured via psutil (total resident process RAM)",
+            "asymptotic_complexity": "Theoretical worst-case Big-O bound (unaffected by empirical runtime)"
+        }
     }
 
     return result, resource_metrics
+

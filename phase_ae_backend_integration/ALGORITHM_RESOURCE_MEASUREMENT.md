@@ -61,3 +61,4 @@ Measurements captured on Intel Core i7 / 16GB RAM:
    - Displays real-time CPU % and memory under the Runtime indicator for the currently inspected route solution.
 3. **Planning Controls Panel (`PlanWorkspace.tsx`):**
    - Displays a glassmorphic capsule confirming real-time `tracemalloc` profiling and dynamic fleet feasibility guardrails.
+

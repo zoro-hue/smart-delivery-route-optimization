@@ -40,3 +40,4 @@ To verify that the system maintains dynamic fleet consistency and never omits cu
 - No algorithm with unserved stops ($M > 0$) can receive the "Best Feasible" badge.
 - Solutions with constraint violations are marked "Penalized".
 - Lowest distance among feasible solutions (`routeiq_cooperative` / `ortools`) is awarded Best Feasible.
+

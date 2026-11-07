@@ -134,3 +134,4 @@ QAOA bitstrings $x \in \{0, 1\}^q$ represent customer subset selection and seque
 The decoder maps $x \mapsto \pi$, where $\pi$ is an ordered permutation of the boundary set $B$.
 During fleet reintegration, $\pi$ replaces the boundary segment in vehicle routes, and full road network waypoints are reconstructed via Dijkstra shortest paths on the OSM GraphML road network.
 Finally, `route_validator.py:validate_fleet_coverage` asserts $R == I$ before any response is transmitted to the client.
+

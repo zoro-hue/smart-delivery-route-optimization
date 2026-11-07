@@ -120,15 +120,15 @@ class ClassicalVRPSolver:
         if vehicle_capacities is None:
             vehicle_capacities = [max(n, 100)] * num_vehicles
 
-        # Ensure demands and capacities are proper length
-        demands = list(demands[:n])
+        # Ensure demands and capacities are proper integer lists for OR-Tools C++ bindings
+        demands = [int(d) for d in demands[:n]]
         while len(demands) < n:
             demands.append(1)
         demands[depot] = 0
 
-        vehicle_capacities = list(vehicle_capacities[:num_vehicles])
+        vehicle_capacities = [int(c) for c in vehicle_capacities[:num_vehicles]]
         while len(vehicle_capacities) < num_vehicles:
-            vehicle_capacities.append(vehicle_capacities[-1] if vehicle_capacities else 100)
+            vehicle_capacities.append(int(vehicle_capacities[-1]) if vehicle_capacities else 100)
 
         log_lines = []
         log_lines.append(f"Problem: {n} nodes, {num_vehicles} vehicles, depot={depot}")

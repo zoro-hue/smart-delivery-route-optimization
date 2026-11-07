@@ -87,8 +87,12 @@ export interface SolverResult {
     runtime_ms?: number;
     cpu_time_ms?: number;
     cpu_utilization_percent?: number;
+    cpu_core_ratio_percent?: number;
     memory_used_mb?: number;
     peak_memory_mb?: number;
+    heap_allocated_mb?: number;
+    heap_peak_mb?: number;
+    process_rss_mb?: number;
     time_complexity?: string;
     space_complexity?: string;
     measurement_available?: boolean;
@@ -128,8 +132,12 @@ export interface ComparisonItem {
   vehicles_used: number;
   convergence_info?: Record<string, any>;
   cpu_utilization_percent?: number;
+  cpu_core_ratio_percent?: number;
   memory_used_mb?: number;
   peak_memory_mb?: number;
+  heap_allocated_mb?: number;
+  heap_peak_mb?: number;
+  process_rss_mb?: number;
   time_complexity?: string;
   space_complexity?: string;
   resource_metrics?: Record<string, any>;

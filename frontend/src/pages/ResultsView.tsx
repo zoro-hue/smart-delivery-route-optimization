@@ -690,25 +690,25 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         )}
                       </td>
 
-                      {/* Resource: CPU & RAM */}
+                      {/* Resource: CPU & Heap / RSS RAM */}
                       <td className="py-3 px-4 font-technical">
                         <div className="flex flex-col">
-                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
-                            {item.cpu_utilization_percent ? `${item.cpu_utilization_percent.toFixed(0)}% CPU` : 'Active'}
+                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
+                            {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
                           </span>
-                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]">
-                            {item.memory_used_mb ? `${item.memory_used_mb.toFixed(1)} MB` : '<1 MB'} (pk: {item.peak_memory_mb ? `${item.peak_memory_mb.toFixed(1)}M` : '1M'})
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]" title={`Process RSS: ${item.process_rss_mb || 0} MB | Python Heap: ${item.heap_allocated_mb || item.memory_used_mb || 0} MB (peak: ${item.heap_peak_mb || item.peak_memory_mb || 0} MB)`}>
+                            {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
                           </span>
                         </div>
                       </td>
 
-                      {/* Theoretical Complexity */}
+                      {/* Theoretical Big-O Complexity */}
                       <td className="py-3 px-4 font-technical">
                         <div className="flex flex-col">
-                          <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={item.time_complexity || 'O(N^2)'}>
+                          <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={`Theoretical Worst-Case Time: ${item.time_complexity || 'O(N^2)'}`}>
                             T: {item.time_complexity || 'O(N^2)'}
                           </span>
-                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={item.space_complexity || 'O(N)'}>
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={`Theoretical Worst-Case Space: ${item.space_complexity || 'O(N)'}`}>
                             S: {item.space_complexity || 'O(N)'}
                           </span>
                         </div>

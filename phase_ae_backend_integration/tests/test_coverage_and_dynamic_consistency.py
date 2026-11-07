@@ -128,3 +128,4 @@ async def test_end_to_end_coverage_all_solvers():
         val = algo_data.get("validation_report", {})
         assert val.get("is_complete") is True, f"{algo_key} coverage is incomplete"
         assert len(val.get("missing_delivery_ids", [])) == 0, f"{algo_key} missing IDs: {val.get('missing_delivery_ids')}"
+

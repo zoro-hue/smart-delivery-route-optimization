@@ -257,13 +257,17 @@ async def run_optimization(
         "travel_time": req.weight_travel_time,
     }
 
-    # Determine algorithms to run based on selection_mode
+    # Strictly preserve user-specified fleet constraints (never silently change vehicle count or capacity)
     demands_int = [int(d) for d in demands]
     total_cust_demand = sum(demands_int)
-    # Ensure vehicle capacities can accommodate customer demand across fleet so 100% of stops are served
-    min_required_cap = math.ceil(total_cust_demand / max(1, req.num_vehicles)) + 5
-    effective_cap = max(int(req.vehicle_capacity), min_required_cap)
-    capacities = [effective_cap] * req.num_vehicles
+    total_fleet_capacity = req.num_vehicles * int(req.vehicle_capacity)
+    capacities = [int(req.vehicle_capacity)] * req.num_vehicles
+
+    if total_cust_demand > total_fleet_capacity:
+        road_warnings.append(
+            f"Fleet capacity warning: Total customer demand ({total_cust_demand}) exceeds total fleet capacity "
+            f"({total_fleet_capacity} units across {req.num_vehicles} vehicles). Solvers will incur capacity penalties."
+        )
 
     to_run: List[str] = []
     mode = (req.selection_mode or "recommended").lower().strip()
@@ -637,8 +641,12 @@ async def run_optimization(
                 "vehicles_used": len(algo_data.get("routes", [])),
                 "convergence_info": algo_data.get("convergence_info", {}),
                 "cpu_utilization_percent": res_m.get("cpu_utilization_percent", 0.0),
+                "cpu_core_ratio_percent": res_m.get("cpu_core_ratio_percent", 0.0),
                 "memory_used_mb": res_m.get("memory_used_mb", 0.0),
                 "peak_memory_mb": res_m.get("peak_memory_mb", 0.0),
+                "heap_allocated_mb": res_m.get("heap_allocated_mb", 0.0),
+                "heap_peak_mb": res_m.get("heap_peak_mb", 0.0),
+                "process_rss_mb": res_m.get("process_rss_mb", 0.0),
                 "time_complexity": res_m.get("time_complexity", "O(N^2)"),
                 "space_complexity": res_m.get("space_complexity", "O(N)"),
                 "resource_metrics": res_m,
@@ -660,7 +668,10 @@ async def run_optimization(
                 comparison_items,
                 key=lambda x: (x["unserved_customers"] * 1000 + x["capacity_violations"] * 100, x["total_distance_km"])
             )
-            best_reason = f"Penalized solution ({best_item['capacity_violations']} cap violations, {best_item['unserved_customers']} unserved stops)"
+            if total_cust_demand > total_fleet_capacity:
+                best_reason = f"Mathematically infeasible fleet: total customer demand ({total_cust_demand}) exceeds total fleet capacity ({total_fleet_capacity}). Solutions incur {best_item['capacity_violations']} capacity violation(s)."
+            else:
+                best_reason = f"Infeasible solution: {best_item['capacity_violations']} capacity violation(s), {best_item['unserved_customers']} unserved stop(s)."
         else:
             best_item = None
             best_reason = "No solutions evaluated"
