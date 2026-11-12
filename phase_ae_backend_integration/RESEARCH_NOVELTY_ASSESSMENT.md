@@ -66,3 +66,4 @@ The table below audits every mechanism in ROUTE/IQ, classifying each under stric
    Projecting arbitrary GPS customer coordinates onto the OpenStreetMap Manhattan/NYC road graph via `road_network_service.py` using Dijkstra shortest paths, producing turn-by-turn driving geometries instead of naive Euclidean straight lines.
 3. **Multi-Faceted Resource Profiling:**
    Simultaneous acquisition of resident set size (`psutil`), heap allocation (`tracemalloc`), user/system CPU time (`time.process_time`), and monotonic wall-clock latency (`time.perf_counter`).
+

@@ -46,3 +46,4 @@ To ensure rigorous transparency for research review, the table below categorizes
 | **Proposition 1 Guardrail** | **Deterministic Assertion** | Mathematically guarantees $C(S_{\text{coop}}) \le C(S_{\text{incumbent}})$. Active in every cooperative run. |
 | **Route Validator & Repair ($R == I$)** | **Deterministic Heuristic** | Central post-processing engine. Actively repairs missing stops via capacity-aware cheapest insertion while strictly preserving user-specified capacities. |
 | **Road Network Service** | **In-Memory Graph** | OpenStreetMap NYC GraphML loaded into NetworkX with an $O(1)$ spatial coordinate snapping cache. |
+

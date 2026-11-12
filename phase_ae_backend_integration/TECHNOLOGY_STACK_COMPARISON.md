@@ -72,3 +72,4 @@ All versions below have been verified directly against the active environment ru
   - Unchecked subproblem returns: Replaced by Proposition 1 guardrail and $R == I$ validation.
   - Silent capacity inflation: Replaced by strict constraint preservation and explicit violation reporting.
   - Generic Euclidean distance: Replaced by NYC GraphML Dijkstra turn-by-turn road network routing.
+

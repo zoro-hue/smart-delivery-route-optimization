@@ -64,3 +64,4 @@ ROUTE/IQ is grounded in transparent empirical evidence, including critical negat
 ### Finding 6: Adaptive Controller (MAB UCB-1) Held-Out Generalization
 - **Operational Reality:** The Multi-Armed Bandit controller updates arm weights during execution based on observed boundary improvements.
 - **Limitation:** While effective within an active optimization run, learned arm weights are instance-dependent and do not automatically transfer to unseen geographic distributions without retraining.
+

@@ -270,3 +270,4 @@ flowchart LR
 | **Output Integrity** | Unchecked; dropped stops silently omitted. | Universal Invariant $R == I$ strictly enforced; missing stops repaired deterministically. |
 | **Safety Assurance** | None; degraded routes returned if solver failed. | Proposition 1 Guardrail mathematically guarantees $C(S_{\text{coop}}) \le C(S_{\text{incumbent}})$. |
 | **Resource Reporting** | Wall-clock execution time only. | Full OS process telemetry: process RSS, heap allocation/peak, CPU time, and theoretical Big-O. |
+
