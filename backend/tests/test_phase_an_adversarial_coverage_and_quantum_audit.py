@@ -253,3 +253,4 @@ def test_quantum_terminology_scientific_candor_audit():
     assert "spark local" in coop_entry["category_label"].lower()
     assert "qaoa cpu sim" in coop_entry["category_label"].lower()
     assert "qaoa statevector cpu simulation" in coop_entry["compute_type"].lower()
+

@@ -190,3 +190,4 @@ The 11 canonical algorithms registered in ROUTE/IQ:
 - **Protected Main:** `a8eb849988201d7929566f331c1ae3afac09b632` (strictly untouched)
 - **PR #1 Status:** Preserved in open review state on GitHub; not merged.
 - **Production Deployments:** No deployments triggered.
+
