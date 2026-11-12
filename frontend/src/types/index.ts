@@ -177,7 +177,11 @@ export interface OptimizationResponse {
     two_opt?: SolverResult;
     dijkstra?: SolverResult;
     astar?: SolverResult;
+    tabu_search?: SolverResult;
+    kernighan_lin?: SolverResult;
+    vnd?: SolverResult;
     qiga?: SolverResult;
+    routeiq_cooperative?: SolverResult;
   };
 }
 

@@ -66,6 +66,18 @@ class ClassicalVRPSolver:
             return self.solve_astar(
                 distance_matrix, num_vehicles, depot, demands, vehicle_capacities, objective_weights, locations
             )
+        elif algo in ("tabu_search", "tabu", "tabusearch"):
+            return self.solve_tabu_search(
+                distance_matrix, num_vehicles, depot, demands, vehicle_capacities, objective_weights
+            )
+        elif algo in ("kernighan_lin", "kl", "kernighanlin"):
+            return self.solve_kernighan_lin(
+                distance_matrix, num_vehicles, depot, demands, vehicle_capacities, objective_weights
+            )
+        elif algo in ("vnd", "variable_neighborhood_descent"):
+            return self.solve_vnd(
+                distance_matrix, num_vehicles, depot, demands, vehicle_capacities, objective_weights
+            )
         else:
             return self.solve_ortools(
                 distance_matrix, num_vehicles, depot, demands, vehicle_capacities,
@@ -1008,6 +1020,577 @@ class ClassicalVRPSolver:
             "warnings": validation.get("warnings", []),
             "convergence_info": {
                 "heuristic_evaluations": evaluations_count,
+            }
+        }
+
+    def _route_distance(self, stops: List[int], distance_matrix: np.ndarray) -> float:
+        if len(stops) < 2:
+            return 0.0
+        return float(sum(distance_matrix[stops[i]][stops[i + 1]] for i in range(len(stops) - 1)))
+
+    def _build_greedy_initial_routes(
+        self,
+        distance_matrix: np.ndarray,
+        num_vehicles: int,
+        depot: int,
+        demands: List[int],
+        vehicle_capacities: List[int]
+    ) -> List[List[int]]:
+        """Greedy capacity-feasible initial route partition."""
+        n = len(distance_matrix)
+        customers = [i for i in range(n) if i != depot]
+        # Sort by distance from depot
+        customers.sort(key=lambda c: distance_matrix[depot][c])
+
+        routes = [[] for _ in range(num_vehicles)]
+        loads = [0] * num_vehicles
+
+        for c in customers:
+            d_c = demands[c] if c < len(demands) else 1
+            # Find vehicle with capacity that minimizes insertion distance
+            best_v = None
+            best_cost = float("inf")
+            for v in range(num_vehicles):
+                cap = vehicle_capacities[v] if v < len(vehicle_capacities) else 100
+                if loads[v] + d_c <= cap:
+                    last_node = routes[v][-1] if routes[v] else depot
+                    cost = distance_matrix[last_node][c]
+                    if cost < best_cost:
+                        best_cost = cost
+                        best_v = v
+
+            if best_v is None:
+                # If cannot fit feasibly, place in vehicle with minimum load
+                best_v = min(range(num_vehicles), key=lambda v: loads[v])
+
+            routes[best_v].append(c)
+            loads[best_v] += d_c
+
+        return routes
+
+    def solve_tabu_search(
+        self,
+        distance_matrix: np.ndarray,
+        num_vehicles: int,
+        depot: int = 0,
+        demands: Optional[List[int]] = None,
+        vehicle_capacities: Optional[List[int]] = None,
+        objective_weights: Optional[Dict[str, float]] = None,
+        max_iterations: int = 80,
+        tabu_tenure: int = 7,
+    ) -> Dict[str, Any]:
+        """
+        Tabu Search Metaheuristic for CVRP:
+        Maintains recency-based memory to escape local optima via inter-route
+        relocate moves and intra-route 2-opt inversions with an aspiration criterion.
+        """
+        t0 = time.time()
+        n = len(distance_matrix)
+        if demands is None:
+            demands = [0] + [1] * (n - 1)
+        if vehicle_capacities is None:
+            vehicle_capacities = [max(n, 100)] * num_vehicles
+
+        # Initial solution
+        current_partition = self._build_greedy_initial_routes(
+            distance_matrix, num_vehicles, depot, demands, vehicle_capacities
+        )
+
+        def eval_solution(part: List[List[int]]) -> float:
+            total_d = 0.0
+            for r in part:
+                st = [depot] + r + [depot]
+                total_d += self._route_distance(st, distance_matrix)
+            return total_d
+
+        best_partition = [list(r) for r in current_partition]
+        best_dist = eval_solution(best_partition)
+        current_dist = best_dist
+
+        tabu_list: Dict[int, int] = {}  # customer -> iteration until which move is tabu
+        tabu_hits = 0
+        improvements = 0
+
+        for it in range(1, max_iterations + 1):
+            best_move = None
+            best_move_delta = float("inf")
+            best_move_is_aspiration = False
+
+            # Neighborhood: Inter-route Relocate
+            for v_src in range(num_vehicles):
+                if not current_partition[v_src]:
+                    continue
+                for idx_src, cust in enumerate(current_partition[v_src]):
+                    d_cust = demands[cust] if cust < len(demands) else 1
+                    is_tabu = tabu_list.get(cust, 0) >= it
+
+                    for v_dst in range(num_vehicles):
+                        if v_dst == v_src:
+                            continue
+                        cap_dst = vehicle_capacities[v_dst] if v_dst < len(vehicle_capacities) else 100
+                        curr_load_dst = sum(demands[s] for s in current_partition[v_dst])
+                        if curr_load_dst + d_cust > cap_dst:
+                            continue  # Capacity infeasible move
+
+                        # Evaluate cheapest insertion position in v_dst
+                        dst_route = current_partition[v_dst]
+                        for pos in range(len(dst_route) + 1):
+                            # Delta evaluation
+                            src_old = [depot] + current_partition[v_src] + [depot]
+                            src_new = [depot] + current_partition[v_src][:idx_src] + current_partition[v_src][idx_src+1:] + [depot]
+                            dst_old = [depot] + current_partition[v_dst] + [depot]
+                            dst_new = [depot] + dst_route[:pos] + [cust] + dst_route[pos:] + [depot]
+
+                            delta = (self._route_distance(src_new, distance_matrix) + self._route_distance(dst_new, distance_matrix)) - \
+                                    (self._route_distance(src_old, distance_matrix) + self._route_distance(dst_old, distance_matrix))
+
+                            candidate_dist = current_dist + delta
+                            aspiration = candidate_dist < best_dist - 1e-4
+
+                            if not is_tabu or aspiration:
+                                if delta < best_move_delta:
+                                    best_move_delta = delta
+                                    best_move = ("relocate", v_src, idx_src, v_dst, pos, cust)
+                                    best_move_is_aspiration = aspiration
+                            else:
+                                tabu_hits += 1
+
+            if best_move is not None:
+                # Apply best move
+                _, v_src, idx_src, v_dst, pos, cust = best_move
+                c_node = current_partition[v_src].pop(idx_src)
+                current_partition[v_dst].insert(pos, c_node)
+                current_dist += best_move_delta
+                tabu_list[cust] = it + tabu_tenure
+
+                if current_dist < best_dist - 1e-4:
+                    best_dist = current_dist
+                    best_partition = [list(r) for r in current_partition]
+                    improvements += 1
+            else:
+                # No non-tabu improving move found; break early
+                break
+
+        # Intra-route 2-opt refinement on best partition
+        final_routes = []
+        total_distance = 0.0
+        for vid, r_cust in enumerate(best_partition):
+            st = [depot] + r_cust + [depot]
+            # Simple 2-opt
+            improved = True
+            while improved:
+                improved = False
+                for i in range(1, len(st) - 2):
+                    for j in range(i + 1, len(st) - 1):
+                        d_old = distance_matrix[st[i-1]][st[i]] + distance_matrix[st[j]][st[j+1]]
+                        d_new = distance_matrix[st[i-1]][st[j]] + distance_matrix[st[i]][st[j+1]]
+                        if d_new < d_old - 1e-4:
+                            st[i:j+1] = reversed(st[i:j+1])
+                            improved = True
+                            break
+                    if improved:
+                        break
+
+            d_route = self._route_distance(st, distance_matrix)
+            total_distance += d_route
+            load = sum(demands[s] for s in st if s != depot)
+            cap = vehicle_capacities[vid] if vid < len(vehicle_capacities) else 100
+            final_routes.append({
+                "vehicle_id": vid,
+                "stops": st,
+                "customer_stops": [s for s in st if s != depot],
+                "distance_km": round(float(d_route), 3),
+                "load": load,
+                "capacity": cap,
+                "utilization_pct": round(load / cap * 100, 1) if cap > 0 else 0,
+            })
+
+        exec_time = time.time() - t0
+        total_time = (total_distance / 40.0) * 60.0
+        validation = self._validate_solution(final_routes, demands, vehicle_capacities, n, depot)
+        obj_weights = objective_weights or {"distance": 1.0, "travel_time": 0.5}
+        obj_cost = obj_weights.get("distance", 1.0) * total_distance + obj_weights.get("travel_time", 0.5) * total_time
+
+        return {
+            "success": True,
+            "algorithm": "tabu_search",
+            "algorithm_name": "Tabu Search Metaheuristic",
+            "category": "classical",
+            "status": "FEASIBLE" if validation["is_feasible"] else "PENALIZED",
+            "execution_time_sec": round(float(exec_time), 3),
+            "routes": final_routes,
+            "total_distance_km": round(float(total_distance), 3),
+            "total_travel_time_min": round(float(total_time), 2),
+            "total_objective_cost": round(float(obj_cost), 3),
+            "is_feasible": validation["is_feasible"],
+            "capacity_violations": validation["capacity_violations"],
+            "unserved_customers": validation["unserved_count"],
+            "served_customers": validation["served_count"],
+            "solver_log": f"Tabu Search completed: {improvements} improvements across {max_iterations} iterations.",
+            "validation": validation,
+            "warnings": validation.get("warnings", []),
+            "convergence_info": {
+                "tabu_tenure": tabu_tenure,
+                "improvements": improvements,
+                "tabu_evaluations": tabu_hits,
+            }
+        }
+
+    def solve_kernighan_lin(
+        self,
+        distance_matrix: np.ndarray,
+        num_vehicles: int,
+        depot: int = 0,
+        demands: Optional[List[int]] = None,
+        vehicle_capacities: Optional[List[int]] = None,
+        objective_weights: Optional[Dict[str, float]] = None,
+        max_passes: int = 5,
+    ) -> Dict[str, Any]:
+        """
+        Kernighan–Lin Graph Bipartition & Variable Exchange:
+        Evaluates variable-depth sequence swaps between vehicle pairs with node locking,
+        followed by intra-route 2-opt refinement.
+        """
+        t0 = time.time()
+        n = len(distance_matrix)
+        if demands is None:
+            demands = [0] + [1] * (n - 1)
+        if vehicle_capacities is None:
+            vehicle_capacities = [max(n, 100)] * num_vehicles
+
+        routes_cust = self._build_greedy_initial_routes(
+            distance_matrix, num_vehicles, depot, demands, vehicle_capacities
+        )
+
+        for _ in range(max_passes):
+            improved_any = False
+            for v1 in range(num_vehicles):
+                for v2 in range(v1 + 1, num_vehicles):
+                    r1 = routes_cust[v1]
+                    r2 = routes_cust[v2]
+                    if not r1 or not r2:
+                        continue
+
+                    cap1 = vehicle_capacities[v1] if v1 < len(vehicle_capacities) else 100
+                    cap2 = vehicle_capacities[v2] if v2 < len(vehicle_capacities) else 100
+
+                    # KL variable exchange pass
+                    locked1 = set()
+                    locked2 = set()
+                    swaps_history = []
+                    cumulative_gains = []
+                    total_gain = 0.0
+
+                    temp_r1 = list(r1)
+                    temp_r2 = list(r2)
+
+                    for _ in range(min(len(r1), len(r2))):
+                        best_swap = None
+                        best_gain = -float("inf")
+
+                        for i, c1 in enumerate(temp_r1):
+                            if c1 in locked1:
+                                continue
+                            d1 = demands[c1] if c1 < len(demands) else 1
+                            for j, c2 in enumerate(temp_r2):
+                                if c2 in locked2:
+                                    continue
+                                d2 = demands[c2] if c2 < len(demands) else 1
+
+                                # Check capacity constraints
+                                load1_new = sum(demands[s] for s in temp_r1) - d1 + d2
+                                load2_new = sum(demands[s] for s in temp_r2) - d2 + d1
+                                if load1_new > cap1 or load2_new > cap2:
+                                    continue
+
+                                # Calculate gain of swapping c1 and c2
+                                st1_old = [depot] + temp_r1 + [depot]
+                                st2_old = [depot] + temp_r2 + [depot]
+                                test_r1 = temp_r1[:i] + [c2] + temp_r1[i+1:]
+                                test_r2 = temp_r2[:j] + [c1] + temp_r2[j+1:]
+                                st1_new = [depot] + test_r1 + [depot]
+                                st2_new = [depot] + test_r2 + [depot]
+
+                                gain = (self._route_distance(st1_old, distance_matrix) + self._route_distance(st2_old, distance_matrix)) - \
+                                       (self._route_distance(st1_new, distance_matrix) + self._route_distance(st2_new, distance_matrix))
+
+                                if gain > best_gain:
+                                    best_gain = gain
+                                    best_swap = (i, c1, j, c2)
+
+                        if best_swap is None:
+                            break
+
+                        i, c1, j, c2 = best_swap
+                        temp_r1[i] = c2
+                        temp_r2[j] = c1
+                        locked1.add(c2)
+                        locked2.add(c1)
+                        total_gain += best_gain
+                        swaps_history.append((i, c1, j, c2))
+                        cumulative_gains.append(total_gain)
+
+                    # Find optimal prefix sum
+                    if cumulative_gains and max(cumulative_gains) > 1e-4:
+                        best_k = int(np.argmax(cumulative_gains))
+                        for idx_step in range(best_k + 1):
+                            i, c1, j, c2 = swaps_history[idx_step]
+                            r1[i] = c2
+                            r2[j] = c1
+                        improved_any = True
+
+            if not improved_any:
+                break
+
+        # Intra-route 2-opt refinement
+        final_routes = []
+        total_distance = 0.0
+        for vid, r_cust in enumerate(routes_cust):
+            st = [depot] + r_cust + [depot]
+            improved = True
+            while improved:
+                improved = False
+                for i in range(1, len(st) - 2):
+                    for j in range(i + 1, len(st) - 1):
+                        d_old = distance_matrix[st[i-1]][st[i]] + distance_matrix[st[j]][st[j+1]]
+                        d_new = distance_matrix[st[i-1]][st[j]] + distance_matrix[st[i]][st[j+1]]
+                        if d_new < d_old - 1e-4:
+                            st[i:j+1] = reversed(st[i:j+1])
+                            improved = True
+                            break
+                    if improved:
+                        break
+
+            d_route = self._route_distance(st, distance_matrix)
+            total_distance += d_route
+            load = sum(demands[s] for s in st if s != depot)
+            cap = vehicle_capacities[vid] if vid < len(vehicle_capacities) else 100
+            final_routes.append({
+                "vehicle_id": vid,
+                "stops": st,
+                "customer_stops": [s for s in st if s != depot],
+                "distance_km": round(float(d_route), 3),
+                "load": load,
+                "capacity": cap,
+                "utilization_pct": round(load / cap * 100, 1) if cap > 0 else 0,
+            })
+
+        exec_time = time.time() - t0
+        total_time = (total_distance / 40.0) * 60.0
+        validation = self._validate_solution(final_routes, demands, vehicle_capacities, n, depot)
+        obj_weights = objective_weights or {"distance": 1.0, "travel_time": 0.5}
+        obj_cost = obj_weights.get("distance", 1.0) * total_distance + obj_weights.get("travel_time", 0.5) * total_time
+
+        return {
+            "success": True,
+            "algorithm": "kernighan_lin",
+            "algorithm_name": "Kernighan–Lin Bipartition",
+            "category": "classical",
+            "status": "FEASIBLE" if validation["is_feasible"] else "PENALIZED",
+            "execution_time_sec": round(float(exec_time), 3),
+            "routes": final_routes,
+            "total_distance_km": round(float(total_distance), 3),
+            "total_travel_time_min": round(float(total_time), 2),
+            "total_objective_cost": round(float(obj_cost), 3),
+            "is_feasible": validation["is_feasible"],
+            "capacity_violations": validation["capacity_violations"],
+            "unserved_customers": validation["unserved_count"],
+            "served_customers": validation["served_count"],
+            "solver_log": "Kernighan-Lin sequence exchange completed with 2-opt refinement.",
+            "validation": validation,
+            "warnings": validation.get("warnings", []),
+            "convergence_info": {
+                "max_passes": max_passes,
+            }
+        }
+
+    def solve_vnd(
+        self,
+        distance_matrix: np.ndarray,
+        num_vehicles: int,
+        depot: int = 0,
+        demands: Optional[List[int]] = None,
+        vehicle_capacities: Optional[List[int]] = None,
+        objective_weights: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Variable Neighborhood Descent (VND) for CVRP:
+        Systematically explores 3 distinct neighborhood structures:
+        N1: Intra-route 2-opt edge inversion
+        N2: Inter-route Customer Relocate (shift)
+        N3: Inter-route Customer Swap (exchange)
+        Restarts search at N1 upon any improving step until local optimality across all 3.
+        """
+        t0 = time.time()
+        n = len(distance_matrix)
+        if demands is None:
+            demands = [0] + [1] * (n - 1)
+        if vehicle_capacities is None:
+            vehicle_capacities = [max(n, 100)] * num_vehicles
+
+        routes_cust = self._build_greedy_initial_routes(
+            distance_matrix, num_vehicles, depot, demands, vehicle_capacities
+        )
+
+        def total_dist_calc(r_list: List[List[int]]) -> float:
+            d = 0.0
+            for r in r_list:
+                st = [depot] + r + [depot]
+                d += self._route_distance(st, distance_matrix)
+            return d
+
+        k = 1
+        improvements_by_n = {1: 0, 2: 0, 3: 0}
+
+        while k <= 3:
+            improved = False
+
+            if k == 1:
+                # N1: Intra-route 2-opt
+                for vid in range(num_vehicles):
+                    st = [depot] + routes_cust[vid] + [depot]
+                    for i in range(1, len(st) - 2):
+                        for j in range(i + 1, len(st) - 1):
+                            d_old = distance_matrix[st[i-1]][st[i]] + distance_matrix[st[j]][st[j+1]]
+                            d_new = distance_matrix[st[i-1]][st[j]] + distance_matrix[st[i]][st[j+1]]
+                            if d_new < d_old - 1e-4:
+                                st[i:j+1] = reversed(st[i:j+1])
+                                routes_cust[vid] = [s for s in st if s != depot]
+                                improved = True
+                                improvements_by_n[1] += 1
+                                break
+                        if improved:
+                            break
+                    if improved:
+                        break
+
+            elif k == 2:
+                # N2: Inter-route Relocate
+                for v_src in range(num_vehicles):
+                    if not routes_cust[v_src]:
+                        continue
+                    for idx_src, cust in enumerate(routes_cust[v_src]):
+                        d_cust = demands[cust] if cust < len(demands) else 1
+                        for v_dst in range(num_vehicles):
+                            if v_dst == v_src:
+                                continue
+                            cap_dst = vehicle_capacities[v_dst] if v_dst < len(vehicle_capacities) else 100
+                            if sum(demands[s] for s in routes_cust[v_dst]) + d_cust > cap_dst:
+                                continue
+
+                            for pos in range(len(routes_cust[v_dst]) + 1):
+                                src_old = [depot] + routes_cust[v_src] + [depot]
+                                src_new = [depot] + routes_cust[v_src][:idx_src] + routes_cust[v_src][idx_src+1:] + [depot]
+                                dst_old = [depot] + routes_cust[v_dst] + [depot]
+                                dst_new = [depot] + routes_cust[v_dst][:pos] + [cust] + routes_cust[v_dst][pos:] + [depot]
+
+                                delta = (self._route_distance(src_new, distance_matrix) + self._route_distance(dst_new, distance_matrix)) - \
+                                        (self._route_distance(src_old, distance_matrix) + self._route_distance(dst_old, distance_matrix))
+
+                                if delta < -1e-4:
+                                    routes_cust[v_src].pop(idx_src)
+                                    routes_cust[v_dst].insert(pos, cust)
+                                    improved = True
+                                    improvements_by_n[2] += 1
+                                    break
+                            if improved:
+                                break
+                        if improved:
+                            break
+                    if improved:
+                        break
+
+            elif k == 3:
+                # N3: Inter-route Swap
+                for v1 in range(num_vehicles):
+                    for v2 in range(v1 + 1, num_vehicles):
+                        for i, c1 in enumerate(routes_cust[v1]):
+                            d1 = demands[c1] if c1 < len(demands) else 1
+                            for j, c2 in enumerate(routes_cust[v2]):
+                                d2 = demands[c2] if c2 < len(demands) else 1
+                                cap1 = vehicle_capacities[v1] if v1 < len(vehicle_capacities) else 100
+                                cap2 = vehicle_capacities[v2] if v2 < len(vehicle_capacities) else 100
+
+                                if sum(demands[s] for s in routes_cust[v1]) - d1 + d2 > cap1:
+                                    continue
+                                if sum(demands[s] for s in routes_cust[v2]) - d2 + d1 > cap2:
+                                    continue
+
+                                st1_old = [depot] + routes_cust[v1] + [depot]
+                                st2_old = [depot] + routes_cust[v2] + [depot]
+                                test1 = routes_cust[v1][:i] + [c2] + routes_cust[v1][i+1:]
+                                test2 = routes_cust[v2][:j] + [c1] + routes_cust[v2][j+1:]
+                                st1_new = [depot] + test1 + [depot]
+                                st2_new = [depot] + test2 + [depot]
+
+                                delta = (self._route_distance(st1_new, distance_matrix) + self._route_distance(st2_new, distance_matrix)) - \
+                                        (self._route_distance(st1_old, distance_matrix) + self._route_distance(st2_old, distance_matrix))
+
+                                if delta < -1e-4:
+                                    routes_cust[v1][i] = c2
+                                    routes_cust[v2][j] = c1
+                                    improved = True
+                                    improvements_by_n[3] += 1
+                                    break
+                            if improved:
+                                break
+                        if improved:
+                            break
+                    if improved:
+                        break
+
+            if improved:
+                k = 1  # Restart search from neighborhood N1
+            else:
+                k += 1  # Advance to next neighborhood structure
+
+        # Format final routes
+        final_routes = []
+        total_distance = 0.0
+        for vid, r_cust in enumerate(routes_cust):
+            st = [depot] + r_cust + [depot]
+            d_route = self._route_distance(st, distance_matrix)
+            total_distance += d_route
+            load = sum(demands[s] for s in st if s != depot)
+            cap = vehicle_capacities[vid] if vid < len(vehicle_capacities) else 100
+            final_routes.append({
+                "vehicle_id": vid,
+                "stops": st,
+                "customer_stops": [s for s in st if s != depot],
+                "distance_km": round(float(d_route), 3),
+                "load": load,
+                "capacity": cap,
+                "utilization_pct": round(load / cap * 100, 1) if cap > 0 else 0,
+            })
+
+        exec_time = time.time() - t0
+        total_time = (total_distance / 40.0) * 60.0
+        validation = self._validate_solution(final_routes, demands, vehicle_capacities, n, depot)
+        obj_weights = objective_weights or {"distance": 1.0, "travel_time": 0.5}
+        obj_cost = obj_weights.get("distance", 1.0) * total_distance + obj_weights.get("travel_time", 0.5) * total_time
+
+        return {
+            "success": True,
+            "algorithm": "vnd",
+            "algorithm_name": "Variable Neighborhood Descent (VND)",
+            "category": "classical",
+            "status": "FEASIBLE" if validation["is_feasible"] else "PENALIZED",
+            "execution_time_sec": round(float(exec_time), 3),
+            "routes": final_routes,
+            "total_distance_km": round(float(total_distance), 3),
+            "total_travel_time_min": round(float(total_time), 2),
+            "total_objective_cost": round(float(obj_cost), 3),
+            "is_feasible": validation["is_feasible"],
+            "capacity_violations": validation["capacity_violations"],
+            "unserved_customers": validation["unserved_count"],
+            "served_customers": validation["served_count"],
+            "solver_log": f"VND local search reached 3-neighborhood local optimum: {improvements_by_n}.",
+            "validation": validation,
+            "warnings": validation.get("warnings", []),
+            "convergence_info": {
+                "improvements_2opt": improvements_by_n[1],
+                "improvements_relocate": improvements_by_n[2],
+                "improvements_swap": improvements_by_n[3],
             }
         }
 

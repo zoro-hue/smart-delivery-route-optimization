@@ -57,6 +57,21 @@ ALGORITHM_COMPLEXITIES: Dict[str, Dict[str, str]] = {
         "space_complexity": "O(P · N)",
         "method": "Quantum-Inspired Genetic Superposition",
     },
+    "tabu_search": {
+        "time_complexity": "O(Iters · N · K)",
+        "space_complexity": "O(N)",
+        "method": "Recency-Memory Tabu Search Metaheuristic",
+    },
+    "kernighan_lin": {
+        "time_complexity": "O(N^2 log N)",
+        "space_complexity": "O(N)",
+        "method": "Variable-Depth Bipartition Exchange",
+    },
+    "vnd": {
+        "time_complexity": "O(K · N^2)",
+        "space_complexity": "O(N)",
+        "method": "Variable Neighborhood Descent (2-opt + Relocate + Swap)",
+    },
     "qaoa": {
         "time_complexity": "O(P · 2^q)",
         "space_complexity": "O(2^q)",
@@ -173,15 +188,37 @@ def repair_fleet_coverage(
             "utilization_pct": 0.0,
         }]
 
-    # Ensure vehicle count matches fleet limit
+    # Step 1: Deduplicate and strip unknown customer nodes across routes
+    seen_customers: Set[int] = set()
+    cleaned_routes = []
+    for r in repaired_routes:
+        cleaned_stops = [depot]
+        for s in r.get("stops", []):
+            if s == depot:
+                continue
+            if s in input_set and s not in seen_customers:
+                seen_customers.add(s)
+                cleaned_stops.append(s)
+            elif s not in input_set:
+                logger.warning(f"Repair: Discarding unknown node {s} not in customer input set.")
+            else:
+                logger.warning(f"Repair: Discarding duplicate visit to customer {s}.")
+        cleaned_stops.append(depot)
+        r["stops"] = cleaned_stops
+        cleaned_routes.append(r)
+    repaired_routes = cleaned_routes
+
+    # Step 2: Ensure vehicle count matches fleet limit (num_vehicles)
     if len(repaired_routes) > num_vehicles:
-        # If solver produced more routes than user-requested fleet size, merge excess routes
+        # Merge excess routes into the primary fleet routes with smallest load
         merged_routes = repaired_routes[:num_vehicles]
         for extra_r in repaired_routes[num_vehicles:]:
             for stop in extra_r.get("stops", []):
-                if stop != depot and stop not in visited_nodes:
-                    # append to the route with smallest load
-                    min_load_r = min(merged_routes, key=lambda r: sum(demands[s] for s in r.get("stops", []) if s != depot))
+                if stop != depot:
+                    min_load_r = min(
+                        merged_routes,
+                        key=lambda r: sum(demands[s] if s < len(demands) else 1.0 for s in r.get("stops", []) if s != depot)
+                    )
                     min_load_r["stops"].insert(-1, stop)
         repaired_routes = merged_routes
 
@@ -198,8 +235,8 @@ def repair_fleet_coverage(
             "utilization_pct": 0.0,
         })
 
-    # Find which customers are currently visited
-    visited_nodes = set()
+    # Step 3: Find which customers are currently visited after merge
+    visited_nodes: Set[int] = set()
     for r in repaired_routes:
         c_stops = [s for s in r.get("stops", []) if s != depot]
         visited_nodes.update(c_stops)

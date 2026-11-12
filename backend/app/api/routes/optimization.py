@@ -109,6 +109,42 @@ AVAILABLE_ALGORITHMS = [
         "compute_type": "Classical CPU",
     },
     {
+        "id": "tabu_search",
+        "name": "Tabu Search",
+        "category": "classical",
+        "category_label": "Classical",
+        "tag": "Metaheuristic Memory",
+        "description": "Recency-memory metaheuristic with tabu tenure and aspiration to escape local optima.",
+        "operational": True,
+        "max_customers": 200,
+        "is_primary": False,
+        "compute_type": "Classical CPU",
+    },
+    {
+        "id": "kernighan_lin",
+        "name": "Kernighan–Lin",
+        "category": "classical",
+        "category_label": "Classical",
+        "tag": "Bipartition Exchange",
+        "description": "Variable-depth bipartition sequence exchange with node locking and 2-opt refinement.",
+        "operational": True,
+        "max_customers": 200,
+        "is_primary": False,
+        "compute_type": "Classical CPU",
+    },
+    {
+        "id": "vnd",
+        "name": "Variable Neighborhood Descent (VND)",
+        "category": "classical",
+        "category_label": "Classical",
+        "tag": "Multi-Neighborhood Descent",
+        "description": "Deterministic local search systematically traversing 2-opt, Relocate, and Swap neighborhoods.",
+        "operational": True,
+        "max_customers": 200,
+        "is_primary": False,
+        "compute_type": "Classical CPU",
+    },
+    {
         "id": "qaoa",
         "name": "QAOA",
         "category": "quantum_hybrid",
@@ -441,6 +477,51 @@ async def run_optimization(
                     res["compute_type"] = "Classical CPU"
                     return res
 
+                elif algo in ("tabu_search", "tabu", "tabusearch"):
+                    res = classical_solver.solve_tabu_search(
+                        adjusted_matrix,
+                        req.num_vehicles,
+                        depot=0,
+                        demands=demands_int,
+                        vehicle_capacities=capacities,
+                        objective_weights=objective_weights,
+                    )
+                    res["algorithm_name"] = "Tabu Search Metaheuristic"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
+
+                elif algo in ("kernighan_lin", "kl", "kernighanlin"):
+                    res = classical_solver.solve_kernighan_lin(
+                        adjusted_matrix,
+                        req.num_vehicles,
+                        depot=0,
+                        demands=demands_int,
+                        vehicle_capacities=capacities,
+                        objective_weights=objective_weights,
+                    )
+                    res["algorithm_name"] = "Kernighan–Lin Bipartition"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
+
+                elif algo in ("vnd", "variable_neighborhood_descent"):
+                    res = classical_solver.solve_vnd(
+                        adjusted_matrix,
+                        req.num_vehicles,
+                        depot=0,
+                        demands=demands_int,
+                        vehicle_capacities=capacities,
+                        objective_weights=objective_weights,
+                    )
+                    res["algorithm_name"] = "Variable Neighborhood Descent (VND)"
+                    res["category"] = "classical"
+                    res["category_label"] = "Classical"
+                    res["compute_type"] = "Classical CPU"
+                    return res
+
                 elif algo == "qiga":
                     res = qiga_solver.solve(
                         adjusted_matrix,
@@ -486,20 +567,8 @@ async def run_optimization(
                     res["compute_type"] = "Qiskit Statevector Simulator"
                     return res
                 else:
-                    res = classical_solver.solve_ortools(
-                        adjusted_matrix,
-                        req.num_vehicles,
-                        depot=0,
-                        demands=demands_int,
-                        vehicle_capacities=capacities,
-                        time_limit_sec=0.25,
-                        objective_weights=objective_weights,
-                    )
-                    res["algorithm_name"] = "OR-Tools (CVRP)"
-                    res["category"] = "classical"
-                    res["category_label"] = "Classical"
-                    res["compute_type"] = "Classical CPU"
-                    return res
+                    logger.warning(f"Unrecognized algorithm '{algo}'. Rejecting unrecognized solver request.")
+                    raise ValueError(f"Algorithm '{algo}' is not registered in the ROUTE/IQ canonical registry.")
 
             try:
                 algo_res, res_metrics = profile_algorithm_execution(_run_raw_solver, algo)
@@ -653,31 +722,43 @@ async def run_optimization(
                 "is_best": False,
             })
 
-        # Identify Best Feasible Result (Universal Policy: strictly requires is_feasible, 0 unserved, 0 violations)
-        feasible_items = [
-            it for it in comparison_items
-            if it.get("status") in ("SUCCESS", "FEASIBLE") and it["is_feasible"] and it["capacity_violations"] == 0 and it["unserved_customers"] == 0
-        ]
-
-        if feasible_items:
-            best_item = min(feasible_items, key=lambda x: (x["total_distance_km"], x["total_objective_cost"]))
-            best_reason = f"Lowest route distance ({best_item['total_distance_km']} km) with 100% stop coverage and 0 constraint violations"
-        elif comparison_items:
-            # If no feasible candidate exists, select lowest-violation candidate but report honestly
-            best_item = min(
-                comparison_items,
-                key=lambda x: (x["unserved_customers"] * 1000 + x["capacity_violations"] * 100, x["total_distance_km"])
+        # Sort comparison_items so feasible complete solutions always outrank infeasible solutions
+        def _comparison_rank_key(item: Dict[str, Any]) -> Tuple:
+            is_feas = (
+                item.get("status") in ("SUCCESS", "FEASIBLE") and
+                item["is_feasible"] and
+                item["capacity_violations"] == 0 and
+                item["unserved_customers"] == 0
             )
+            # Rank 0 for feasible complete solutions, Rank 1 for infeasible or partial solutions
+            feas_rank = 0 if is_feas else 1
+            return (
+                feas_rank,
+                item["unserved_customers"],
+                item["capacity_violations"],
+                item["total_distance_km"],
+                item["total_objective_cost"],
+                item["execution_time_sec"]
+            )
+
+        comparison_items.sort(key=_comparison_rank_key)
+
+        best_item = comparison_items[0] if comparison_items else None
+        if best_item and (best_item["is_feasible"] and best_item["capacity_violations"] == 0 and best_item["unserved_customers"] == 0):
+            best_item["is_best"] = True
+            best_reason = f"Lowest route distance ({best_item['total_distance_km']} km) with 100% stop coverage and 0 constraint violations"
+        elif best_item:
+            best_item["is_best"] = False
             if total_cust_demand > total_fleet_capacity:
                 best_reason = f"Mathematically infeasible fleet: total customer demand ({total_cust_demand}) exceeds total fleet capacity ({total_fleet_capacity}). Solutions incur {best_item['capacity_violations']} capacity violation(s)."
             else:
                 best_reason = f"Infeasible solution: {best_item['capacity_violations']} capacity violation(s), {best_item['unserved_customers']} unserved stop(s)."
         else:
-            best_item = None
             best_reason = "No solutions evaluated"
 
-        if best_item:
-            best_item["is_best"] = True
+        # Provide backward-compatibility alias in results map without duplicate comparison items
+        if "ortools" in results and "classical" not in results:
+            results["classical"] = results["ortools"]
 
         experiment.status = "completed"
         await db.flush()
