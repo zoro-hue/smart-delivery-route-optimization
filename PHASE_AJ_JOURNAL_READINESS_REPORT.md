@@ -89,3 +89,4 @@ Scalability benchmarks were executed across synthetic urban datasets ranging fro
 - [x] **Big Data Scaling Data:** Measured throughput and latency up to 100,000 delivery orders.
 - [x] **Feasibility & Coverage Proof:** 100% capacity compliance and zero dropped stops across all runs.
 - [x] **Full-Stack Reproducibility:** Working code in FastAPI backend, tested with 70 unit tests.
+
