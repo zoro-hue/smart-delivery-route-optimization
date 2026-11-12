@@ -130,3 +130,4 @@ Every registered algorithm was executed on this identical 18-stop instance under
 3. **Vehicle Fleet Adherence:** Every solution employed exactly 3 vehicles.
 4. **Cooperative Engine Optimality:** The ROUTE/IQ Cooperative Engine matched the optimal distance of OR-Tools CVRP (47.760 km) while preserving Proposition 1 guardrail safety.
 5. **Scorecard Ranking Correctness:** The Best Feasible badge is awarded to the lowest-cost complete feasible solution (`routeiq_cooperative` / `ortools`), and no incomplete or invalid routes are permitted to outrank complete solutions.
+

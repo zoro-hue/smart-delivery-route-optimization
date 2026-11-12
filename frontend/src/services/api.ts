@@ -2,20 +2,55 @@ import axios from 'axios';
 import { Dataset, AnalyticsSummary, OptimizationResponse } from '../types';
 
 // In production, configure VITE_API_URL (e.g. https://route-iq-backend.onrender.com)
+// In staging/preview, configure VITE_STAGING_API_URL (e.g. https://route-iq-backend-staging.onrender.com)
 // In local dev, defaults to '/api' which is proxied by Vite to http://127.0.0.1:8000
 const PRODUCTION_BACKEND_URL = 'https://route-iq-backend.onrender.com';
+const STAGING_BACKEND_URL = 'https://route-iq-backend-staging.onrender.com';
+
+const isBrowser = typeof window !== 'undefined';
+const isLocalhost =
+  isBrowser &&
+  (window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '0.0.0.0');
+
+// A Vercel preview domain has the form: route-iq-frontend-*-projects.vercel.app or contains -git-
+// The canonical production domain is: route-iq-frontend-nine.vercel.app
+const isVercelPreview =
+  isBrowser &&
+  window.location.hostname.endsWith('.vercel.app') &&
+  !window.location.hostname.startsWith('route-iq-frontend-nine');
+
+const explicitStagingUrl = import.meta.env.VITE_STAGING_API_URL;
 const rawApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
 
-const isBrowserProd =
-  typeof window !== 'undefined' &&
-  window.location.hostname !== 'localhost' &&
-  window.location.hostname !== '127.0.0.1';
+function resolveApiBase(): string {
+  // 1. Local development uses Vite proxy to local backend
+  if (isLocalhost) {
+    return '/api';
+  }
 
-const API_BASE = rawApiUrl
-  ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`)
-  : (import.meta.env.PROD || isBrowserProd
-      ? `${PRODUCTION_BACKEND_URL}/api`
-      : '/api');
+  // 2. Vercel Preview Deployments: Route strictly to isolated staging backend
+  if (isVercelPreview) {
+    let target = explicitStagingUrl;
+    if (!target && rawApiUrl && !rawApiUrl.includes('route-iq-backend.onrender.com')) {
+      target = rawApiUrl;
+    }
+    if (!target) {
+      target = STAGING_BACKEND_URL;
+    }
+    console.info(
+      `[ROUTE/IQ Preview Routing] Active preview domain (${window.location.hostname}). Directing API traffic to isolated staging backend: ${target}`
+    );
+    return target.endsWith('/api') ? target : `${target.replace(/\/$/, '')}/api`;
+  }
+
+  // 3. Production Deployments (route-iq-frontend-nine.vercel.app): Route to production backend
+  const targetProd = rawApiUrl || PRODUCTION_BACKEND_URL;
+  return targetProd.endsWith('/api') ? targetProd : `${targetProd.replace(/\/$/, '')}/api`;
+}
+
+const API_BASE = resolveApiBase();
 
 const http = axios.create({
   baseURL: API_BASE,

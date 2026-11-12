@@ -122,3 +122,4 @@ A live probe was executed against `https://route-iq-backend.onrender.com`:
 2. **Did we merge PR #1?** **NO.** PR #1 remains open and untriggered.
 3. **Did we trigger production deployment?** **NO.** No manual deploys or branch rebases were executed.
 4. **Is the live preview connected to the new backend?** **NO.** The live preview frontend is linked via `vercel.json` to the production Render backend, which currently runs `main`. Live validation of the new backend must occur locally or via isolated test containers until the faculty approves merging PR #1.
+
