@@ -83,3 +83,4 @@ dist/assets/index-CaWIs_w1.js   979.67 kB │ gzip: 280.53 kB
 ```
 - **TypeScript Type Safety:** 0 compile errors across all components and types.
 - **UI Design Preservation:** Retained existing layout, themes (dark/light), MapLibre/Leaflet maps, scorecards, and control sidebars.
+

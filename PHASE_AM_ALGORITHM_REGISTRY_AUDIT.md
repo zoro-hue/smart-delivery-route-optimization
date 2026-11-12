@@ -76,3 +76,4 @@ To permanently resolve duplication, ROUTE/IQ now defines **exactly 11 canonical 
 
 4. **Frontend Canonical Synchronization:**
    `WORKSPACE_ALGORITHMS` in `frontend/src/pages/PlanWorkspace.tsx` and types in `frontend/src/types/index.ts` have been aligned with the 11 canonical algorithms, ensuring that every algorithm presented to the user maps 1-to-1 to a distinct backend solver.
+

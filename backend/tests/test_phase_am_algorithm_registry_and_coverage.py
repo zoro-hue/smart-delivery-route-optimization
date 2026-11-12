@@ -323,3 +323,4 @@ def test_comparison_ranking_invariant():
     # Feasible must be ranked #1
     assert items[0]["id"] == "feasible_complete", "Invariant Failed: Infeasible route outranked feasible route"
     assert items[1]["id"] == "infeasible_short"
+

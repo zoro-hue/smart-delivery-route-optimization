@@ -103,3 +103,4 @@ All 11 algorithms were executed on the authentic 18-stop Manhattan-type benchmar
 - **Zero Duplicates & Zero Dropped Stops:** Verified across every route.
 - **Fleet Constraints:** Vehicle count $\le 3$ and vehicle load $\le 40$ respected by all solutions.
 - **Deduplication:** Every registered algorithm appears exactly once with unique ID and name.
+

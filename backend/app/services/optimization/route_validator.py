@@ -86,16 +86,23 @@ def validate_fleet_coverage(
     demands: List[float],
     vehicle_capacities: List[float],
     depot: int = 0,
+    distance_matrix: Optional[np.ndarray] = None,
 ) -> Dict[str, Any]:
     """
-    Validates complete fleet route solutions against the Universal Coverage Invariant R == I.
+    Validates complete fleet route solutions against the Universal Coverage Invariant R == I,
+    vehicle capacity constraints, vehicle fleet limits, and directed road network reachability.
     Operates on the entire fleet solution, not individual routes in isolation.
     """
     input_set: Set[int] = set(input_customer_ids)
     visited_multiset: List[int] = []
     vehicle_loads: List[float] = []
     capacity_violations = 0
+    unreachable_edge_violations = 0
     route_details = []
+
+    # Vehicle count validation
+    max_allowed_vehicles = len(vehicle_capacities) if vehicle_capacities else len(routes)
+    vehicle_count_violations = max(0, len(routes) - max_allowed_vehicles)
 
     for r_idx, route in enumerate(routes):
         stops = route.get("stops", [])
@@ -112,6 +119,15 @@ def validate_fleet_coverage(
         is_over = route_load > cap + 1e-4
         if is_over:
             capacity_violations += 1
+
+        # Check road-graph edge reachability if distance matrix provided
+        if distance_matrix is not None and len(stops) >= 2:
+            for k in range(len(stops) - 1):
+                u_node = stops[k]
+                v_node = stops[k + 1]
+                edge_cost = float(distance_matrix[u_node, v_node])
+                if math.isinf(edge_cost) or math.isnan(edge_cost):
+                    unreachable_edge_violations += 1
 
         vehicle_loads.append(route_load)
         route_details.append({
@@ -138,13 +154,24 @@ def validate_fleet_coverage(
 
     is_complete = (len(missing_ids) == 0 and len(unknown_ids) == 0 and len(duplicate_ids) == 0)
     capacity_feasible = (capacity_violations == 0)
-    is_valid = is_complete and capacity_feasible
+    fleet_count_feasible = (vehicle_count_violations == 0)
+    reachability_feasible = (unreachable_edge_violations == 0)
+    is_valid = is_complete and capacity_feasible and fleet_count_feasible and reachability_feasible
+
+    status_label = "FEASIBLE" if is_valid else (
+        "PARTIAL" if len(missing_ids) > 0 else (
+            "INFEASIBLE" if (unreachable_edge_violations > 0 or vehicle_count_violations > 0) else "PENALIZED"
+        )
+    )
 
     return {
         "is_complete": is_complete,
         "is_valid": is_valid,
+        "status": status_label,
         "capacity_feasible": capacity_feasible,
         "capacity_violations": capacity_violations,
+        "vehicle_count_violations": vehicle_count_violations,
+        "unreachable_edge_violations": unreachable_edge_violations,
         "input_delivery_count": len(input_customer_ids),
         "visited_delivery_count": len(visited_set),
         "missing_delivery_ids": missing_ids,
@@ -209,18 +236,16 @@ def repair_fleet_coverage(
     repaired_routes = cleaned_routes
 
     # Step 2: Ensure vehicle count matches fleet limit (num_vehicles)
+    # If the solver returned more routes than num_vehicles, retain the top num_vehicles routes.
+    # The customer stops belonging to the excess routes are intentionally NOT blindly appended
+    # to arbitrary routes; instead, they are left unassigned so that Step 4 inserts them
+    # into the vehicle and edge position that is guaranteed to preserve capacity feasibility if possible.
     if len(repaired_routes) > num_vehicles:
-        # Merge excess routes into the primary fleet routes with smallest load
-        merged_routes = repaired_routes[:num_vehicles]
-        for extra_r in repaired_routes[num_vehicles:]:
-            for stop in extra_r.get("stops", []):
-                if stop != depot:
-                    min_load_r = min(
-                        merged_routes,
-                        key=lambda r: sum(demands[s] if s < len(demands) else 1.0 for s in r.get("stops", []) if s != depot)
-                    )
-                    min_load_r["stops"].insert(-1, stop)
-        repaired_routes = merged_routes
+        logger.info(
+            f"Repair: Excess routes detected ({len(repaired_routes)} > {num_vehicles}). "
+            f"Retaining primary {num_vehicles} routes; excess route stops will be capacity-feasibly reinserted."
+        )
+        repaired_routes = repaired_routes[:num_vehicles]
 
     while len(repaired_routes) < num_vehicles:
         new_v_id = len(repaired_routes) + 1
@@ -326,7 +351,7 @@ def repair_fleet_coverage(
         r["vehicle_id"] = i
 
     validation_report = validate_fleet_coverage(
-        final_routes, input_customer_ids, demands, vehicle_capacities, depot
+        final_routes, input_customer_ids, demands, vehicle_capacities, depot, distance_matrix=distance_matrix
     )
 
     return final_routes, validation_report

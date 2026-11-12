@@ -67,3 +67,4 @@ When opening the Vercel preview URL:
    - Click **"Scorecard"** or open the Results view.
    - Confirm each algorithm row displays its distinct name, category, complete coverage (18/18 stops), zero violations, CPU/RAM telemetry, and total distance.
    - Confirm the **Best Feasible** badge is awarded strictly to the lowest-distance feasible complete solution.
+

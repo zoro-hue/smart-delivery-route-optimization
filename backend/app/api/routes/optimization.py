@@ -40,13 +40,13 @@ AVAILABLE_ALGORITHMS = [
         "id": "routeiq_cooperative",
         "name": "ROUTE/IQ Cooperative Engine",
         "category": "cooperative",
-        "category_label": "Cooperative Hybrid (Big Data + Quantum)",
+        "category_label": "Cooperative Hybrid (Spark Local + Classical + QAOA CPU Sim)",
         "tag": "Spark + Adaptive + QAOA/Tabu + VND",
-        "description": "End-to-end cooperative optimization unifying Spark spatial decomposition, Multi-Armed Bandit adaptive control, QAOA/Tabu candidate generation, VND refinement, and Proposition 1 non-degradation guardrail.",
+        "description": "End-to-end cooperative optimization unifying Spark local spatial decomposition, Multi-Armed Bandit adaptive control, classical heuristics (Tabu/KL/VND), and QAOA with Qiskit Aer/statevector CPU simulation with Proposition 1 non-degradation guardrail.",
         "operational": True,
         "max_customers": 200,
         "is_primary": False,
-        "compute_type": "Hybrid (Spark + Classical CPU + Simulated QPU)",
+        "compute_type": "Hybrid (Spark Local + Classical CPU + QAOA Statevector CPU Simulation)",
     },
     {
         "id": "ortools",
@@ -148,25 +148,25 @@ AVAILABLE_ALGORITHMS = [
         "id": "qaoa",
         "name": "QAOA",
         "category": "quantum_hybrid",
-        "category_label": "Quantum / Quantum-Classical",
+        "category_label": "Quantum-Classical Simulation",
         "tag": "Hybrid Quantum-Classical",
-        "description": "Hybrid variational quantum-classical optimization via Qiskit statevector simulation.",
+        "description": "Hybrid variational quantum-classical optimization using QAOA with Qiskit Aer/statevector CPU simulation.",
         "operational": True,
         "max_customers": 8,
         "is_primary": False,
-        "compute_type": "Classical Statevector Simulation (Qiskit)",
+        "compute_type": "QAOA with Qiskit Aer/statevector CPU simulation",
     },
     {
         "id": "qiga",
         "name": "Quantum-Inspired Genetic Algorithm (QIGA/IQGA)",
         "category": "quantum_inspired",
-        "category_label": "Quantum / Quantum-Classical",
+        "category_label": "Quantum-Inspired Classical",
         "tag": "Quantum-Inspired",
-        "description": "Quantum-inspired evolutionary optimization using Q-bit probability amplitudes and rotation gates, simulated classically.",
+        "description": "Quantum-inspired evolutionary optimization using Q-bit probability amplitudes and rotation gates, executed entirely on classical CPU.",
         "operational": True,
         "max_customers": 50,
         "is_primary": False,
-        "compute_type": "Classically Simulated Q-Bits",
+        "compute_type": "Classically Simulated Q-Bits (Classical CPU)",
     },
 ]
 
@@ -395,8 +395,8 @@ async def run_optimization(
                     )
                     res["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
                     res["category"] = "cooperative"
-                    res["category_label"] = "Cooperative Hybrid"
-                    res["compute_type"] = "Hybrid (Spark + Adaptive + QAOA/Tabu + VND)"
+                    res["category_label"] = "Cooperative Hybrid (Spark Local + Classical + QAOA CPU Sim)"
+                    res["compute_type"] = "Hybrid (Spark Local + Classical CPU + QAOA Statevector CPU Simulation)"
                     return res
 
                 elif algo in ("ortools", "classical_ortools"):
@@ -533,8 +533,8 @@ async def run_optimization(
                     )
                     res["algorithm_name"] = "Quantum-Inspired GA (QIGA/IQGA)"
                     res["category"] = "quantum_inspired"
-                    res["category_label"] = "Quantum / Quantum-Classical"
-                    res["compute_type"] = "Classically Simulated Q-Bits"
+                    res["category_label"] = "Quantum-Inspired Classical"
+                    res["compute_type"] = "Classically Simulated Q-Bits (Classical CPU)"
                     return res
 
                 elif algo == "qaoa":
@@ -563,8 +563,8 @@ async def run_optimization(
                     )
                     res["algorithm_name"] = "QAOA Hybrid"
                     res["category"] = "quantum_hybrid"
-                    res["category_label"] = "Quantum / Quantum-Classical"
-                    res["compute_type"] = "Qiskit Statevector Simulator"
+                    res["category_label"] = "Quantum-Classical Simulation"
+                    res["compute_type"] = "QAOA with Qiskit Aer/statevector CPU simulation"
                     return res
                 else:
                     logger.warning(f"Unrecognized algorithm '{algo}'. Rejecting unrecognized solver request.")
@@ -633,7 +633,7 @@ async def run_optimization(
             algo_res["served_customers"] = val_report["visited_delivery_count"]
             algo_res["capacity_violations"] = val_report["capacity_violations"]
             algo_res["is_feasible"] = val_report["is_valid"]
-            algo_res["status"] = "SUCCESS" if val_report["is_valid"] else ("PENALIZED" if val_report["capacity_violations"] > 0 else "FAILED")
+            algo_res["status"] = "SUCCESS" if val_report["is_valid"] else val_report.get("status", "FAILED")
 
             if road_warnings:
                 algo_res["warnings"] = list(set(algo_res.get("warnings", []) + road_warnings))
