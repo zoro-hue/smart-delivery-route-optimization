@@ -592,10 +592,29 @@ async def run_optimization(
                     "measurement_available": False,
                 }
 
+            # Check if solver actually succeeded and returned routes
+            raw_routes = algo_res.get("routes", [])
+            if not algo_res.get("success", True) or not raw_routes:
+                logger.warning(f"Solver '{algo}' failed or produced no routes: {algo_res.get('error')}")
+                algo_res["routes"] = []
+                algo_res["total_distance_km"] = 0.0
+                algo_res["total_objective_cost"] = 0.0
+                algo_res["total_travel_time_min"] = 0.0
+                algo_res["resource_metrics"] = res_metrics
+                algo_res["execution_time_sec"] = round(res_metrics.get("runtime_ms", 0.0) / 1000.0, 3)
+                algo_res["unserved_customers"] = n - 1
+                algo_res["served_customers"] = 0
+                algo_res["capacity_violations"] = 0
+                algo_res["is_feasible"] = False
+                algo_res["status"] = "FAILED"
+                if not algo_res.get("error"):
+                    algo_res["error"] = "Solver failed to find a feasible route"
+                return algo_res
+
             # Universal 100% Stop Coverage Repair & Centralized Validation (R == I)
             input_cust_ids = [i for i in range(1, n)]
             repaired_routes, val_report = repair_fleet_coverage(
-                algo_res.get("routes", []),
+                raw_routes,
                 input_cust_ids,
                 adjusted_matrix,
                 demands_int,

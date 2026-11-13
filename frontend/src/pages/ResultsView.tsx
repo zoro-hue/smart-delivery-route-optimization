@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -139,23 +139,27 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       : algoKeys[0] || 'classical';
 
   const [activeAlgo, setActiveAlgo] = useState<string>(initialAlgo);
+  const lastExperimentIdRef = useRef<string | null>(result?.experiment_id || null);
 
-  // Sync if result changes
+  // Sync active algorithm ONLY on initial load or when a new experiment arrives
   useEffect(() => {
     if (result) {
-      const best =
-        result.best_feasible_algorithm && resultsMap[result.best_feasible_algorithm]
-          ? result.best_feasible_algorithm
-          : result.primary_algorithm && resultsMap[result.primary_algorithm]
-          ? result.primary_algorithm
-          : algoKeys.includes('ortools')
-          ? 'ortools'
-          : algoKeys[0] || 'classical';
-      setActiveAlgo(best);
+      if (result.experiment_id !== lastExperimentIdRef.current || !resultsMap[activeAlgo]) {
+        lastExperimentIdRef.current = result.experiment_id;
+        const best =
+          result.best_feasible_algorithm && resultsMap[result.best_feasible_algorithm]
+            ? result.best_feasible_algorithm
+            : result.primary_algorithm && resultsMap[result.primary_algorithm]
+            ? result.primary_algorithm
+            : algoKeys.includes('ortools')
+            ? 'ortools'
+            : algoKeys[0] || 'classical';
+        setActiveAlgo(best);
+      }
     }
-  }, [result]);
+  }, [result?.experiment_id, resultsMap]);
 
-  const currentResult = resultsMap[activeAlgo] || resultsMap.classical || Object.values(resultsMap)[0];
+  const currentResult = resultsMap[activeAlgo] || resultsMap[initialAlgo] || Object.values(resultsMap)[0];
 
   const currentVisitedIndices = useMemo(() => {
     const visited = new Set<number>();

@@ -941,167 +941,53 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
       // ── Step 2: Background Progressive Evaluation of Comparison Solvers ──
       const bgAlgos = algosToRun.filter((a) => a !== primaryAlgo);
-      setIsComparing(true);
-      let aggregatedResponse = { ...primaryRes };
-
-      for (let i = 0; i < bgAlgos.length; i++) {
-        const algo = bgAlgos[i];
-        if (abortController.signal.aborted) break;
-
-        const currentElapsed = Number(((Date.now() - tStart) / 1000).toFixed(1));
+      if (bgAlgos.length > 0) {
+        setIsComparing(true);
         setSolverProgress((prev) => ({
           ...prev,
-          currentAlgo: algo,
-          statuses: { ...prev.statuses, [algo]: 'running' },
-          elapsedSec: currentElapsed,
+          currentAlgo: 'All Solvers',
+          elapsedSec: primaryLatency,
         }));
 
         try {
-          const algoPayload = {
+          const compPayload = {
             ...basePayload,
-            selection_mode: 'single',
-            selected_algorithms: [algo],
+            selection_mode: 'compare',
+            selected_algorithms: algosToRun,
           };
 
-          // 15-second per-solver safety timeout
-          const solverTimeoutController = new AbortController();
-          const timeoutId = setTimeout(() => solverTimeoutController.abort(), 15000);
+          const compRes = await api.runOptimization(compPayload, abortController.signal);
+          if (compRes?.results) {
+            setExecutionResponse(compRes);
+            onOptimizationComplete(compRes);
 
-          const algoRes = await api.runOptimization(algoPayload, solverTimeoutController.signal);
-          clearTimeout(timeoutId);
+            const completedStatuses: Record<string, 'completed'> = {};
+            algosToRun.forEach((a) => {
+              completedStatuses[a] = 'completed';
+            });
 
-          const algoResultData = algoRes?.results?.[algo];
-          const updatedResults = {
-            ...aggregatedResponse.results,
-            [algo]: algoResultData || {
-              success: true,
-              routes: [],
-              status: 'SUCCESS',
-              execution_time_sec: algoRes.execution_time_sec,
-              total_distance_km: 0,
-              capacity_violations: 0,
-              unserved_customers: 0,
-            },
-          };
+            setSolverProgress((prev) => ({
+              ...prev,
+              completed: prev.total,
+              statuses: completedStatuses,
+              elapsedSec: Number(((Date.now() - tStart) / 1000).toFixed(1)),
+            }));
 
-          const existingItems = aggregatedResponse.comparison_summary?.items || [];
-          const newItems = algoRes?.comparison_summary?.items || [];
-          const mergedMap = new Map();
-          existingItems.forEach((it: any) => mergedMap.set(it.id, it));
-          newItems.forEach((it: any) => mergedMap.set(it.id, it));
-          const mergedItems = Array.from(mergedMap.values());
-
-          const feasibleItems = mergedItems.filter(
-            (it: any) => it.is_feasible && it.capacity_violations === 0 && it.unserved_customers === 0
-          );
-          feasibleItems.sort((a: any, b: any) => a.total_distance_km - b.total_distance_km);
-          const currentBest = feasibleItems[0] || mergedItems[0];
-
-          aggregatedResponse = {
-            ...aggregatedResponse,
-            results: updatedResults,
-            best_feasible_algorithm: currentBest?.id || aggregatedResponse.best_feasible_algorithm,
-            comparison_summary: {
-              best_algorithm: currentBest?.id || primaryAlgo,
-              best_algorithm_name: currentBest?.name || primaryAlgo.toUpperCase(),
-              best_reason: `Lowest route distance (${currentBest?.total_distance_km} km) with 100% stop coverage`,
-              best_feasible_distance_km: currentBest?.total_distance_km || 0,
-              items: mergedItems,
-            },
-          };
-
-          setExecutionResponse(aggregatedResponse);
-          onOptimizationComplete(aggregatedResponse);
-
-          setSolverProgress((prev) => ({
-            ...prev,
-            completed: prev.completed + 1,
-            statuses: { ...prev.statuses, [algo]: 'completed' },
-            elapsedSec: Number(((Date.now() - tStart) / 1000).toFixed(1)),
-          }));
-        } catch (bgErr: any) {
-          const isTimeout =
-            bgErr.name === 'AbortError' ||
-            bgErr.message?.includes('timeout') ||
-            bgErr.code === 'ECONNABORTED';
-          const statusType = isTimeout ? 'timeout' : 'failed';
-          const errorMsg = bgErr.response?.data?.detail || bgErr.message || 'Solver timed out';
-
-          setSolverProgress((prev) => ({
-            ...prev,
-            completed: prev.completed + 1,
-            statuses: { ...prev.statuses, [algo]: statusType },
-            errors: { ...prev.errors, [algo]: errorMsg },
-            elapsedSec: Number(((Date.now() - tStart) / 1000).toFixed(1)),
-          }));
-
-          const failedItem = {
-            id: algo,
-            name: WORKSPACE_ALGORITHMS.find((a) => a.id === algo)?.name || algo.toUpperCase(),
-            category: 'classical',
-            category_label: 'Classical',
-            compute_type: 'Classical CPU',
-            status: isTimeout ? 'TIMED_OUT' : 'FAILED',
-            execution_time_sec: 15.0,
-            total_distance_km: 0,
-            total_travel_time_min: 0,
-            total_objective_cost: 0,
-            is_feasible: false,
-            capacity_violations: 0,
-            unserved_customers: activeStops.length,
-            served_customers: 0,
-            vehicles_used: 0,
-            error: errorMsg,
-            is_best: false,
-          };
-
-          const existingItems = aggregatedResponse.comparison_summary?.items || [];
-          const updatedItems = [...existingItems.filter((it: any) => it.id !== algo), failedItem];
-
-          aggregatedResponse = {
-            ...aggregatedResponse,
-            results: {
-              ...aggregatedResponse.results,
-              [algo]: {
-                algorithm: algo,
-                success: false,
-                error: errorMsg,
-                routes: [],
-                status: isTimeout ? 'TIMED_OUT' : 'FAILED',
-                execution_time_sec: 15.0,
-                total_distance_km: 0,
-                total_travel_time_min: 0,
-                total_objective_cost: 0,
-                capacity_violations: 0,
-                unserved_customers: activeStops.length,
-                served_customers: 0,
-                is_feasible: false,
-              },
-            },
-            comparison_summary: {
-              ...(aggregatedResponse.comparison_summary || {
-                best_algorithm: primaryAlgo,
-                best_algorithm_name: primaryAlgo.toUpperCase(),
-                best_reason: '',
-                best_feasible_distance_km: 0,
-              }),
-              items: updatedItems,
-            },
-          };
-
-          setExecutionResponse(aggregatedResponse);
-          onOptimizationComplete(aggregatedResponse);
+            const bestName = compRes.comparison_summary?.best_algorithm_name || compRes.best_feasible_algorithm || 'ROUTE/IQ';
+            const bestDist = compRes.comparison_summary?.best_feasible_distance_km || 0;
+            setFeedbackMessage(
+              `All ${algosToRun.length} algorithms evaluated! Best: ${bestName} (${bestDist.toFixed(1)} km).`
+            );
+            setTimeout(() => setFeedbackMessage(null), 6000);
+          }
+        } catch (compErr: any) {
+          if (!abortController.signal.aborted) {
+            console.error('Background comparison evaluation non-fatal error:', compErr);
+          }
+        } finally {
+          setIsComparing(false);
         }
       }
-
-      setIsComparing(false);
-      const totalElapsed = Number(((Date.now() - tStart) / 1000).toFixed(1));
-      setFeedbackMessage(
-        `Benchmark completed (${algosToRun.length} solvers in ${totalElapsed}s)! Best: ${
-          aggregatedResponse.comparison_summary?.best_algorithm_name || primaryAlgo.toUpperCase()
-        }`
-      );
-      setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (primaryErr: any) {
       setIsRunning(false);
       setIsComparing(false);

@@ -22,7 +22,7 @@ class QIGASolver:
     - Evolutionary convergence: tracks fitness and quantum state purity over generations
     """
 
-    def __init__(self, pop_size: int = 30, max_generations: int = 60):
+    def __init__(self, pop_size: int = 20, max_generations: int = 25):
         self.pop_size = pop_size
         self.max_generations = max_generations
 
