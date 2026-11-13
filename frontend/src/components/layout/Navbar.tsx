@@ -125,19 +125,26 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* ─── 3. FAR RIGHT: COMPACT QISKIT 2.4.1 STATUS & THEME TOGGLE ──────── */}
       <div className="flex items-center gap-2.5 shrink-0 z-10 pointer-events-auto">
         {/* Compact Engine Status Indicator Pill */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/75 dark:bg-[#18181B]/85 backdrop-blur-[24px] backdrop-saturate-[180%] border border-black/10 dark:border-[#29292E] text-xs font-heading font-medium text-[#171717] dark:text-[#F5F5F7] shadow-sm">
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/75 dark:bg-[#18181B]/85 backdrop-blur-[24px] backdrop-saturate-[180%] border border-black/10 dark:border-[#29292E] text-xs font-heading font-medium text-[#171717] dark:text-[#F5F5F7] shadow-sm cursor-help"
+          title={
+            isBackendHealthy
+              ? 'Qiskit 2.4.1 Statevector Simulation Active. Classical simulation runs on CPU and does not require IBM QPU cloud connectivity.'
+              : 'Connecting to ROUTE/IQ backend server...'
+          }
+        >
           <span
             className={`h-2 w-2 rounded-full shrink-0 ${
               isBackendHealthy
                 ? 'bg-[#22C55E] shadow-[0_0_8px_#22C55E]'
-                : 'bg-[#999999]'
+                : 'bg-[#F59E0B] animate-pulse'
             }`}
           />
           <span className="hidden sm:inline">
-            {isBackendHealthy ? 'Qiskit 2.4.1' : 'Qiskit 2.4.1 (Offline)'}
+            {isBackendHealthy ? 'Qiskit 2.4.1 (CPU Sim)' : 'Connecting...'}
           </span>
           <span className="sm:hidden">
-            Qiskit 2.4.1
+            {isBackendHealthy ? 'Qiskit CPU' : 'Connecting'}
           </span>
         </div>
 

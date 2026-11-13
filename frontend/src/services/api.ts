@@ -165,6 +165,22 @@ export const api = {
     return res.data;
   },
 
+  // Asynchronous Background Optimization Job Lifecycle
+  startOptimizationJob: async (params: any, signal?: AbortSignal): Promise<any> => {
+    const res = await http.post('/optimization/jobs', params, { signal });
+    return res.data;
+  },
+
+  getJobStatus: async (jobId: string, signal?: AbortSignal): Promise<any> => {
+    const res = await http.get(`/optimization/jobs/${jobId}/status`, { signal });
+    return res.data;
+  },
+
+  cancelOptimizationJob: async (jobId: string): Promise<any> => {
+    const res = await http.post(`/optimization/jobs/${jobId}/cancel`);
+    return res.data;
+  },
+
   // Experiments
   getExperiments: async (page = 1, size = 20) => {
     const res = await http.get(`/experiments?page=${page}&size=${size}`);

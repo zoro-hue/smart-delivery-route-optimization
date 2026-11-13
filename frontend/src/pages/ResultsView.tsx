@@ -250,9 +250,17 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           <h1 className="text-3xl sm:text-4xl font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
             Results
           </h1>
-          <p className="text-xs text-[#777777] dark:text-[#71717A] mt-1 font-technical">
-            Experiment ID: {result.experiment_id} · Total Execution: {result.execution_time_sec.toFixed(2)}s · Solvers Executed: {algoKeys.length}
-          </p>
+          <div className="flex items-center gap-3 flex-wrap mt-1">
+            <p className="text-xs text-[#777777] dark:text-[#71717A] font-technical">
+              Experiment ID: {result.experiment_id || 'N/A'} · Total Execution: {(result.execution_time_sec || 0).toFixed(2)}s · Solvers Executed: {algoKeys.length}
+            </p>
+            {result.status === 'PARTIAL' && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[11px] font-semibold animate-pulse">
+                <RotateCw className="h-3 w-3 animate-spin" />
+                <span>Evaluating background comparison suite ({result.completed_algorithms || algoKeys.length}/{result.total_algorithms || 11})</span>
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">

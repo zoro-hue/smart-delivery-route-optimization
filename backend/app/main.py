@@ -121,8 +121,10 @@ async def health_check():
     import importlib.metadata
     try:
         qiskit_ver = importlib.metadata.version("qiskit")
+        qiskit_avail = True
     except Exception:
         qiskit_ver = "unknown"
+        qiskit_avail = False
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
@@ -130,6 +132,9 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "python_version": sys.version.split()[0],
         "qiskit_version": qiskit_ver,
+        "qiskit_available": qiskit_avail,
+        "qiskit_compute_mode": "CPU Statevector Simulation (Qiskit Aer / Reference Simulator)",
+        "qiskit_qpu_connected": False,
         "database": "sqlite" if not settings.USE_POSTGRES else "postgresql",
     }
 

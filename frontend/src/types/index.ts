@@ -155,12 +155,16 @@ export interface ComparisonSummary {
 
 export interface OptimizationResponse {
   experiment_id: string;
+  job_id?: string;
   status: string;
   execution_time_sec: number;
   selection_mode?: 'recommended' | 'custom' | 'compare';
   selected_algorithms?: string[];
   primary_algorithm?: string;
   best_feasible_algorithm?: string;
+  completed_algorithms?: number;
+  total_algorithms?: number;
+  solver_statuses?: Record<string, string>;
   comparison_summary?: ComparisonSummary;
   problem: {
     num_customers: number;

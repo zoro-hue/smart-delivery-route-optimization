@@ -509,6 +509,11 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
   // Execution State & Progressive Solver States
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isComparing, setIsComparing] = useState<boolean>(false);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const activeJobIdRef = useRef<string | null>(null);
+  const pollTimerRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const [solverProgress, setSolverProgress] = useState<{
     completed: number;
     total: number;
@@ -526,17 +531,117 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     statuses: {},
     errors: {},
   });
-  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Polling helper for background comparison job
+  const startJobPolling = (jobId: string, tStart: number, totalAlgos: number) => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+
+    const overallTimeoutSec = 75; // 75-second safety deadline
+
+    pollTimerRef.current = setInterval(async () => {
+      try {
+        const elapsed = Number(((Date.now() - tStart) / 1000).toFixed(1));
+
+        if (elapsed > overallTimeoutSec) {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+          setIsComparing(false);
+          setFeedbackMessage('Comparison evaluation deadline reached. Partial results retained.');
+          setTimeout(() => setFeedbackMessage(null), 5000);
+          return;
+        }
+
+        const statusRes = await api.getJobStatus(jobId);
+        if (!statusRes) return;
+
+        // Progressively update comparison results
+        if (statusRes.results) {
+          setExecutionResponse(statusRes);
+          onOptimizationComplete(statusRes);
+        }
+
+        const completed = statusRes.completed_algorithms || 1;
+        const total = statusRes.total_algorithms || totalAlgos;
+
+        // Find which solver is currently running
+        const runningAlgo = Object.keys(statusRes.solver_statuses || {}).find(
+          (k) => statusRes.solver_statuses[k] === 'running'
+        );
+
+        setSolverProgress((prev) => ({
+          ...prev,
+          completed,
+          total,
+          currentAlgo: runningAlgo ? runningAlgo.toUpperCase() : 'Remaining Solvers',
+          elapsedSec: elapsed,
+          statuses: statusRes.solver_statuses || prev.statuses,
+          errors: statusRes.solver_errors || prev.errors,
+        }));
+
+        // Terminal state check
+        if (statusRes.status === 'COMPLETED' || statusRes.status === 'FAILED' || statusRes.status === 'CANCELLED') {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+          setIsComparing(false);
+
+          if (statusRes.status === 'COMPLETED') {
+            const bestName =
+              statusRes.comparison_summary?.best_algorithm_name ||
+              statusRes.best_feasible_algorithm ||
+              'ROUTE/IQ';
+            const bestDist = statusRes.comparison_summary?.best_feasible_distance_km || 0;
+            setFeedbackMessage(
+              `All ${total} algorithms evaluated! Best: ${bestName} (${bestDist.toFixed(1)} km).`
+            );
+            setTimeout(() => setFeedbackMessage(null), 6000);
+          } else if (statusRes.status === 'CANCELLED') {
+            setFeedbackMessage('Optimization stopped by user.');
+            setTimeout(() => setFeedbackMessage(null), 4000);
+          } else if (statusRes.status === 'FAILED') {
+            setValidationError(`Optimization job failed: ${statusRes.error || 'Solver failure'}`);
+            setTimeout(() => setValidationError(null), 8000);
+          }
+        }
+      } catch (pollErr: any) {
+        console.warn('Job status poll error:', pollErr);
+      }
+    }, 1000);
+  };
 
   useEffect(() => {
+    // Restore active background job if user navigates between Plan and Results
+    try {
+      const savedJobId = localStorage.getItem('routeiq_active_job_id');
+      if (savedJobId && !activeJobIdRef.current) {
+        api.getJobStatus(savedJobId).then((statusRes) => {
+          if (statusRes && (statusRes.status === 'PARTIAL' || statusRes.status === 'RUNNING')) {
+            activeJobIdRef.current = savedJobId;
+            setActiveJobId(savedJobId);
+            setIsComparing(true);
+            setExecutionResponse(statusRes);
+            const tStart = Date.now() - (statusRes.elapsed_sec || 0) * 1000;
+            startJobPolling(savedJobId, tStart, statusRes.total_algorithms || 11);
+          }
+        }).catch(() => {});
+      }
+    } catch {}
+
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
       }
     };
   }, []);
 
-  const handleCancelOptimization = () => {
+  const handleCancelOptimization = async () => {
+    const currentJobId = activeJobIdRef.current || activeJobId;
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -544,7 +649,15 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     setIsRunning(false);
     setIsComparing(false);
     setFeedbackMessage('Optimization calculation stopped by user.');
-    setTimeout(() => setFeedbackMessage(null), 3000);
+    setTimeout(() => setFeedbackMessage(null), 4000);
+
+    if (currentJobId) {
+      try {
+        await api.cancelOptimizationJob(currentJobId);
+      } catch (cancelErr) {
+        console.warn('Cancel job API call non-fatal error:', cancelErr);
+      }
+    }
   };
 
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -797,8 +910,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
   // ─── OPTIMIZATION EXECUTION (PROGRESSIVE FIRST-RESULT & BACKGROUND SOLVERS) ─
   const handleRunOptimization = async () => {
-    // Prevent duplicate execution requests while computation is running
-    if (isRunning) return;
+    // Prevent duplicate execution requests while computation is running or comparing
+    if (isRunning || isComparing) return;
 
     setValidationError(null);
 
@@ -896,40 +1009,53 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     const tStart = Date.now();
 
     try {
-      // ── Step 1: Execute Primary Solver for Instant Feasible Route ──────────
-      const primaryPayload = {
+      const payload = {
         ...basePayload,
-        selection_mode: 'single',
-        selected_algorithms: [primaryAlgo],
+        selection_mode: selectionMode,
+        selected_algorithms: algosToRun,
       };
 
-      const primaryRes = await api.runOptimization(primaryPayload, abortController.signal);
-      const primaryLatency = Number(((Date.now() - tStart) / 1000).toFixed(2));
+      const jobRes = await api.startOptimizationJob(payload, abortController.signal);
+      const jobId = jobRes.job_id;
+      activeJobIdRef.current = jobId;
+      setActiveJobId(jobId);
+      try {
+        localStorage.setItem('routeiq_active_job_id', jobId);
+      } catch {}
 
       // IMMEDIATELY terminate primary loading indicator & display route on Map
       setIsRunning(false);
-      setExecutionResponse(primaryRes);
+
+      const primaryAlgo = jobRes.primary_algorithm || algosToRun[0];
+      setExecutionResponse(jobRes);
       setDisplayedAlgo(primaryAlgo);
 
       const primaryRoutes =
-        primaryRes?.results?.[primaryAlgo]?.routes ||
-        primaryRes?.results?.ortools?.routes ||
-        primaryRes?.results?.classical?.routes || [];
-      setActiveRoutes(primaryRoutes);
-      onOptimizationComplete(primaryRes);
+        jobRes?.results?.[primaryAlgo]?.routes ||
+        jobRes?.results?.ortools?.routes ||
+        jobRes?.results?.classical?.routes || [];
+      if (primaryRoutes.length > 0) {
+        setActiveRoutes(primaryRoutes);
+      }
+      onOptimizationComplete(jobRes);
 
-      setSolverProgress((prev) => ({
-        ...prev,
-        completed: 1,
+      const primaryLatency =
+        jobRes.primary_latency_sec || Number(((Date.now() - tStart) / 1000).toFixed(2));
+
+      setSolverProgress({
+        completed: jobRes.completed_algorithms || 1,
+        total: jobRes.total_algorithms || algosToRun.length,
+        currentAlgo: primaryAlgo.toUpperCase(),
         primaryLatencySec: primaryLatency,
-        statuses: { ...prev.statuses, [primaryAlgo]: 'completed' },
+        statuses: jobRes.solver_statuses || { [primaryAlgo]: 'completed' },
         elapsedSec: primaryLatency,
-      }));
+        errors: {},
+      });
 
-      // If only 1 algorithm was requested, complete here
-      if (algosToRun.length === 1) {
+      // If only 1 algorithm was requested or already complete, finish here
+      if (jobRes.status === 'COMPLETED' || algosToRun.length <= 1) {
         setFeedbackMessage(
-          `Feasible route computed via ${primaryRes?.results?.[primaryAlgo]?.algorithm_name || primaryAlgo.toUpperCase()} in ${primaryLatency}s!`
+          `Feasible route computed via ${jobRes?.results?.[primaryAlgo]?.algorithm_name || primaryAlgo.toUpperCase()} in ${primaryLatency}s!`
         );
         setTimeout(() => setFeedbackMessage(null), 5000);
         return;
@@ -939,63 +1065,20 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         `First feasible route ready in ${primaryLatency}s via ${primaryAlgo.toUpperCase()}! Evaluating remaining ${algosToRun.length - 1} algorithms in background...`
       );
 
-      // ── Step 2: Background Progressive Evaluation of Comparison Solvers ──
-      const bgAlgos = algosToRun.filter((a) => a !== primaryAlgo);
-      if (bgAlgos.length > 0) {
-        setIsComparing(true);
-        setSolverProgress((prev) => ({
-          ...prev,
-          currentAlgo: 'All Solvers',
-          elapsedSec: primaryLatency,
-        }));
+      // Progressive Background Polling of Comparison Solvers
+      setIsComparing(true);
+      startJobPolling(jobId, tStart, algosToRun.length);
 
-        try {
-          const compPayload = {
-            ...basePayload,
-            selection_mode: 'compare',
-            selected_algorithms: algosToRun,
-          };
-
-          const compRes = await api.runOptimization(compPayload, abortController.signal);
-          if (compRes?.results) {
-            setExecutionResponse(compRes);
-            onOptimizationComplete(compRes);
-
-            const completedStatuses: Record<string, 'completed'> = {};
-            algosToRun.forEach((a) => {
-              completedStatuses[a] = 'completed';
-            });
-
-            setSolverProgress((prev) => ({
-              ...prev,
-              completed: prev.total,
-              statuses: completedStatuses,
-              elapsedSec: Number(((Date.now() - tStart) / 1000).toFixed(1)),
-            }));
-
-            const bestName = compRes.comparison_summary?.best_algorithm_name || compRes.best_feasible_algorithm || 'ROUTE/IQ';
-            const bestDist = compRes.comparison_summary?.best_feasible_distance_km || 0;
-            setFeedbackMessage(
-              `All ${algosToRun.length} algorithms evaluated! Best: ${bestName} (${bestDist.toFixed(1)} km).`
-            );
-            setTimeout(() => setFeedbackMessage(null), 6000);
-          }
-        } catch (compErr: any) {
-          if (!abortController.signal.aborted) {
-            console.error('Background comparison evaluation non-fatal error:', compErr);
-          }
-        } finally {
-          setIsComparing(false);
-        }
-      }
-    } catch (primaryErr: any) {
+    } catch (err: any) {
       setIsRunning(false);
       setIsComparing(false);
-      const msg = primaryErr.response?.data?.detail || primaryErr.message || 'Primary route computation failed';
-      setValidationError(`Optimization failed: ${msg}`);
-      setTimeout(() => {
-        setValidationError((prev) => (prev?.includes(msg) ? null : prev));
-      }, 10000);
+      if (!abortController.signal.aborted) {
+        const msg = err.response?.data?.detail || err.message || 'Primary route computation failed';
+        setValidationError(`Optimization failed: ${msg}`);
+        setTimeout(() => {
+          setValidationError((prev) => (prev?.includes(msg) ? null : prev));
+        }, 10000);
+      }
     } finally {
       setIsRunning(false);
     }
