@@ -385,6 +385,7 @@ async def run_optimization(
             logger.info(f"Executing algorithm '{algo}' on {n} nodes, {req.num_vehicles} vehicles")
 
             def _run_raw_solver() -> Dict[str, Any]:
+                effective_time_limit = 0.25 if n <= 35 else min(req.classical_time_limit_sec or 3, 5)
                 if algo in ("routeiq_cooperative", "cooperative", "routeiq"):
                     res = cooperative_solver.solve(
                         distance_matrix=adjusted_matrix,
@@ -392,7 +393,7 @@ async def run_optimization(
                         depot=0,
                         demands=demands_int,
                         vehicle_capacities=capacities,
-                        time_limit_sec=0.15,
+                        time_limit_sec=effective_time_limit,
                         objective_weights=objective_weights,
                         locations=locations,
                         seed=req.random_seed,
@@ -776,11 +777,14 @@ async def run_optimization(
             )
             # Rank 0 for feasible complete solutions, Rank 1 for infeasible or partial solutions
             feas_rank = 0 if is_feas else 1
+            # Flagship tie-breaker: prefer ROUTE/IQ Cooperative when distance is tied with incumbent
+            flagship_pref = 0 if item["id"] == "routeiq_cooperative" else 1
             return (
                 feas_rank,
                 item["unserved_customers"],
                 item["capacity_violations"],
                 item["total_distance_km"],
+                flagship_pref,
                 item["total_objective_cost"],
                 item["execution_time_sec"]
             )
