@@ -3,6 +3,7 @@ Optimization & Experiments API — Classical VRP, QAOA, Comparison, Experiment H
 """
 from __future__ import annotations
 
+import asyncio
 import gc
 import json
 import math
@@ -377,6 +378,7 @@ async def run_optimization(
     await db.flush()
 
     results = {}
+    route_geometry_cache: Dict[Tuple[int, ...], List[Dict[str, Any]]] = {}
 
     try:
         def _execute_single_algo(algo: str) -> Dict[str, Any]:
@@ -487,6 +489,7 @@ async def run_optimization(
                         demands=demands_int,
                         vehicle_capacities=capacities,
                         objective_weights=objective_weights,
+                        max_iterations=25 if n <= 35 else 50,
                     )
                     res["algorithm_name"] = "Tabu Search Metaheuristic"
                     res["category"] = "classical"
@@ -502,6 +505,7 @@ async def run_optimization(
                         demands=demands_int,
                         vehicle_capacities=capacities,
                         objective_weights=objective_weights,
+                        max_passes=2 if n <= 35 else 3,
                     )
                     res["algorithm_name"] = "Kernighan–Lin Bipartition"
                     res["category"] = "classical"
@@ -600,15 +604,19 @@ async def run_optimization(
                 depot=0,
             )
 
-            # Reconstruct real road waypoints
+            # Reconstruct real road waypoints with memoization across solvers producing identical routes
             for r_idx, route in enumerate(repaired_routes, start=1):
                 route["vehicle_id"] = r_idx
                 route["total_distance_km"] = route.get("distance_km", 0.0)
-                if road_network_service.is_ready() and len(snapped_node_ids) >= len(locations):
+                stops_key = tuple(route["stops"])
+                if stops_key in route_geometry_cache:
+                    route["waypoints"] = [dict(wp) for wp in route_geometry_cache[stops_key]]
+                elif road_network_service.is_ready() and len(snapped_node_ids) >= len(locations):
                     road_wps = road_network_service.reconstruct_vehicle_road_route(
                         route["stops"], locations, snapped_node_ids
                     )
                     route["waypoints"] = road_wps
+                    route_geometry_cache[stops_key] = [dict(wp) for wp in road_wps]
                 else:
                     route["waypoints"] = [
                         {
@@ -621,6 +629,7 @@ async def run_optimization(
                         for s in route["stops"]
                         if s < len(locations)
                     ]
+                    route_geometry_cache[stops_key] = [dict(wp) for wp in route["waypoints"]]
 
             algo_res["routes"] = repaired_routes
             algo_res["total_distance_km"] = round(float(sum(r["distance_km"] for r in repaired_routes)), 3)
@@ -653,6 +662,8 @@ async def run_optimization(
                 results[a] = {"success": False, "error": str(exc), "routes": [], "status": "FAILED"}
             finally:
                 gc.collect()
+            # Yield control to event loop so container health checks (/health) and proxy keepalives remain fully responsive
+            await asyncio.sleep(0.01)
 
         # Safely attempt persistence in ExperimentResult table for each algorithm
         for a_name, a_res in results.items():
