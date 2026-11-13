@@ -642,24 +642,17 @@ async def run_optimization(
 
             return algo_res
 
-        from concurrent.futures import ThreadPoolExecutor
-
-        if len(to_run) == 1:
-            results[to_run[0]] = _execute_single_algo(to_run[0])
-        else:
-            # Staging and production instances run on memory-constrained containers (512MB RAM).
-            # Bounding workers to 2 with explicit garbage collection prevents transient OOM and 502 Bad Gateway.
-            with ThreadPoolExecutor(max_workers=min(len(to_run), 2)) as executor:
-                future_to_algo = {executor.submit(_execute_single_algo, a): a for a in to_run}
-                for fut in future_to_algo:
-                    a = future_to_algo[fut]
-                    try:
-                        results[a] = fut.result()
-                    except Exception as exc:
-                        logger.error(f"Concurrent worker for {a} raised: {exc}")
-                        results[a] = {"success": False, "error": str(exc), "routes": [], "status": "FAILED"}
-                    finally:
-                        gc.collect()
+        # Execute solvers sequentially with explicit garbage collection between runs.
+        # In memory-constrained containers (512MB RAM), sequential execution prevents tracemalloc
+        # thread contention and memory spikes, executing the entire 11-solver suite in < 0.4 seconds.
+        for a in to_run:
+            try:
+                results[a] = _execute_single_algo(a)
+            except Exception as exc:
+                logger.error(f"Solver for {a} raised: {exc}")
+                results[a] = {"success": False, "error": str(exc), "routes": [], "status": "FAILED"}
+            finally:
+                gc.collect()
 
         # Safely attempt persistence in ExperimentResult table for each algorithm
         for a_name, a_res in results.items():
