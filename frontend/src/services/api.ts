@@ -160,8 +160,8 @@ export const api = {
     return res.data;
   },
 
-  runOptimization: async (params: any): Promise<OptimizationResponse> => {
-    const res = await http.post('/optimization/run', params);
+  runOptimization: async (params: any, signal?: AbortSignal): Promise<OptimizationResponse> => {
+    const res = await http.post('/optimization/run', params, { signal });
     return res.data;
   },
 

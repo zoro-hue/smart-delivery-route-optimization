@@ -233,6 +233,21 @@ class RoadNetworkService:
         self.node_coords = coords_arr
         self.tree = cKDTree(coords_arr)
         self.G_undir = self.G.to_undirected(as_view=True)
+        self.node_to_idx = {n: i for i, n in enumerate(self.nodes_list)}
+
+        # Compile CSR sparse matrices for sub-second C-accelerated Dijkstra
+        try:
+            from scipy.sparse import csgraph
+            self._csr_directed = nx.to_scipy_sparse_array(self.G, weight="length", format="csr", nodelist=self.nodes_list)
+            self._csr_undirected = nx.to_scipy_sparse_array(self.G_undir, weight="length", format="csr", nodelist=self.nodes_list)
+            self._has_csr = True
+            logger.info("Compiled CSR directed and undirected adjacency matrices for sub-second Dijkstra.")
+        except Exception as csr_err:
+            logger.warning(f"Could not compile CSR matrices: {csr_err}")
+            self._has_csr = False
+            self._csr_directed = None
+            self._csr_undirected = None
+
         self._is_loaded = True
         logger.info(f"RoadNetworkService initialized: {len(self.nodes_list)} nodes indexed in KD-Tree.")
 
@@ -313,6 +328,80 @@ class RoadNetworkService:
         cost_matrix = np.zeros((n, n), dtype=np.float64)
         physical_matrix = np.zeros((n, n), dtype=np.float64)
         combined_factor = traffic_factor * weather_factor
+
+        # ── Fast Vectorized C-Accelerated Dijkstra using Precompiled CSR Matrices ──
+        if getattr(self, "_has_csr", False) and self._csr_directed is not None:
+            try:
+                from scipy.sparse import csgraph
+                snapped_indices = [self.node_to_idx[nid] for nid in snapped_nodes]
+                dists_dir, preds_dir = csgraph.dijkstra(
+                    self._csr_directed,
+                    indices=snapped_indices,
+                    return_predecessors=True
+                )
+
+                # Check if any pairwise path was unreachable on directed graph
+                needs_undirected = False
+                for i in range(n):
+                    for j in range(n):
+                        if i != j and dists_dir[i, snapped_indices[j]] == float("inf"):
+                            needs_undirected = True
+                            break
+                    if needs_undirected:
+                        break
+
+                dists_undir, preds_undir = None, None
+                if needs_undirected and self._csr_undirected is not None:
+                    dists_undir, preds_undir = csgraph.dijkstra(
+                        self._csr_undirected,
+                        indices=snapped_indices,
+                        return_predecessors=True
+                    )
+
+                for i, src_node in enumerate(snapped_nodes):
+                    s_idx = snapped_indices[i]
+                    for j, tgt_node in enumerate(snapped_nodes):
+                        if i == j:
+                            cost_matrix[i][j] = 0.0
+                            physical_matrix[i][j] = 0.0
+                            continue
+
+                        t_idx = snapped_indices[j]
+                        d_val = dists_dir[i, t_idx]
+                        p_mat = preds_dir
+
+                        if d_val == float("inf") and dists_undir is not None:
+                            d_val = dists_undir[i, t_idx]
+                            p_mat = preds_undir
+
+                        if d_val < float("inf"):
+                            road_km = d_val / 1000.0
+                            self._dist_cache[(src_node, tgt_node)] = road_km
+
+                            # Memoize full turn-by-turn node sequence in _path_cache
+                            if (src_node, tgt_node) not in self._path_cache:
+                                curr = t_idx
+                                p = [self.nodes_list[curr]]
+                                while curr != s_idx and curr != -9999:
+                                    curr = p_mat[i, curr]
+                                    p.append(self.nodes_list[curr])
+                                if curr == s_idx:
+                                    p.reverse()
+                                    self._path_cache[(src_node, tgt_node)] = p
+                        else:
+                            logger.warning(f"No connected road path between {src_node} and {tgt_node}")
+                            road_km = 99999.0
+                            warnings.append(f"Road connectivity between stops #{i} and #{j} disconnected.")
+
+                        physical_matrix[i][j] = round(road_km, 3)
+                        cost_matrix[i][j] = round(road_km * combined_factor, 3)
+
+                if return_physical:
+                    return cost_matrix, snapped_nodes, warnings, physical_matrix
+                return cost_matrix, snapped_nodes, warnings
+
+            except Exception as csr_calc_err:
+                logger.warning(f"Fast CSR Dijkstra failed ({csr_calc_err}), falling back to NetworkX Dijkstra.")
 
         def _reconstruct_path(pred_dict, s_node, t_node):
             if not pred_dict or t_node not in pred_dict:

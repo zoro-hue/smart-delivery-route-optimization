@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -506,8 +506,47 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     setWeightTime(settings.weightTime);
   }, [settings]);
 
-  // Execution State
+  // Execution State & Progressive Solver States
   const [isRunning, setIsRunning] = useState<boolean>(false);
+  const [isComparing, setIsComparing] = useState<boolean>(false);
+  const [solverProgress, setSolverProgress] = useState<{
+    completed: number;
+    total: number;
+    currentAlgo: string;
+    elapsedSec: number;
+    primaryLatencySec: number;
+    statuses: Record<string, 'pending' | 'running' | 'completed' | 'failed' | 'timeout'>;
+    errors: Record<string, string>;
+  }>({
+    completed: 0,
+    total: 0,
+    currentAlgo: '',
+    elapsedSec: 0,
+    primaryLatencySec: 0,
+    statuses: {},
+    errors: {},
+  });
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const handleCancelOptimization = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsRunning(false);
+    setIsComparing(false);
+    setFeedbackMessage('Optimization calculation stopped by user.');
+    setTimeout(() => setFeedbackMessage(null), 3000);
+  };
+
   const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -756,8 +795,11 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     return visited;
   }, [activeRoutes]);
 
-  // ─── OPTIMIZATION EXECUTION ──────────────────────────────────────────────
+  // ─── OPTIMIZATION EXECUTION (PROGRESSIVE FIRST-RESULT & BACKGROUND SOLVERS) ─
   const handleRunOptimization = async () => {
+    // Prevent duplicate execution requests while computation is running
+    if (isRunning) return;
+
     setValidationError(null);
 
     if (activeStops.length < 1) {
@@ -786,70 +828,284 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       }
     }
 
-    setIsRunning(true);
-    try {
-      const algosToRun =
-        selectionMode === 'recommended'
-          ? ['routeiq_cooperative']
-          : selectionMode === 'compare'
-          ? (selectedAlgorithms.length >= 2
-              ? selectedAlgorithms
-              : WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
-                  (id) => id !== 'qaoa' || activeStops.length <= 8
-                ))
-          : selectedAlgorithms.length > 0
-          ? selectedAlgorithms
-          : ['routeiq_cooperative'];
+    // Abort previous background controllers if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
-      const payload = {
-        algorithm,
-        selection_mode: selectionMode,
-        selected_algorithms: algosToRun,
-        num_customers: activeStops.length,
-        num_vehicles: Number(numVehicles),
-        vehicle_capacity: Number(vehicleCapacity),
-        depot_lat: depot.lat,
-        depot_lon: depot.lon,
-        weight_distance: Number(weightDistance),
-        weight_travel_time: Number(weightTime),
-        traffic_scenario: trafficScenario,
-        classical_time_limit_sec: 4,
-        qaoa_depth: Number(qaoaDepth),
-        qaoa_shots: Number(qaoaShots),
-        custom_customers: activeStops.map((s) => ({
-          id: s.id,
-          customer_id: s.customer_id,
-          name: s.name,
-          lat: s.lat,
-          lon: s.lon,
-          demand: s.demand,
-          address: s.address,
-        })),
+    const allCandidateAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+      (id) => id !== 'qaoa' || activeStops.length <= 8
+    );
+
+    const algosToRun =
+      selectionMode === 'recommended'
+        ? ['routeiq_cooperative']
+        : selectionMode === 'compare'
+        ? (selectedAlgorithms.length >= 2 ? selectedAlgorithms : allCandidateAlgos)
+        : (selectedAlgorithms.length > 0 ? selectedAlgorithms : ['routeiq_cooperative']);
+
+    // Select fastest primary solver to guarantee sub-2-second first feasible route
+    const primaryAlgo =
+      selectionMode === 'recommended'
+        ? 'routeiq_cooperative'
+        : selectionMode === 'compare'
+        ? (algosToRun.includes('ortools') ? 'ortools' : algosToRun[0])
+        : (selectedAlgorithms[0] || 'ortools');
+
+    const basePayload = {
+      num_customers: activeStops.length,
+      num_vehicles: Number(numVehicles),
+      vehicle_capacity: Number(vehicleCapacity),
+      depot_lat: depot.lat,
+      depot_lon: depot.lon,
+      weight_distance: Number(weightDistance),
+      weight_travel_time: Number(weightTime),
+      traffic_scenario: trafficScenario,
+      classical_time_limit_sec: 4,
+      qaoa_depth: Number(qaoaDepth),
+      qaoa_shots: Number(qaoaShots),
+      custom_customers: activeStops.map((s) => ({
+        id: s.id,
+        customer_id: s.customer_id,
+        name: s.name,
+        lat: s.lat,
+        lon: s.lon,
+        demand: s.demand,
+        address: s.address,
+      })),
+    };
+
+    const initialStatuses: Record<string, 'pending' | 'running' | 'completed' | 'failed' | 'timeout'> = {};
+    algosToRun.forEach((a) => {
+      initialStatuses[a] = a === primaryAlgo ? 'running' : 'pending';
+    });
+
+    setSolverProgress({
+      completed: 0,
+      total: algosToRun.length,
+      currentAlgo: primaryAlgo,
+      elapsedSec: 0,
+      primaryLatencySec: 0,
+      statuses: initialStatuses,
+      errors: {},
+    });
+
+    setIsRunning(true);
+    const tStart = Date.now();
+
+    try {
+      // ── Step 1: Execute Primary Solver for Instant Feasible Route ──────────
+      const primaryPayload = {
+        ...basePayload,
+        selection_mode: 'single',
+        selected_algorithms: [primaryAlgo],
       };
 
-      const res = await api.runOptimization(payload);
-      setExecutionResponse(res);
+      const primaryRes = await api.runOptimization(primaryPayload, abortController.signal);
+      const primaryLatency = Number(((Date.now() - tStart) / 1000).toFixed(2));
 
-      const bestAlgo =
-        res?.best_feasible_algorithm || res?.primary_algorithm || algosToRun[0] || 'ortools';
-      setDisplayedAlgo(bestAlgo);
+      // IMMEDIATELY terminate primary loading indicator & display route on Map
+      setIsRunning(false);
+      setExecutionResponse(primaryRes);
+      setDisplayedAlgo(primaryAlgo);
 
-      const computed =
-        res?.results?.[bestAlgo]?.routes ||
-        res?.results?.ortools?.routes ||
-        res?.results?.classical?.routes ||
-        (res?.results && Object.values(res.results).find((r: any) => r.routes?.length > 0)?.routes) || [];
-      setActiveRoutes(computed);
+      const primaryRoutes =
+        primaryRes?.results?.[primaryAlgo]?.routes ||
+        primaryRes?.results?.ortools?.routes ||
+        primaryRes?.results?.classical?.routes || [];
+      setActiveRoutes(primaryRoutes);
+      onOptimizationComplete(primaryRes);
 
-      onOptimizationComplete(res);
+      setSolverProgress((prev) => ({
+        ...prev,
+        completed: 1,
+        primaryLatencySec: primaryLatency,
+        statuses: { ...prev.statuses, [primaryAlgo]: 'completed' },
+        elapsedSec: primaryLatency,
+      }));
+
+      // If only 1 algorithm was requested, complete here
+      if (algosToRun.length === 1) {
+        setFeedbackMessage(
+          `Feasible route computed via ${primaryRes?.results?.[primaryAlgo]?.algorithm_name || primaryAlgo.toUpperCase()} in ${primaryLatency}s!`
+        );
+        setTimeout(() => setFeedbackMessage(null), 5000);
+        return;
+      }
+
       setFeedbackMessage(
-        selectionMode === 'compare'
-          ? `Comparative benchmark finished (${res?.comparison_summary?.items?.length || algosToRun.length} solvers). Best: ${res?.comparison_summary?.best_algorithm_name || bestAlgo}.`
-          : `Optimization complete via ${res?.results?.[bestAlgo]?.algorithm_name || bestAlgo.toUpperCase()}!`
+        `First feasible route ready in ${primaryLatency}s via ${primaryAlgo.toUpperCase()}! Evaluating remaining ${algosToRun.length - 1} algorithms in background...`
       );
-      setTimeout(() => setFeedbackMessage(null), 5000);
-    } catch (err: any) {
-      const msg = err.response?.data?.detail || err.message || 'Optimization request failed';
+
+      // ── Step 2: Background Progressive Evaluation of Comparison Solvers ──
+      const bgAlgos = algosToRun.filter((a) => a !== primaryAlgo);
+      setIsComparing(true);
+      let aggregatedResponse = { ...primaryRes };
+
+      for (let i = 0; i < bgAlgos.length; i++) {
+        const algo = bgAlgos[i];
+        if (abortController.signal.aborted) break;
+
+        const currentElapsed = Number(((Date.now() - tStart) / 1000).toFixed(1));
+        setSolverProgress((prev) => ({
+          ...prev,
+          currentAlgo: algo,
+          statuses: { ...prev.statuses, [algo]: 'running' },
+          elapsedSec: currentElapsed,
+        }));
+
+        try {
+          const algoPayload = {
+            ...basePayload,
+            selection_mode: 'single',
+            selected_algorithms: [algo],
+          };
+
+          // 15-second per-solver safety timeout
+          const solverTimeoutController = new AbortController();
+          const timeoutId = setTimeout(() => solverTimeoutController.abort(), 15000);
+
+          const algoRes = await api.runOptimization(algoPayload, solverTimeoutController.signal);
+          clearTimeout(timeoutId);
+
+          const algoResultData = algoRes?.results?.[algo];
+          const updatedResults = {
+            ...aggregatedResponse.results,
+            [algo]: algoResultData || {
+              success: true,
+              routes: [],
+              status: 'SUCCESS',
+              execution_time_sec: algoRes.execution_time_sec,
+              total_distance_km: 0,
+              capacity_violations: 0,
+              unserved_customers: 0,
+            },
+          };
+
+          const existingItems = aggregatedResponse.comparison_summary?.items || [];
+          const newItems = algoRes?.comparison_summary?.items || [];
+          const mergedMap = new Map();
+          existingItems.forEach((it: any) => mergedMap.set(it.id, it));
+          newItems.forEach((it: any) => mergedMap.set(it.id, it));
+          const mergedItems = Array.from(mergedMap.values());
+
+          const feasibleItems = mergedItems.filter(
+            (it: any) => it.is_feasible && it.capacity_violations === 0 && it.unserved_customers === 0
+          );
+          feasibleItems.sort((a: any, b: any) => a.total_distance_km - b.total_distance_km);
+          const currentBest = feasibleItems[0] || mergedItems[0];
+
+          aggregatedResponse = {
+            ...aggregatedResponse,
+            results: updatedResults,
+            best_feasible_algorithm: currentBest?.id || aggregatedResponse.best_feasible_algorithm,
+            comparison_summary: {
+              best_algorithm: currentBest?.id || primaryAlgo,
+              best_algorithm_name: currentBest?.name || primaryAlgo.toUpperCase(),
+              best_reason: `Lowest route distance (${currentBest?.total_distance_km} km) with 100% stop coverage`,
+              best_feasible_distance_km: currentBest?.total_distance_km || 0,
+              items: mergedItems,
+            },
+          };
+
+          setExecutionResponse(aggregatedResponse);
+          onOptimizationComplete(aggregatedResponse);
+
+          setSolverProgress((prev) => ({
+            ...prev,
+            completed: prev.completed + 1,
+            statuses: { ...prev.statuses, [algo]: 'completed' },
+            elapsedSec: Number(((Date.now() - tStart) / 1000).toFixed(1)),
+          }));
+        } catch (bgErr: any) {
+          const isTimeout =
+            bgErr.name === 'AbortError' ||
+            bgErr.message?.includes('timeout') ||
+            bgErr.code === 'ECONNABORTED';
+          const statusType = isTimeout ? 'timeout' : 'failed';
+          const errorMsg = bgErr.response?.data?.detail || bgErr.message || 'Solver timed out';
+
+          setSolverProgress((prev) => ({
+            ...prev,
+            completed: prev.completed + 1,
+            statuses: { ...prev.statuses, [algo]: statusType },
+            errors: { ...prev.errors, [algo]: errorMsg },
+            elapsedSec: Number(((Date.now() - tStart) / 1000).toFixed(1)),
+          }));
+
+          const failedItem = {
+            id: algo,
+            name: WORKSPACE_ALGORITHMS.find((a) => a.id === algo)?.name || algo.toUpperCase(),
+            category: 'classical',
+            category_label: 'Classical',
+            compute_type: 'Classical CPU',
+            status: isTimeout ? 'TIMED_OUT' : 'FAILED',
+            execution_time_sec: 15.0,
+            total_distance_km: 0,
+            total_travel_time_min: 0,
+            total_objective_cost: 0,
+            is_feasible: false,
+            capacity_violations: 0,
+            unserved_customers: activeStops.length,
+            served_customers: 0,
+            vehicles_used: 0,
+            error: errorMsg,
+            is_best: false,
+          };
+
+          const existingItems = aggregatedResponse.comparison_summary?.items || [];
+          const updatedItems = [...existingItems.filter((it: any) => it.id !== algo), failedItem];
+
+          aggregatedResponse = {
+            ...aggregatedResponse,
+            results: {
+              ...aggregatedResponse.results,
+              [algo]: {
+                algorithm: algo,
+                success: false,
+                error: errorMsg,
+                routes: [],
+                status: isTimeout ? 'TIMED_OUT' : 'FAILED',
+                execution_time_sec: 15.0,
+                total_distance_km: 0,
+                total_travel_time_min: 0,
+                total_objective_cost: 0,
+                capacity_violations: 0,
+                unserved_customers: activeStops.length,
+                served_customers: 0,
+                is_feasible: false,
+              },
+            },
+            comparison_summary: {
+              ...(aggregatedResponse.comparison_summary || {
+                best_algorithm: primaryAlgo,
+                best_algorithm_name: primaryAlgo.toUpperCase(),
+                best_reason: '',
+                best_feasible_distance_km: 0,
+              }),
+              items: updatedItems,
+            },
+          };
+
+          setExecutionResponse(aggregatedResponse);
+          onOptimizationComplete(aggregatedResponse);
+        }
+      }
+
+      setIsComparing(false);
+      const totalElapsed = Number(((Date.now() - tStart) / 1000).toFixed(1));
+      setFeedbackMessage(
+        `Benchmark completed (${algosToRun.length} solvers in ${totalElapsed}s)! Best: ${
+          aggregatedResponse.comparison_summary?.best_algorithm_name || primaryAlgo.toUpperCase()
+        }`
+      );
+      setTimeout(() => setFeedbackMessage(null), 6000);
+    } catch (primaryErr: any) {
+      setIsRunning(false);
+      setIsComparing(false);
+      const msg = primaryErr.response?.data?.detail || primaryErr.message || 'Primary route computation failed';
       setValidationError(`Optimization failed: ${msg}`);
       setTimeout(() => {
         setValidationError((prev) => (prev?.includes(msg) ? null : prev));
@@ -1013,6 +1269,30 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             </>
           )}
         </button>
+
+        {/* Cancel button if running or comparing */}
+        {(isRunning || isComparing) && (
+          <button
+            onClick={handleCancelOptimization}
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 rounded-full text-xs font-heading font-bold shadow-lg border border-red-500/20 transition-all cursor-pointer"
+            title="Cancel computation"
+          >
+            <span>Cancel</span>
+          </button>
+        )}
+
+        {/* Background Solver Comparison Progress Bar */}
+        {isComparing && (
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-[#18181B]/90 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-lg text-[11px] font-heading font-bold animate-fadeIn">
+            <RotateCw className="h-3 w-3 animate-spin text-[#B7FF2A] dark:text-[#B7FF2A]" />
+            <span className="text-[#080808] dark:text-[#F5F5F7]">
+              Evaluating {solverProgress.currentAlgo} ({solverProgress.completed}/{solverProgress.total})
+            </span>
+            <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+              {solverProgress.elapsedSec}s
+            </span>
+          </div>
+        )}
 
         {/* View in Results CTA when solution has been computed */}
         {executionResponse && !isRunning && (
@@ -1746,6 +2026,11 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   <RotateCw className="h-3.5 w-3.5 animate-spin text-[#B7FF2A] dark:text-[#080808]" />
                   <span>Computing Solution...</span>
                 </>
+              ) : isComparing ? (
+                <>
+                  <RotateCw className="h-3.5 w-3.5 animate-spin text-[#B7FF2A] dark:text-[#080808]" />
+                  <span>Benchmarking ({solverProgress.completed}/{solverProgress.total})...</span>
+                </>
               ) : (
                 <>
                   <Play className="h-3.5 w-3.5 fill-current" />
@@ -1753,6 +2038,15 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                 </>
               )}
             </button>
+            {(isRunning || isComparing) && (
+              <button
+                onClick={handleCancelOptimization}
+                className="py-2.5 px-3 rounded-xl bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 border border-red-500/20 font-bold text-xs cursor-pointer"
+                title="Cancel computation"
+              >
+                Cancel
+              </button>
+            )}
             <button
               onClick={loadStops}
               disabled={isLoadingStops || isRunning}

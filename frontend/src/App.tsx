@@ -114,14 +114,16 @@ export const App: React.FC = () => {
         }`}
       >
         <div className={activeTab === 'overview' ? 'tab-pane-active' : 'tab-pane-inactive'}>
-          <OverviewDashboard
-            analytics={analytics}
-            datasets={datasets}
-            backendHealth={backendHealth}
-            onNavigate={(tab) => handleSelectTab(tab === 'optimization' ? 'plan' : tab)}
-            onScanDatasets={handleScanWorkspace}
-            isScanning={isScanning}
-          />
+          <ErrorBoundary fallbackTitle="System Overview Dashboard">
+            <OverviewDashboard
+              analytics={analytics}
+              datasets={datasets}
+              backendHealth={backendHealth}
+              onNavigate={(tab) => handleSelectTab(tab === 'optimization' ? 'plan' : tab)}
+              onScanDatasets={handleScanWorkspace}
+              isScanning={isScanning}
+            />
+          </ErrorBoundary>
         </div>
 
         <div className={activeTab === 'plan' ? 'tab-pane-active absolute inset-0 w-full h-full' : 'tab-pane-inactive'}>
@@ -139,34 +141,42 @@ export const App: React.FC = () => {
         </div>
 
         <div className={activeTab === 'datasets' ? 'tab-pane-active' : 'tab-pane-inactive'}>
-          <DatasetManagement
-            datasets={datasets}
-            onRefresh={refreshData}
-            onScanDatasets={handleScanWorkspace}
-            isScanning={isScanning}
-            isLoading={isDatasetsLoading}
-            error={datasetsError}
-          />
+          <ErrorBoundary fallbackTitle="Dataset Management Workspace">
+            <DatasetManagement
+              datasets={datasets}
+              onRefresh={refreshData}
+              onScanDatasets={handleScanWorkspace}
+              isScanning={isScanning}
+              isLoading={isDatasetsLoading}
+              error={datasetsError}
+            />
+          </ErrorBoundary>
         </div>
 
         <div className={activeTab === 'results' ? 'tab-pane-active' : 'tab-pane-inactive'}>
-          <ResultsView
-            result={lastResult}
-            onNavigateToPlan={() => handleSelectTab('plan')}
-            isActive={activeTab === 'results'}
-          />
+          <ErrorBoundary fallbackTitle="Route Optimization Results Workspace">
+            <ResultsView
+              result={lastResult}
+              onNavigateToPlan={() => handleSelectTab('plan')}
+              isActive={activeTab === 'results'}
+            />
+          </ErrorBoundary>
         </div>
 
         <div className={activeTab === 'experiments' ? 'tab-pane-active' : 'tab-pane-inactive'}>
-          <ExperimentHistory isActive={activeTab === 'experiments'} />
+          <ErrorBoundary fallbackTitle="Experiment History Workspace">
+            <ExperimentHistory isActive={activeTab === 'experiments'} />
+          </ErrorBoundary>
         </div>
 
         <div className={activeTab === 'settings' ? 'tab-pane-active' : 'tab-pane-inactive'}>
-          <SystemSettings
-            backendHealth={backendHealth}
-            onRefreshHealth={refreshData}
-            onSettingsApplied={refreshData}
-          />
+          <ErrorBoundary fallbackTitle="System Settings Workspace">
+            <SystemSettings
+              backendHealth={backendHealth}
+              onRefreshHealth={refreshData}
+              onSettingsApplied={refreshData}
+            />
+          </ErrorBoundary>
         </div>
       </main>
     </div>
