@@ -212,7 +212,7 @@ class QIGASolver:
             "algorithm": "qiga",
             "algorithm_name": "Quantum-Inspired Genetic Algorithm (QIGA)",
             "category": "quantum_inspired",
-            "status": "OPTIMAL" if is_feasible else "HEURISTIC",
+            "status": "FEASIBLE" if is_feasible else "PENALIZED",
             "execution_time_sec": round(float(exec_time), 3),
             "routes": best_routes,
             "total_distance_km": round(float(best_distance), 3),

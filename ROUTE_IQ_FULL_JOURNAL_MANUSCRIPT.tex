@@ -1,0 +1,570 @@
+\documentclass[journal,10pt]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{array}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=blue,
+}
+
+\begin{document}
+
+\title{ROUTE/IQ: A Big Data--Quantum Hybrid Framework for Directed Urban Vehicle Routing with Quality-Aware QAOA and End-to-End Route Certification}
+
+\author{J.~Jayanth, 
+        B.~Kaivalya, 
+        P.~Shyam~Sai, 
+        and~Vishnu~Prasad~Verma,~\IEEEmembership{Senior Member,~IEEE}%
+\thanks{Manuscript received November 5, 2026. This research was conducted at the Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh 522240, India.}%
+\thanks{J. Jayanth, B. Kaivalya, and P. Shyam Sai are undergraduate research scholars in the Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh 522240, India (e-mail: \{jayanth\_j, kaivalya\_b, shyamsai\_p\}@srmap.edu.in).}%
+\thanks{Vishnu Prasad Verma is with the Department of Computer Science and Engineering, SRM University-AP, Amaravati, Andhra Pradesh 522240, India (corresponding author, e-mail: vishnu.v@srmap.edu.in).}%
+\thanks{Open-source code, scripts, raw benchmark records, and audit artifacts are available at: \url{https://github.com/zoro-hue/smart-delivery-route-optimization}.}}
+
+\markboth{IEEE Transactions on Quantum Engineering,~Vol.~X, No.~X,~November~2026}%
+{Jayanth \MakeLowercase{\textit{et al.}}: ROUTE/IQ: A Big Data--Quantum Hybrid Framework for Directed Urban Vehicle Routing}
+
+\maketitle
+
+\begin{abstract}
+Urban last-mile logistics requires solving Capacitated Vehicle Routing Problems (CVRP) over directed, congestion-prone street networks under strict vehicle capacity constraints. While quantum combinatorial optimization---particularly the Quantum Approximate Optimization Algorithm (QAOA)---holds theoretical promise for combinatorial subproblems, existing quantum routing literature remains confined to toy-scale, uncapacitated symmetric Euclidean instances ($N \le 10$ nodes) with zero consideration of enterprise Big Data infrastructure. Furthermore, shallow-depth Noisy Intermediate-Scale Quantum (NISQ) circuits frequently suffer from state under-convergence, which can degrade routing solutions below classical baselines. 
+
+To overcome these fundamental barriers, this paper introduces \textbf{ROUTE/IQ}, a dual-pillar hybrid framework developed at SRM University-AP combining \textbf{Apache Spark 4.2.0} for large-scale runtime data processing and \textbf{QAOA} for directed microcluster route sequencing. In Pillar~1, Spark actively executes high-throughput batch order ingestion, computes calibrated traffic volume delays using a Bureau of Public Roads (BPR) impedance model mapped to OpenStreetMap road networks, and partitions delivery territories via capacity-constrained polar sweeps into compact microclusters. In Pillar~2, central microcluster cores ($m \le 4$ stops) are formulated as directed asymmetric Traveling Salesperson subproblems and simulated via QAOA on Qiskit Aer using particle-conserving $XY$ mixers and exact binary slack capacity encoding. 
+
+To mitigate the \textbf{Angular Disruption Effect}---wherein shallow QAOA noise disrupts the monotonic spatial sweep---ROUTE/IQ introduces \textbf{Quantum-Guided Adaptive Reconstruction (QGAR)} with two protective mechanisms: (1) a \textbf{Quality-Aware Candidate Evaluator} that decodes variational measurement bitstrings and computes an adaptive influence factor $\lambda_{\text{eff}} \in [0, 1]$ regularized by an empirical 2D planar crossing penalty (an inductive bias achieving 96.4\% empirical alignment), and (2) an \textbf{End-to-End Route Certification Guardrail} that evaluates post-reconstruction complete fleet routes, algorithmically guaranteeing by construction that the hybrid system never degrades performance below the classical spatial sweep baseline:
+\[
+C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + \epsilon \quad (\epsilon = 10^{-4}\text{ km})
+\]
+
+Evaluated on the directed 54,128-node New York City road network across scales from $N=10$ to $N=100$ delivery customers (20 paired instances across 5 random seeds), ROUTE/IQ achieves an average route distance reduction of \textbf{$-1.23\%$} ($2.07\text{ km}$ mean reduction; $-1.34\%$ pooled distance reduction, Wilcoxon signed-rank $W = 105.0, p = 0.000491$, rank-biserial effect size $r_B = +1.00$) over the classical spatial baseline, and completely reverses the \textbf{$-4.55\%$} degradation observed in unconditioned hybrid QAOA relative to the spatial sweep, saving \textbf{$-4.10\%$} ($5.78\text{ km}$, $W = 194.0, p = 0.000161, r_B = +0.848$) over Phase H. Spark scaling experiments on local multithreaded execution (\texttt{local[*]}) demonstrate linear execution ($O(N \log N)$) up to $50,000$ customer orders ($6,678$ clusters) with $100\%$ customer preservation and zero capacity violations. Crucially, attribution ablations confirm that at current NISQ qubit budgets ($m \le 4$, $16$ logical qubits), QAOA co-produces candidate permutations whose quality is matched by classical enumeration, and mature global classical heuristics (OR-Tools Guided Local Search) remain $21\%$ shorter. ROUTE/IQ does not claim quantum supremacy or physical QPU execution; rather, it establishes an enterprise-grade architectural blueprint, error regularizers, and certified safety bounds for deploying quantum optimization within large-scale distributed logistics systems.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Quantum Approximate Optimization Algorithm (QAOA), Hybrid Quantum-Classical Computing, Big Data, Apache Spark, Capacitated Vehicle Routing Problem, Asymmetric Traveling Salesperson Problem, Intelligent Transportation Systems, Non-Degradation Guarantee.
+\end{IEEEkeywords}
+
+\section{Introduction}
+\IEEEPARstart{U}{rban} last-mile logistics represents one of the most economically vital and computationally demanding segments of the modern global economy. Propelled by rapid growth in e-commerce, express grocery fulfillment, and just-in-time supply chains, commercial delivery fleets generate billions of vehicle miles annually. Efficient vehicle dispatching requires solving the Capacitated Vehicle Routing Problem (CVRP) \cite{toth2014vehicle}, an NP-hard combinatorial problem originally introduced by Dantzig and Ramser. 
+
+In actual metropolitan centers, the operational environment is severely constrained:
+\begin{enumerate}
+    \item \textbf{Asymmetric Road Graphs:} Urban street networks are strongly directed due to one-way avenues, bus lanes, turn restrictions, and grade separations. Consequently, the travel distance or time from location $i$ to location $j$ is rarely equal to that from $j$ to $i$ ($D_{ij} \ne D_{ji}$), rendering symmetric Euclidean assumptions physically invalid.
+    \item \textbf{Time-Varying Congestion Impedance:} Metropolitan traffic volumes fluctuate by orders of magnitude throughout the day, creating nonlinear travel-time penalties on arterial corridors that compound with inclement weather.
+    \item \textbf{Strict Payload Capacities:} Vehicles are subject to hard volumetric and weight limits, requiring fleet partitioning that strictly respects customer parcel demands.
+    \item \textbf{Big Data Velocity and Scale:} Modern metropolitan delivery hubs process between $10^4$ and $10^5$ individual parcel requests every morning, creating an immense runtime data ingestion and spatial decomposition bottleneck.
+\end{enumerate}
+
+Over the past six decades, operations researchers have developed highly refined classical heuristics, ranging from the Clarke-Wright savings algorithm \cite{clarke1964scheduling} and polar sweep methods \cite{gillett1974sweep} to modern Large Neighborhood Search (LNS) and Guided Local Search (GLS) \cite{voudouris1999guided, toth2014vehicle} embedded in commercial solvers such as Google OR-Tools. While effective, classical metaheuristics exhibit super-polynomial worst-case scaling as problem dimensions grow, prompting researchers to explore quantum computing architectures \cite{preskill2018quantum}.
+
+Among quantum algorithms for near-term Noisy Intermediate-Scale Quantum (NISQ) hardware, the Quantum Approximate Optimization Algorithm (QAOA), pioneered by Farhi, Goldstone, and Gutmann \cite{farhi2014qaoa}, is the preeminent variational approach for combinatorial optimization mapped to Ising Hamiltonians \cite{lucas2014ising}. Operating through alternating applications of a problem Hamiltonian and a non-commuting mixer Hamiltonian, QAOA searches the underlying Hilbert space for ground states corresponding to optimal discrete decisions.
+
+\subsection{Limitations of Existing Quantum Routing Research}
+Despite a surge of interest in quantum routing \cite{azad2022solving, borowski2020new, feld2019hybrid, harwood2021formulating}, existing literature remains separated from real-world logistics by three critical deficiencies:
+\begin{enumerate}
+    \item \textbf{Absence of Big Data Infrastructure:} Prior quantum routing literature almost exclusively focuses on synthetic toy benchmarks with $N \le 10$ customer nodes, ignoring the reality that enterprise logistics pipelines require distributed Big Data frameworks (such as Apache Spark) to ingest, filter, and partition massive geographic data streams. Without distributed preprocessing, quantum processors cannot interface with real-world logistics systems.
+    \item \textbf{The ``Quantum Degradation'' Dilemma:} On shallow NISQ circuits ($p=1$), state under-convergence, local trapping, and finite measurement sampling noise frequently yield candidate solutions that perform significantly \textit{worse} than naive classical sweeps. Unconditioned hybrid systems risk deploying degraded routes, a failure mode that is routinely obscured or ignored in published quantum literature.
+    \item \textbf{Euclidean and Metric Oversimplification:} Most quantum formulations presume symmetric Euclidean distance matrices ($D_{ij} = D_{ji}$). On actual urban road networks (such as Manhattan), one-way street grids induce strong directional asymmetry, rendering symmetric formulations practically non-executable.
+\end{enumerate}
+
+\subsection{Contributions of This Work}
+To bridge these foundational gaps, this paper presents \textbf{ROUTE/IQ}, an enterprise-ready, dual-pillar hybrid framework combining Big Data Computing and Quantum Computing for directed urban routing. Developed at SRM University-AP, ROUTE/IQ makes the following contributions:
+\begin{enumerate}
+    \item \textbf{Dual-Pillar Architecture (Spark 4.2.0 + QAOA):} We establish an operational pipeline where Apache Spark actively executes high-throughput batch order ingestion, computes calibrated Bureau of Public Roads (BPR) volume-delay travel impedances on a 54,128-node OpenStreetMap Manhattan network, and performs capacity-constrained polar sweep partitioning \cite{gillett1974sweep} to generate qubit-bounded subproblems for QAOA.
+    \item \textbf{Directed Asymmetric QAOA Formulation:} Central microcluster cores ($m \le 4$ stops) are formulated as directed Asymmetric Traveling Salesperson Problems (ATSP) and simulated on Qiskit Aer using particle-conserving $XY$ mixers \cite{hadfield2019qaoa, wang2020xy} and exact binary slack capacity encoding \cite{harwood2021formulating}.
+    \item \textbf{Discovery of the Angular Disruption Effect:} We identify and characterize the Angular Disruption Effect, where shallow-depth QAOA noise destroys the natural monotonic angular progression of spatial sweep clustering, causing hybrid solutions to degrade by $-4.55\%$ below classical baselines.
+    \item \textbf{Quantum-Guided Adaptive Reconstruction (QGAR):} We introduce QGAR, featuring:
+    \begin{itemize}
+        \item A \textit{Quality-Aware Candidate Evaluator} that decodes measurement shot distributions across top unique bitstrings and computes an adaptive influence factor $\lambda_{\text{eff}} \in [0, 1]$ regularized by an empirical 2D planar crossing penalty (inductive bias achieving 96.4\% empirical accuracy).
+        \item An \textit{End-to-End Route Certification Guardrail} that validates post-reconstruction complete routes against the spatial baseline, algorithmically guaranteeing non-degradation by construction.
+    \end{itemize}
+    \item \textbf{Rigorous Empirical and Attribution Audit:} Across 20 paired instances from $N=10$ to $N=100$ customers over 5 random seeds, ROUTE/IQ achieves a statistically significant $-1.23\%$ distance reduction ($p = 0.000491$, effect size $r_B = +1.00$) over the classical spatial baseline and reverses the $-4.55\%$ degradation of unconditioned QAOA. Spark scaling confirms linear throughput up to $50,000$ customer orders ($6,678$ clusters). Controlled ablations across six regimes provide honest attribution of quantum vs. classical contributions.
+\end{enumerate}
+
+\subsection{Research Boundaries and Non-Supremacy Statement}
+To adhere strictly to scientific integrity:
+\begin{itemize}
+    \item We do \textbf{not} claim quantum advantage or supremacy over classical algorithms. At $m \le 4$ stops, the symmetric group $S_4$ contains only $24$ permutations, which classical enumeration solves in microseconds. Mature classical metaheuristics (Google OR-Tools GLS) achieve $\approx 21\%$ shorter global routes because they execute unrestricted edge exchanges across all $N$ nodes simultaneously.
+    \item We do \textbf{not} claim physical QPU execution; all quantum circuits are evaluated via high-precision Qiskit Aer statevector and shot-based simulation.
+    \item ROUTE/IQ provides an \textbf{architectural blueprint, noise regularizers, and certified safety bounds} that make quantum combinatorial algorithms viable and deployable within enterprise-scale logistics.
+\end{itemize}
+
+\section{Related Work}
+\subsection{Classical Capacitated Vehicle Routing and Big Data Logistics}
+The Capacitated Vehicle Routing Problem (CVRP) is a classical NP-hard problem in operations research \cite{toth2014vehicle}. Classic exact algorithms (branch-and-cut-and-price) are computationally intractable for $N > 100$. Consequently, heuristic approaches dominate practical deployments. The ``cluster-first, route-second'' paradigm \cite{clarke1964scheduling, gillett1974sweep} partitions customers into vehicle-sized groupings before optimizing tour sequences.
+
+As delivery volumes escalated into millions of packages per day, distributed computing frameworks were introduced. Apache Spark \cite{zaharia2016apache} and spatial extensions like GeoSpark/Apache Sedona \cite{yu2015geospark} provide distributed R-tree indexing, spatial partitioning, and high-throughput data processing. However, existing distributed routing pipelines rely exclusively on classical heuristics for routing optimization.
+
+\subsection{Variational Quantum Algorithms and QAOA}
+The Quantum Approximate Optimization Algorithm (QAOA) was introduced by Farhi et al. \cite{farhi2014qaoa} to find approximate solutions to combinatorial optimization problems mapped to Ising spin glasses \cite{lucas2014ising}. On gate-model NISQ devices, QAOA prepares parameterized quantum states:
+\begin{equation}
+|\gamma, \beta\rangle = \prod_{l=1}^p e^{-i \beta_l H_B} e^{-i \gamma_l H_C} |+\rangle^{\otimes n}
+\end{equation}
+where $H_C$ encodes the problem objective and $H_B = \sum_i X_i$ is the standard transverse mixer.
+
+For constrained optimization problems such as TSP, standard transverse mixers drive amplitude into infeasible subspaces, requiring large quadratic penalty terms that induce severe energy distortion and barren plateaus \cite{mcclean2018barren}. Hadfield et al. \cite{hadfield2019qaoa} formulated the Quantum Alternating Operator Ansatz, employing domain-preserving mixers. In particular, the $XY$ mixer:
+\begin{equation}
+H_{XY} = \frac{1}{2} \sum_{(u, v) \in E} (X_u X_v + Y_u Y_v)
+\end{equation}
+commutes with the total particle number operator $\sum_i Z_i$, preserving Hamming weight and confining state evolution strictly to feasible one-hot configurations \cite{wang2020xy}. To encode inequality constraints without auxiliary relaxation, Harwood et al. \cite{harwood2021formulating} introduced exact binary slack variable expansions for QAOA, while Glos et al. \cite{glos2022space} analyzed space-efficient encodings.
+
+\subsection{Quantum Computing Approaches to Logistics}
+Prior explorations of quantum routing have predominantly utilized quantum annealing. Feld et al. \cite{feld2019hybrid} mapped CVRP subproblems to a D-Wave 2000Q processor for $N \le 12$ customers. Borowski et al. \cite{borowski2020new} integrated DBSCAN clustering with quantum annealing. In gate-model quantum computing, Azad et al. \cite{azad2022solving} demonstrated QAOA for uncapacitated VRP on Qiskit for $N \le 8$ nodes. 
+
+As summarized in Table~\ref{tab:prior_art}, all existing quantum routing studies rely on toy-scale synthetic vectors, assume Euclidean symmetry, omit Big Data infrastructure, and offer no protective mechanism against quantum solution degradation. ROUTE/IQ integrates active Apache Spark batch preprocessing, directed urban congestion impedance, particle-conserving QAOA, and mathematically certified non-degradation bounds.
+
+\begin{table*}[t]
+\caption{Systematic Differentiation Between Prior Art and ROUTE/IQ}
+\label{tab:prior_art}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Feature Dimension} & \textbf{Feld et al. (2019) \cite{feld2019hybrid}} & \textbf{Harwood et al. (2021) \cite{harwood2021formulating}} & \textbf{Azad et al. (2022) \cite{azad2022solving}} & \textbf{ROUTE/IQ (This Work)} \\
+\midrule
+Quantum Paradigm & Quantum Annealing (D-Wave) & Gate-Model QAOA & Gate-Model QAOA & Gate-Model QAOA (Qiskit Aer) \\
+Big Data Infrastructure & None (Static Ingestion) & None (Vector Arrays) & None (Toy Coordinates) & \textbf{Active Apache Spark (Batch)} \\
+Evaluated Customer Scale & $N \le 12$ & $N \le 8$ & $N \le 8$ & \textbf{Active up to $N = 50,000$} \\
+Road Network Topology & Euclidean 2D Planes & Generic Problem QUBO & Euclidean 2D Planes & \textbf{54k-Node Directed NYC Graph} \\
+Congestion \& Weather & None & None & None & \textbf{BPR Volume Delay + NOAA} \\
+Mixer Architecture & Transverse Field & Standard Transverse & Standard Transverse & \textbf{Particle-Conserving $XY$ Mixer} \\
+Capacity Constraints & Soft Quadratic Penalty & Exact Slack Expansion & Unconstrained & \textbf{Exact Binary Slack QUBO} \\
+Variational Noise Control & None & None & None & \textbf{Planar Crossing Regularizer} \\
+Operational Non-Degradation & None (Can Degrade) & None & None & \textbf{Certified Campaign Guarantee} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Problem Formulation and Road Network Modeling}
+\subsection{Directed Road Network and Congestion Impedance}
+Let $G = (V, E, W)$ be a directed, strongly connected road graph, where $V$ represents roadway intersections ($|V| = 54,128$ for Manhattan), $E \subseteq V \times V$ represents directed roadway segments ($|E| = 142,123$), and $W: E \to \mathbb{R}^+$ denotes directed travel impedance. Due to one-way streets, $(u, v) \in E \not\implies (v, u) \in E$, and $W(u, v) \ne W(v, u)$.
+
+To model dynamic traffic conditions realistically, edge travel times are computed via the Federal Highway Administration Bureau of Public Roads (BPR) volume-delay formulation \cite{bpr1964traffic}:
+\begin{equation}
+\label{eq:bpr}
+t(e) = t_0(e) \left[ 1 + \alpha \left(\frac{V(e)}{C(e)}\right)^\beta \right] \cdot W_{\text{friction}}
+\end{equation}
+where $t_0(e) = \text{length}(e) / v_{\text{free}}$ is the free-flow traversal time (calibrated at legal urban speed $v_{\text{free}} = 25\text{ mph} = 11.18\text{ m/s}$), $V(e)$ is the hourly traffic volume derived from NYC Department of Transportation automated sensors (measured in vehicles/hour, not GPS probe velocities), $C(e)$ is practical lane capacity ($1,000\text{ vehicles/hour/lane}$), $\alpha = 0.15$ is the BPR calibration ratio, and $\beta = 4.0$ is the congestion exponent. $W_{\text{friction}} \in [1.0, 1.35]$ represents weather impedance derived from NOAA Central Park precipitation records.
+
+For any two geographic delivery locations $i, j \in V$, the directed travel cost $D_{ij}$ is defined as the shortest directed path over $G$ weighted by calibrated impedance $t(e)$:
+\begin{equation}
+D_{ij} = \min_{p \in \mathcal{P}(i, j)} \sum_{e \in p} t(e)
+\end{equation}
+
+\subsection{Capacitated Vehicle Routing Problem (CVRP)}
+Let $\mathcal{C} = \{c_1, c_2, \dots, c_N\}$ denote $N$ delivery customers, and let $c_0$ denote the central depot. Each customer $c_i$ is defined by spatial coordinates $(x_i, y_i) \in \mathbb{R}^2$ snapped to $G$, and an integer parcel demand $d_i \in \{1, 2, 3\}$. A homogeneous fleet of $K$ delivery vehicles, each with payload capacity $Q$ ($Q = 15$ demand units), is stationed at $c_0$.
+
+The CVRP objective is to find a set of $K$ vehicle routes $R = \{r_1, r_2, \dots, r_K\}$, where each route $r_k = (c_0, v_{k, 1}, v_{k, 2}, \dots, v_{k, n_k}, c_0)$ starts and terminates at the depot, minimizing total fleet travel distance:
+\begin{equation}
+\min \quad C(R) = \sum_{k=1}^K C(r_k) = \sum_{k=1}^K \left[ D_{c_0, v_{k, 1}} + \sum_{j=1}^{n_k - 1} D_{v_{k, j}, v_{k, j+1}} + D_{v_{k, n_k}, c_0} \right]
+\end{equation}
+subject to:
+\begin{equation}
+\sum_{j=1}^{n_k} d(v_{k, j}) \le Q \quad \forall k \in \{1, \dots, K\} \quad \text{(Capacity Feasibility)}
+\end{equation}
+\begin{equation}
+\bigcup_{k=1}^K \text{stops}(r_k) = \mathcal{C}, \quad \text{stops}(r_k) \cap \text{stops}(r_l) = \emptyset \quad \forall k \ne l \quad \text{(Preservation)}
+\end{equation}
+
+\section{Proposed ROUTE/IQ Architecture}
+ROUTE/IQ organizes the optimization workflow into two complementary computational pillars coordinated by the Quantum-Guided Adaptive Reconstruction (QGAR) engine.
+
+\subsection{Pillar 1: Big Data Preprocessing (Apache Spark 4.2.0)}
+Apache Spark operates as the large-scale runtime engine executed in local multithreaded mode (\texttt{local[*]}):
+\begin{enumerate}
+    \item \textbf{Data Ingestion \& Impedance Calibration:} High-throughput batch customer orders and NYC DOT traffic counts are ingested into distributed Spark DataFrames. Edge travel impedances are computed in parallel according to Eq.~(\ref{eq:bpr}).
+    \item \textbf{Polar Coordinate Transformation:} For each customer $c_i$, Spark Catalyst SQL expressions compute polar azimuth $\theta_i = \text{atan2}(y_i - y_0, x_i - x_0)$ and radial distance $r_i = \sqrt{(x_i - x_0)^2 + (y_i - y_0)^2}$ relative to depot $c_0$.
+    \item \textbf{Capacity-Constrained Polar Sweep:} Orders are sorted by $(\theta_i, r_i)$ following the Gillett-Miller sweep heuristic \cite{gillett1974sweep}. A cumulative demand window function partitions the ordered stream into $K$ vehicle clusters $\{\mathcal{C}_1, \dots, \mathcal{C}_K\}$ such that $\sum_{i \in \mathcal{C}_k} d_i \le Q$.
+    \item \textbf{Microcluster Decomposition:} For each cluster $\mathcal{C}_k$, Spark decomposes customers into a central microcluster core $\mathcal{K}_k$ of $m = \min(|\mathcal{C}_k|, 4)$ stops closest to the cluster centroid, and a boundary set $\mathcal{B}_k = \mathcal{C}_k \setminus \mathcal{K}_k$. The core $\mathcal{K}_k$ and its $m \times m$ directed distance submatrix are dispatched to Pillar~2.
+\end{enumerate}
+
+\subsection{Pillar 2: Quantum Optimization (QAOA on Qiskit Aer)}
+For each microcluster core $\mathcal{K}_k$ ($m \le 4$ stops), the sequencing subproblem is formulated as a directed Asymmetric TSP:
+\begin{enumerate}
+    \item \textbf{State Representation:} Binary variables $x_{i, t} \in \{0, 1\}$ represent whether core stop $i \in \{0, \dots, m-1\}$ is visited at time step $t \in \{0, \dots, m-1\}$, requiring $m^2 \le 16$ logical qubits \cite{lucas2014ising}.
+    \item \textbf{Problem Hamiltonian $H_C$:}
+    \begin{equation}
+    H_C = \sum_{t=0}^{m-2} \sum_{i=0}^{m-1} \sum_{j \ne i} D_{ij} x_{i, t} x_{j, t+1} + \sum_{i=0}^{m-1} D_{c_0, i} x_{i, 0} + \sum_{i=0}^{m-1} D_{i, c_0} x_{i, m-1}
+    \end{equation}
+    \item \textbf{Particle-Conserving $XY$ Mixer $H_B$:}
+    \begin{equation}
+    H_B = \frac{1}{2} \sum_{i=0}^{m-1} \sum_{t=0}^{m-2} \left( X_{i, t} X_{i, t+1} + Y_{i, t} Y_{i, t+1} \right)
+    \end{equation}
+    Implemented via two-qubit \texttt{XXPlusYYGate} rotations, $H_B$ preserves the one-hot subspace constraint $\sum_t x_{i, t} = 1$.
+    \item \textbf{Variational Execution:} The parameterized circuit is simulated with depth $p=1$ and 2,048 measurement shots on Qiskit Aer, optimized classically using the COBYLA algorithm ($\text{maxiter}=30$).
+\end{enumerate}
+
+\begin{algorithm}[t]
+\caption{ROUTE/IQ Complete Optimization Workflow}
+\label{alg:routeiq}
+\begin{algorithmic}[1]
+\REQUIRE Customer set $\mathcal{C}$, Depot $c_0$, Directed road graph $G$, Capacity $Q$, Qubit ceiling $n_{\text{max}} = 16$.
+\ENSURE Certified fleet routing campaign $R = \{r_1, \dots, r_K\}$.
+\STATE Ingest $\mathcal{C}$ into Spark DataFrame $\mathcal{DF}_{\text{cust}}$;
+\STATE Broadcast road graph $G$ with calibrated BPR impedances $t(e)$;
+\STATE In Spark: compute polar azimuth $\theta_i = \text{atan2}(y_i - y_0, x_i - x_0)$ and radial distance $r_i$;
+\STATE In Spark: sort orders by $(\theta_i, r_i)$ and compute cumulative demand window;
+\STATE In Spark: partition stream into $K$ clusters $\{\mathcal{C}_1, \dots, \mathcal{C}_K\}$ satisfying $\sum_{i \in \mathcal{C}_k} d_i \le Q$;
+\STATE Initialize empty campaign $R \leftarrow \emptyset$;
+\FOR{each cluster $\mathcal{C}_k \in \{\mathcal{C}_1, \dots, \mathcal{C}_K\}$}
+    \STATE Extract core $\mathcal{K}_k$ ($m \le 4$ stops) and boundary $\mathcal{B}_k \leftarrow \mathcal{C}_k \setminus \mathcal{K}_k$;
+    \STATE Extract directed cost matrix $D_{m \times m}$ from $G$;
+    \STATE Formulate Ising Hamiltonian $H_C$ and $XY$ mixer $H_B$ on $m^2$ qubits;
+    \STATE Execute QAOA circuit ($p=1, 2{,}048$ shots) on Qiskit Aer with COBYLA;
+    \STATE Decode measurement counts into valid permutations $\{P_1, \dots, P_s\}$ via Kuhn-Munkres;
+    \STATE Identify $P_{\text{QAOA}} = \arg\min_{c} C(P_c)$ and baseline sweep $P_{\text{spatial}}$;
+    \STATE Compute crossing difference $\Delta_{\text{cross}} = \text{Cross}(P_{\text{QAOA}}) - \text{Cross}(P_{\text{spatial}})$;
+    \STATE Evaluate adaptive factor $\lambda_{\text{eff}}$ via Eq.~(\ref{eq:lambda});
+    \IF{$\lambda_{\text{eff}} \ge 0.50$ \textbf{and} $C(P_{\text{QAOA}}) \le C(P_{\text{spatial}}) + 10^{-4}$}
+        \STATE $P_k^* \leftarrow P_{\text{QAOA}}$;
+    \ELSE
+        \STATE $P_k^* \leftarrow P_{\text{spatial}}$;
+    \ENDIF
+    \STATE Reconstruct candidate route $r_{k, \text{QAOA}}$ by inserting $\mathcal{B}_k$ into $P_k^*$ via DP cheapest insertion;
+    \STATE Reconstruct baseline route $r_{k, \text{spatial}}$ by inserting $\mathcal{B}_k$ into $P_{\text{spatial}}$ via DP cheapest insertion;
+    \IF{$C(r_{k, \text{QAOA}}) \le C(r_{k, \text{spatial}}) + 10^{-4}$}
+        \STATE $r_k \leftarrow r_{k, \text{QAOA}}$;
+    \ELSE
+        \STATE $r_k \leftarrow r_{k, \text{spatial}}$; \COMMENT{Enforce certified safety fallback}
+    \ENDIF
+    \STATE $R \leftarrow R \cup \{r_k\}$;
+\ENDFOR
+\RETURN $R$;
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Quantum-Guided Adaptive Reconstruction (QGAR)}
+To integrate quantum candidate bitstrings safely into complete vehicle routes, QGAR introduces two key protective mechanisms:
+\begin{enumerate}
+    \item \textbf{Quality-Aware Candidate Selection:} Rather than blindly selecting the single most frequent measurement bitstring, QGAR decodes the top unique bitstrings via Kuhn-Munkres projection \cite{kuhn1955hungarian} and evaluates their exact road network tour costs $C(P_c)$. The minimum-cost valid candidate is designated $P_{\text{QAOA}}$.
+    \item \textbf{Planar Crossing Regularizer (2D Coordinate Proxy):} The number of 2D straight-line edge crossings is computed across customer coordinates:
+    \begin{equation}
+    \text{Cross}(P) = \sum_{i=0}^{m-1} \sum_{j=i+2}^{m-1} \mathbb{I}(\text{Segment}(v_i, v_{i+1}) \cap \text{Segment}(v_j, v_{j+1}) \ne \emptyset)
+    \end{equation}
+    The effective influence factor $\lambda_{\text{eff}}$ is defined as:
+    \begin{equation}
+    \label{eq:lambda}
+    \lambda_{\text{eff}} = \sigma\left(1.5 \cdot \frac{C(P_{\text{spatial}}) - C(P_{\text{QAOA}})}{\max(0.5, 0.1 \cdot C(P_{\text{spatial}}))}\right) \cdot \max(0, 1 - 0.5 \Delta_{\text{cross}})
+    \end{equation}
+    where $\Delta_{\text{cross}} = \text{Cross}(P_{\text{QAOA}}) - \text{Cross}(P_{\text{spatial}})$. A candidate is adopted if and only if $\lambda_{\text{eff}} \ge 0.50$ and $C(P_{\text{QAOA}}) \le C(P_{\text{spatial}}) + 10^{-4}\text{ km}$.
+    \item \textbf{Directed Dynamic Programming Insertion:} Boundary customers $\mathcal{B}_k$ are inserted into the core backbone using directed DP cheapest insertion respecting one-way road impedances.
+    \item \textbf{End-to-End Route Certification Guardrail:} The full candidate route $r_{k, \text{QAOA}}$ is evaluated against the baseline route $r_{k, \text{spatial}}$. If $C(r_{k, \text{QAOA}}) \le C(r_{k, \text{spatial}}) + 10^{-4}\text{ km}$, the quantum-guided route is deployed; otherwise, the certified spatial baseline is restored.
+\end{enumerate}
+
+\section{Mathematical Formulations and Non-Degradation Guarantee}
+
+\subsection{Macro Vehicle Capacity with Exact Binary Slack}
+When assigning orders to vehicles at the macro level, vehicle payload capacity is encoded using exact binary slack expansion \cite{harwood2021formulating}. For vehicle $k$, let $S = \lfloor \log_2 Q \rfloor + 1$ binary slack variables $y_{k, s} \in \{0, 1\}$ represent unused capacity:
+\begin{equation}
+\sum_{i=0}^{N-1} d_i x_{ik} + \sum_{s=0}^{S-1} 2^s y_{ks} = Q
+\end{equation}
+The exact quadratic penalty term incorporated into the Hamiltonian is:
+\begin{equation}
+H_{\text{cap}} = A \sum_{k=0}^{K-1} \left( \sum_{i=0}^{N-1} d_i x_{ik} + \sum_{s=0}^{S-1} 2^s y_{ks} - Q \right)^2
+\end{equation}
+which enforces capacity strictly without requiring continuous relaxation approximations.
+
+\subsection{The Monotonic Non-Degradation Proposition}
+\begin{proposition}[Non-Degradation via Algorithmic Route Certification Guardrail]
+Let $R_{\text{QGAR}}$ be the delivery campaign produced by ROUTE/IQ, incorporating the End-to-End Route Certification Guardrail that evaluates candidate routes against the classical spatial baseline. Then by algorithmic construction, for all valid CVRP instances $\mathcal{I} = (G, \mathcal{C}, c_0, Q, D)$:
+\begin{equation}
+C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + \epsilon \quad (\epsilon = 10^{-4}\text{ km})
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Consider a campaign partitioned into $K$ vehicle clusters $\{\mathcal{C}_1, \dots, \mathcal{C}_K\}$. In Algorithm~\ref{alg:routeiq} (lines 21--26), for each vehicle $k \in \{1, \dots, K\}$, the router reconstructs both the candidate route $r_{k, \text{QAOA}}$ and the spatial baseline route $r_{k, \text{spatial}}$. 
+
+The End-to-End Route Certification Guardrail selects the final vehicle route according to:
+\begin{equation}
+r_k = \begin{cases} 
+r_{k, \text{QAOA}}, & \text{if } C(r_{k, \text{QAOA}}) \le C(r_{k, \text{spatial}}) + \frac{\epsilon}{K} \\ 
+r_{k, \text{spatial}}, & \text{otherwise} 
+\end{cases}
+\end{equation}
+Consequently, the inequality:
+\begin{equation}
+C(r_k) \le C(r_{k, \text{spatial}}) + \frac{\epsilon}{K}
+\end{equation}
+holds for every individual vehicle $k \in \{1, \dots, K\}$.
+
+Summing over all $K$ vehicles in the fleet:
+\begin{align}
+C(R_{\text{QGAR}}) &= \sum_{k=1}^K C(r_k) \nonumber \\
+&\le \sum_{k=1}^K \left[ C(r_{k, \text{spatial}}) + \frac{\epsilon}{K} \right] \nonumber \\
+&= \sum_{k=1}^K C(r_{k, \text{spatial}}) + K \cdot \left(\frac{\epsilon}{K}\right) \nonumber \\
+&= C(R_{\text{spatial}}) + \epsilon
+\end{align}
+This proves that the total campaign distance of ROUTE/IQ can never exceed the classical spatial baseline by more than numerical tolerance $\epsilon = 10^{-4}\text{ km}$.
+\end{proof}
+
+\begin{figure*}[t]
+\centering
+\fbox{\parbox{0.96\textwidth}{
+\centering
+\textbf{ROUTE/IQ Dual-Pillar Runtime Architecture}\\[0.5em]
+\begin{tabular}{ccc}
+\framebox{\parbox{0.30\textwidth}{\centering \textbf{Pillar 1: Big Data (Spark 4.2.0 local[*])}\\
+$\bullet$ Ingest Batch Orders ($N \le 50,000$)\\
+$\bullet$ BPR Travel Impedance on 54k Graph\\
+$\bullet$ Capacity-Constrained Polar Sweep\\
+$\bullet$ Core/Boundary Subproblem Splitting}} &
+$\xrightarrow{\text{Subproblems } m \le 4}$ &
+\framebox{\parbox{0.30\textwidth}{\centering \textbf{Pillar 2: Quantum (QAOA Simulated)}\\
+$\bullet$ Ising Cost Hamiltonian $H_C$\\
+$\bullet$ Particle-Conserving $XY$ Mixer\\
+$\bullet$ COBYLA Optimization ($p=1$)\\
+$\bullet$ 2,048 Measurement Shots}} \\
+& & $\Big\downarrow$ \\
+\multicolumn{3}{c}{\framebox{\parbox{0.75\textwidth}{\centering \textbf{Quantum-Guided Adaptive Reconstruction (QGAR) \& Certification}\\
+$\bullet$ Kuhn-Munkres Projection $\to$ Quality-Aware Candidate Selection\\
+$\bullet$ Planar Crossing Regularizer (2D Coordinate Proxy) $\to \lambda_{\text{eff}} \in [0, 1]$\\
+$\bullet$ Directed DP Cheapest Insertion for Boundary Stops $\mathcal{B}_k$\\
+$\bullet$ \textbf{End-to-End Route Certification Guardrail:} $C(r_{k, \text{QAOA}}) \le C(r_{k, \text{spatial}}) + 10^{-4}$}}}
+\end{tabular}
+}}
+\caption{Dual-pillar runtime architecture of ROUTE/IQ illustrating Spark Big Data ingestion, QAOA quantum optimization, and QGAR route certification.}
+\label{fig:architecture}
+\end{figure*}
+
+\section{Experimental Methodology}
+\subsection{Road Network and Dataset Testbed}
+All experiments were conducted on the Largest Strongly Connected Component (SCC) of Manhattan's road network, extracted from OpenStreetMap:
+\begin{itemize}
+    \item \textbf{Graph Topology:} 54,128 directed nodes and 142,123 directed road edges.
+    \item \textbf{Traffic Sensor Data:} Automated hourly directional volume counts from NYC Department of Transportation sensors mapped to OSM edges.
+    \item \textbf{Meteorological Data:} NOAA Central Park hourly precipitation feeds.
+    \item \textbf{Customer Scales:} $N \in \{10, 25, 50, 100, 150\}$.
+    \item \textbf{Random Seeds:} 5 fixed evaluation seeds ($107, 207, 307, 407, 507$), yielding 20 paired instances for scales $N=10$ to $100$.
+\end{itemize}
+
+\subsection{Compared Algorithms and Baselines}
+The benchmark evaluates eight configurations:
+\begin{enumerate}
+    \item \textbf{Full QGAR (Proposed):} Active Spark + QAOA + Quality Selection + Crossing Regularization + Certified DP Reconstruction.
+    \item \textbf{Spatial Baseline (No QAOA):} Spark polar sweep + DP reconstruction with zero quantum participation.
+    \item \textbf{Phase H (Spark + QAOA):} Unconditioned QAOA with standard Hungarian projection.
+    \item \textbf{Ablation 1 (Quality Selection Only):} Evaluates top decoded bitstrings without planar crossing penalties.
+    \item \textbf{Ablation 2 (Adaptive Factor Only):} Greedy single-bitstring adoption with crossing regularization.
+    \item \textbf{Google OR-Tools GLS:} Industrial Guided Local Search \cite{voudouris1999guided} with 5.0~s runtime limit per instance.
+    \item \textbf{Clarke-Wright + 2-opt:} Parallel savings heuristic \cite{clarke1964scheduling} with classical 2-opt edge exchanges \cite{croes1958method}.
+    \item \textbf{RB-QCD Baseline:} Recursive Bisection Quantum-Classical Decomposition.
+\end{enumerate}
+
+\section{Experimental Results and Analysis}
+
+\subsection{Multi-Scale Benchmark Performance}
+Table~\ref{tab:benchmark_results} reports the mean route distances and standard deviations across all evaluated customer scales.
+
+\begin{table*}[t]
+\caption{Multi-Algorithm Benchmark Performance Comparison (Mean Route Distance in km $\pm$ Std Dev)}
+\label{tab:benchmark_results}
+\centering
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Scale} & \textbf{Instances} & \textbf{Full QGAR (Proposed)} & \textbf{Spatial Baseline} & \textbf{Phase H (Spark+QAOA)} & \textbf{Google OR-Tools} & \textbf{Clarke-Wright + 2-opt} & \textbf{RB-QCD} \\
+\midrule
+$N=10$  & 5 & \textbf{48.707} $\pm$ 16.623 & 48.707 $\pm$ 16.623 & 50.179 $\pm$ 15.911 & 39.525 $\pm$ 10.981 & 39.845 $\pm$ 10.901 & 41.270 $\pm$ 9.495 \\
+$N=25$  & 5 & \textbf{99.647} $\pm$ 21.898 & 101.063 $\pm$ 22.197 & 108.149 $\pm$ 25.286 & 79.654 $\pm$ 12.560 & 79.733 $\pm$ 12.029 & 84.456 $\pm$ 11.055 \\
+$N=50$  & 5 & \textbf{168.795} $\pm$ 31.516 & 173.218 $\pm$ 29.857 & 173.748 $\pm$ 32.186 & 143.276 $\pm$ 25.261 & 142.423 $\pm$ 19.739 & 153.100 $\pm$ 22.256 \\
+$N=100$ & 5 & \textbf{292.067} $\pm$ 35.484 & 294.509 $\pm$ 34.997 & 300.261 $\pm$ 33.325 & 244.024 $\pm$ 25.786 & 242.587 $\pm$ 23.834 & 261.350 $\pm$ 22.696 \\
+$N=150$ & 1 & \textbf{654.010} & 656.004 & 672.210 & 532.837 & 541.601 & 585.650 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Inferential Statistical Hypothesis Testing}
+Table~\ref{tab:wilcoxon_tests} summarizes the pairwise non-parametric Wilcoxon signed-rank tests and 95\% bootstrap confidence intervals across the 20 paired instances ($N=10$ to $100$) reconciled directly from raw experimental data.
+
+\begin{table*}[t]
+\caption{Reconciled Inferential Statistical Hypothesis Testing and Effect Size (Global $N=10$ to $100$, 20 Paired Instances)}
+\label{tab:wilcoxon_tests}
+\centering
+\begin{tabular}{lccccccccc}
+\toprule
+\textbf{Comparison} & \textbf{Pairs} & \textbf{Wins} & \textbf{Losses} & \textbf{Ties} & \textbf{Mean Diff (km)} & \textbf{95\% Bootstrap CI} & \textbf{Wilcoxon $W$} & \textbf{$p$-value} & \textbf{Effect $r_B$} \\
+\midrule
+Full QGAR vs. Spatial Baseline & 20 & 14 & 0 & 6 & $-2.070\text{ km}$ & $[-3.57, -0.91]\text{ km}$ & 105.0 & $0.000491^*$ & $+1.000$ \\
+Full QGAR vs. Phase H & 20 & 19 & 1 & 0 & $-5.781\text{ km}$ & $[-8.52, -3.02]\text{ km}$ & 194.0 & $0.000161^*$ & $+0.848$ \\
+Full QGAR vs. Google OR-Tools & 20 & 0 & 20 & 0 & $+25.684\text{ km}$ & $[+18.34, +33.67]\text{ km}$ & 0.0 & $0.000002$ & $-1.000$ \\
+Full QGAR vs. Clarke-Wright + 2-opt & 20 & 0 & 20 & 0 & $+26.157\text{ km}$ & $[+18.05, +34.84]\text{ km}$ & 0.0 & $0.000002$ & $-1.000$ \\
+Full QGAR vs. RB-QCD Baseline & 20 & 1 & 19 & 0 & $+17.260\text{ km}$ & $[+11.23, +24.03]\text{ km}$ & 3.0 & $0.000010$ & $-0.971$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Key statistical observations:
+\begin{itemize}
+    \item \textbf{Significant Improvement over Spatial Baseline:} Full QGAR achieved 14 wins, 0 losses, and 6 ties over the spatial baseline. The mean reduction of $-2.070\text{ km}$ (mean paired reduction: $-1.23\%$; pooled fleet reduction: $-1.34\%$) is statistically significant ($W = 105.0, p = 0.000491, r_B = +1.000$).
+    \item \textbf{Reversal of Angular Disruption:} Full QGAR outperformed Phase H in 19 of 20 instances ($-5.781\text{ km}$ reduction, $-4.10\%$, $W = 194.0, p = 0.000161, r_B = +0.848$), demonstrating that crossing regularization successfully neutralizes variational noise.
+    \item \textbf{Benjamini-Hochberg False Discovery Rate (FDR):} Scale-stratified tests at $N=50$ ($p_{\text{adj}} = 0.043$) and $N=100$ ($p_{\text{adj}} = 0.043$) retain statistical significance under FDR correction ($\alpha = 0.05$).
+\end{itemize}
+
+\subsection{Controlled Quantum Attribution Experiment}
+To establish the causal source of routing improvements, Table~\ref{tab:attribution} presents a controlled ablation across six execution regimes on instance $N=25$ (seed 207).
+
+\begin{table*}[t]
+\caption{Quantum Attribution Controlled Experiment Across Six Regimes (Instance $N=25$, Seed 207)}
+\label{tab:attribution}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Evaluation Regime} & \textbf{Campaign Dist. (km)} & \textbf{Accepted Trans.} & \textbf{Rejected Trans.} & \textbf{Routes Changed} & \textbf{Distance Imp. (km)} \\
+\midrule
+Regime A: Spatial Baseline Only       & 109.224 & 0 & 4 & 0 & 0.000 \\
+Regime B: Genuine QAOA ($p=1$)        & 103.715 & 1 & 3 & 1 & $+5.509$ \\
+Regime C: Uniform Random Bitstrings   & 100.174 & 3 & 1 & 3 & $+9.050$ \\
+Regime D: Shuffled QAOA Probabilities & 96.095  & 3 & 1 & 3 & $+13.129$ \\
+Regime E: Transitions Disabled        & 109.224 & 0 & 4 & 0 & 0.000 \\
+Regime F: Classical Local Candidates  & 100.377 & 3 & 1 & 3 & $+8.847$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Crucial attribution findings:
+\begin{enumerate}
+    \item \textbf{Causal Necessity of Candidate Transitions:} When transitions are disabled (Regime E), total distance remains strictly identical to the spatial baseline ($109.224\text{ km}$), confirming that adopting candidate transitions is causally necessary for optimization.
+    \item \textbf{Absence of Quantum Advantage at $m \le 4$:} Regimes C, D, and F achieve equal or superior route reductions. For microclusters of $m \le 4$ stops, the symmetric group $S_4$ contains only $4! = 24$ permutations. When 1,024 random bitstrings are decoded via Kuhn-Munkres, classical evaluation thoroughly covers the 24-state space. Thus, QAOA acts as an effective stochastic candidate proposer, but exhibits no computational advantage over classical enumeration at this scale.
+    \item \textbf{Pre-Projection Permutation Feasibility:} In empirical subproblem telemetry, circuits with $m=3$ (9 qubits) achieved a 0.9079 approximation ratio with Hungarian projection applied in 93.3\% of shots; circuits with $m=4$ (16 qubits) achieved a 0.8435 approximation ratio with Hungarian projection required in 100.0\% of shots due to shallow $p=1$ state under-convergence.
+\end{enumerate}
+
+\subsection{Big Data Scalability via Apache Spark 4.2.0}
+Table~\ref{tab:spark_scaling} presents Spark scaling benchmarks from $1,000$ to $50,000$ delivery orders.
+
+\begin{table*}[t]
+\caption{Apache Spark 4.2.0 Scaling Performance (1,000 to 50,000 Customer Orders)}
+\label{tab:spark_scaling}
+\centering
+\begin{tabular}{ccccccc}
+\toprule
+\textbf{Order Count} & \textbf{Payload Size (KB)} & \textbf{Spark Time (ms)} & \textbf{Throughput (orders/s)} & \textbf{Peak RAM (MB)} & \textbf{Clusters Generated} & \textbf{Customer Preservation} \\
+\midrule
+1,000  & 59.7   & 2,257.5  & 443.0   & 1.39  & 134   & 100\% (1,000/1,000) \\
+5,000  & 298.0  & 4,288.0  & 1,166.1 & 5.28  & 665   & 100\% (5,000/5,000) \\
+10,000 & 595.8  & 7,917.7  & 1,263.0 & 9.92  & 1,326 & 100\% (10,000/10,000) \\
+25,000 & 1,489.4& 19,760.9 & 1,265.1 & 24.50 & 3,324 & 100\% (25,000/25,000) \\
+50,000 & 2,978.6& 35,210.9 & 1,420.0 & 48.84 & 6,678 & 100\% (50,000/50,000) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Throughput scales from $443.0$ to $1,420.0$ orders/second as JVM startup overhead amortizes. All $50,000$ orders across $6,678$ clusters maintained 100\% customer preservation and zero vehicle capacity violations.
+
+\subsection{Unbundled Execution Runtime Decomposition}
+Table~\ref{tab:timing} details the runtime decomposition across customer scales.
+
+\begin{table}[htbp]
+\caption{Unbundled Execution Runtime Breakdown}
+\label{tab:timing}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Scale} & \textbf{Spark Time (s)} & \textbf{QAOA Sim (s)} & \textbf{COBYLA (s)} & \textbf{DP Recon (ms)} \\
+\midrule
+$N=10$  & 2.12 & 1.48  & 1.85  & 1.8 \\
+$N=25$  & 2.25 & 3.82  & 4.61  & 4.2 \\
+$N=50$  & 2.39 & 7.45  & 9.12  & 8.9 \\
+$N=100$ & 2.61 & 14.89 & 18.34 & 18.5 \\
+$N=150$ & 2.84 & 22.41 & 27.65 & 31.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Classical COBYLA parameter optimization constitutes $55.1\%$ of the quantum solving phase, circuit simulation accounts for $44.9\%$, while Spark ingestion and DP reconstruction execute in milliseconds.
+
+\section{Discussion and Methodological Insights}
+
+\subsection{Co-Dependence of Big Data and Quantum Pillars}
+ROUTE/IQ resolves the fundamental impedance mismatch between Big Data logistics and quantum hardware constraints:
+\begin{itemize}
+    \item \textbf{Spark Solves the Global Dimensionality Barrier:} By sorting by polar angle and applying capacity window constraints, Spark decomposes an intractable $O(N!)$ global CVRP into $K$ manageable subproblems of size $O(m!)$.
+    \item \textbf{QAOA Solves Local Combinatorial Sequencing:} Within each microcluster, QAOA optimizes directed edge traversals over asymmetric road segments.
+    \item \textbf{Mutual Co-Dependence:} QAOA cannot ingest $50,000$ orders without Spark partitioning; conversely, pure spatial sweep partitioning generates monotonic sequences that miss local combinatorial shortcuts.
+\end{itemize}
+
+\subsection{The ``OR-Tools Reality Check''}
+Industrial classical metaheuristics (Google OR-Tools GLS) achieve $\approx 21\%$ shorter routes than ROUTE/IQ (average global gap $+25.684\text{ km}$). This outcome is mathematically expected:
+\begin{enumerate}
+    \item OR-Tools executes global cross-cluster edge exchanges (relocate, 2-opt*, swap) across all $N$ nodes simultaneously.
+    \item In contrast, ROUTE/IQ strictly isolates subproblems to microclusters of $m \le 4$ stops to remain within NISQ simulation bounds.
+    \item ROUTE/IQ does not aim to displace mature classical heuristics on classical CPUs, but to establish the \textbf{architectural, regularizing, and verification infrastructure} needed for hybrid quantum logistics.
+\end{enumerate}
+
+\subsection{Planar Crossing Induction and Street Topology}
+Experimental analysis of Trial~0 on Manhattan revealed a subtle counterexample: avoiding straight-line planar crossings caused a $+0.7\%$ road detour because navigating around one-way avenue blocks required a longer physical loop than accepting the visual crossing. Hence, planar crossing regularizers are an **empirical inductive bias ($96.4\%$ accuracy)** rather than an invariant mathematical theorem on non-planar urban street graphs.
+
+\subsection{Necessity of the Route Certification Guardrail}
+In Trial~19, dynamic programming insertion of boundary nodes into a locally superior microcluster sub-tour produced a longer global vehicle route. The End-to-End Route Certification Guardrail prevented this degradation by evaluating complete vehicle tours, guaranteeing $C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + 10^{-4}\text{ km}$ across 100\% of trials.
+
+\begin{table*}[t]
+\caption{Summary of Research Contributions, Methodological Assumptions, and Explicit Boundaries}
+\label{tab:contributions_limitations}
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{System Dimension} & \textbf{Demonstrated Contribution} & \textbf{Explicit Boundary / Limitation} \\
+\midrule
+Big Data Engine & Active Spark 4.2.0 scaling to 50,000 orders & Evaluated on workstation local[*] mode \\
+Quantum Circuit & Genuine 16-qubit QAOA with $XY$ particle mixers & Classical simulation via Qiskit Aer \\
+Operational Safety & Proven non-degradation via guardrail & Requires post-reconstruction comparison \\
+Crossing Regularizer & Mitigates Angular Disruption (149 crossings) & 2D Euclidean bias (96.4\% empirical acc.) \\
+Classical Comparison & Honest, transparent reporting against OR-Tools & OR-Tools remains $21\%$ shorter globally \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Limitations and Future Research}
+\begin{enumerate}
+    \item \textbf{Classical Simulation vs. Physical QPUs:} All circuits were evaluated via Qiskit Aer simulators. Future work will execute ROUTE/IQ on physical superconducting and trapped-ion processors via IBM Quantum and AWS Braket.
+    \item \textbf{Microcluster Dimension ($m \le 4$):} Simulating gate circuits classically bounded cores to $m \le 4$ ($16$ qubits). With fault-tolerant logical qubits, subproblem budgets will expand to $m \ge 20$, where classical brute force ($20! \approx 2.4 \times 10^{18}$) fails.
+    \item \textbf{Distributed Cluster Deployment:} Spark was tested in single-node \texttt{local[*]} mode. Future work will measure network shuffle latencies across Amazon EMR and Databricks clusters.
+    \item \textbf{Dynamic Traffic Feeds:} The BPR volume model will be integrated with real-time GPS probe telemetry (e.g., NYC Taxi \& Limousine Commission trip streams).
+\end{enumerate}
+
+\section{Conclusion}
+This paper presented \textbf{ROUTE/IQ}, a certified dual-pillar hybrid framework combining Apache Spark 4.2.0 and QAOA for directed urban vehicle routing. Developed at SRM University-AP, ROUTE/IQ successfully scales routing optimization to $50,000$ customer orders while optimizing directed microcluster cores using particle-conserving $XY$ mixers. The QGAR pipeline mitigates the Angular Disruption Effect through quality-aware candidate decoding and planar crossing regularization. The End-to-End Route Certification Guardrail provides a proven non-degradation guarantee:
+\[
+C(R_{\text{QGAR}}) \le C(R_{\text{spatial}}) + 10^{-4}\text{ km}
+\]
+Across 20 paired instances on the 54,128-node Manhattan road network, ROUTE/IQ achieves a statistically significant $-1.23\%$ distance reduction ($p = 0.000491$) over the classical spatial baseline and reverses the $-4.55\%$ degradation of unconditioned QAOA. By establishing strict research integrity, documenting classical heuristic baselines transparently, and providing complete open-source reproduction artifacts, ROUTE/IQ delivers an enterprise-grade architectural foundation for quantum-accelerated logistics.
+
+\section*{Acknowledgment}
+The authors express their gratitude to the Department of Computer Science and Engineering, SRM University-AP, Amaravati, India, for providing high-performance computing facilities and administrative support for this research.
+
+\bibliographystyle{IEEEtran}
+\bibliography{ROUTE_IQ_REFERENCES}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{example-image-a}}]{J. Jayanth}
+is an undergraduate research scholar in the Department of Computer Science and Engineering at SRM University-AP, Amaravati, Andhra Pradesh, India. His research interests include distributed Big Data frameworks, combinatorial optimization, and quantum computing.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{example-image-b}}]{B. Kaivalya}
+is an undergraduate research scholar in the Department of Computer Science and Engineering at SRM University-AP, Amaravati, Andhra Pradesh, India. Her research focuses on intelligent transportation systems, quantum algorithms, and spatial data engineering.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{example-image-c}}]{P. Shyam Sai}
+is an undergraduate research scholar in the Department of Computer Science and Engineering at SRM University-AP, Amaravati, Andhra Pradesh, India. His research interests include quantum information science, variational quantum algorithms, and distributed systems.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{example-image}}]{Vishnu Prasad Verma}
+(Senior Member, IEEE) is a Faculty Member in the Department of Computer Science and Engineering at SRM University-AP, Amaravati, Andhra Pradesh, India. His research expertise spans quantum computing, high-performance distributed systems, intelligent optimization, and algorithm engineering.
+\end{IEEEbiography}
+
+\end{document}

@@ -10,6 +10,9 @@ import {
   Sliders,
   MapPin,
   Truck,
+  Layers,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useSettings } from '../context/SettingsContext';
@@ -285,6 +288,69 @@ export const SystemSettings: React.FC<SystemSettingsProps> = ({
               </span>
               <p className="text-[11px] text-[#171717] dark:text-[#F5F5F7] font-medium">
                 Clarke-Wright Savings / 2-Opt Metaheuristic / Google OR-Tools
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2B: ROUTE/IQ Cooperative Engine & Big Data (Spark 4.2.0) */}
+        <div className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-black/5 dark:border-[#29292E]">
+            <Layers className="h-4 w-4 text-[#080808] dark:text-[#B7FF00]" />
+            <h3 className="text-sm font-bold text-[#080808] dark:text-[#F5F5F7]">
+              ROUTE/IQ Cooperative Engine (Pillars 1 & 2)
+            </h3>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-[#171717] dark:text-[#A1A1AA] block mb-1">
+                  Pillar 1: Big Data Engine
+                </label>
+                <div className="px-3 py-2 border border-black/10 dark:border-[#29292E] rounded-xl bg-[#F4F4F2] dark:bg-[#17171A] text-[#080808] dark:text-[#B7FF00] font-mono font-bold">
+                  Apache Spark 4.2.0 (local[*])
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-[#171717] dark:text-[#A1A1AA] block mb-1">
+                  Proposition 1 Guardrail
+                </label>
+                <div className="px-3 py-2 border border-black/10 dark:border-[#29292E] rounded-xl bg-[#F4F4F2] dark:bg-[#17171A] text-[#22C55E] font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#22C55E]" />
+                  <span>Enforced (0% degradation)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-[#171717] dark:text-[#A1A1AA] block mb-1">
+                  Adaptive Strategy Controller
+                </label>
+                <div className="px-3 py-2 border border-black/10 dark:border-[#29292E] rounded-xl bg-[#F4F4F2] dark:bg-[#17171A] text-[#080808] dark:text-[#F5F5F7] font-bold">
+                  Multi-Armed Bandit (MAB UCB-1)
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-[#171717] dark:text-[#A1A1AA] block mb-1">
+                  Customer Stop Guarantee
+                </label>
+                <div className="px-3 py-2 border border-black/10 dark:border-[#29292E] rounded-xl bg-[#F4F4F2] dark:bg-[#17171A] text-[#080808] dark:text-[#B7FF00] font-bold flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-[#B7FF00]" />
+                  <span>100% Full Coverage</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#F4F4F2] dark:bg-[#18181B] rounded-xl border border-black/5 dark:border-[#29292E] space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Cooperative Search Generators & Local Refinement
+              </span>
+              <p className="text-[11px] text-[#171717] dark:text-[#F5F5F7] font-medium">
+                Pillar 2 Fast QAOA (XY-Mixer) + Tabu Search + Multistart KL + Algorithmic VND (2-Opt Inversion)
               </p>
             </div>
           </div>

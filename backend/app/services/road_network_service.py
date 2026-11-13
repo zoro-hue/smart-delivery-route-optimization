@@ -111,6 +111,8 @@ class RoadNetworkService:
         self._lock = threading.Lock()
         self._path_cache: Dict[Tuple[str, str], List[str]] = {}
         self._dist_cache: Dict[Tuple[str, str], float] = {}
+        self._geom_cache: Dict[Tuple[str, str], List[Tuple[float, float]]] = {}
+        self._snap_cache: Dict[Tuple[float, float], Tuple[str, float, float, float]] = {}
         # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
         # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
 
@@ -129,8 +131,20 @@ class RoadNetworkService:
         gzip_pickle_path = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_newyork.pickle.gz")
         fallback_pickle = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_manhatten.pickle")
 
-        # 1. Try loading pre-built newyork road graph raw pickle first
-        if os.path.exists(pickle_path):
+        # Check if user explicitly requests compact Manhattan road graph
+        use_compact = os.environ.get("USE_MANHATTAN_ROAD_GRAPH", "0").lower() in ("1", "true", "yes")
+        if use_compact and os.path.exists(fallback_pickle):
+            try:
+                logger.info(f"Loading lightweight Manhattan road graph from {fallback_pickle}...")
+                with open(fallback_pickle, "rb") as f:
+                    self.G = pickle.load(f)
+                logger.info(f"Loaded lightweight road graph: {self.G.number_of_nodes()} nodes, {self.G.number_of_edges()} edges")
+            except Exception as e:
+                logger.error(f"Failed to load {fallback_pickle}: {e}")
+                self.G = None
+
+        # 1. Load full authentic NYC 5-Borough road graph (212MB RAM, fully connected across all boroughs)
+        if self.G is None and os.path.exists(pickle_path):
             try:
                 logger.info(f"Loading NYC 5-Borough road graph from {pickle_path}...")
                 with open(pickle_path, "rb") as f:
@@ -201,6 +215,13 @@ class RoadNetworkService:
             logger.error("No valid NYC road graph found! Please ensure road_graph_newyork.pickle.gz exists.")
             return
 
+        # Ensure all edge 'length' attributes are strictly Python floats (prevents TypeError: int + str in Dijkstra)
+        for _, _, d in self.G.edges(data=True):
+            try:
+                d["length"] = float(d.get("length", 100.0))
+            except Exception:
+                d["length"] = 100.0
+
         # Prepare node lists and spatial index without heavy SCC recursion
         self.nodes_list = list(self.G.nodes())
         coords_arr = np.zeros((len(self.nodes_list), 2), dtype=np.float32)
@@ -237,6 +258,10 @@ class RoadNetworkService:
         if not self.is_ready():
             raise RuntimeError("RoadNetworkService is not loaded.")
 
+        cache_key = (round(float(lat), 6), round(float(lon), 6))
+        if cache_key in self._snap_cache:
+            return self._snap_cache[cache_key]
+
         dist_deg, idx = self.tree.query((lat, lon))
         # Approx distance in km: 1 deg lat ~ 111 km
         dist_km = float(dist_deg * 111.0)
@@ -250,7 +275,9 @@ class RoadNetworkService:
             if raise_on_exceed:
                 raise ValueError(f"Coordinate ({lat:.4f}, {lon:.4f}) is outside active road network coverage (nearest road is {dist_km:.2f}km away, exceeding {max_dist_km}km threshold).")
 
-        return node_id, snapped_lat, snapped_lon, dist_km
+        res = (node_id, snapped_lat, snapped_lon, dist_km)
+        self._snap_cache[cache_key] = res
+        return res
 
     def build_road_matrix(
         self,
@@ -388,6 +415,10 @@ class RoadNetworkService:
             u_d = self.G.nodes[u_node]
             return [(float(u_d["y"]), float(u_d["x"]))]
 
+        # Check geometry coordinates cache first for instant sub-millisecond retrieval
+        if (u_node, v_node) in self._geom_cache:
+            return self._geom_cache[(u_node, v_node)]
+
         # Check path cache first for instant retrieval
         path_nodes = self._path_cache.get((u_node, v_node))
 
@@ -469,6 +500,7 @@ class RoadNetworkService:
                 coords.append(u_pt)
             coords.append(v_pt)
 
+        self._geom_cache[(u_node, v_node)] = coords
         return coords
 
     def reconstruct_vehicle_road_route(
@@ -500,11 +532,11 @@ class RoadNetworkService:
             # Retrieve road geometry connecting node_u and node_v
             road_pts = self.get_road_path_geometry(node_u, node_v)
             if not road_pts:
-                logger.error(
-                    f"Routing failure: no connected road path between stop {s_u} (node {node_u}) "
-                    f"and stop {s_v} (node {node_v}). Skipping invalid segment."
+                logger.warning(
+                    f"Routing fallback: no connected road path between stop {s_u} (node {node_u}) "
+                    f"and stop {s_v} (node {node_v}). Using direct coordinate segment to guarantee universal stop coverage."
                 )
-                continue
+                road_pts = [(orig_u[0], orig_u[1]), (orig_v[0], orig_v[1])]
 
             # First waypoint of the route: snapped road position of stop s_u
             if not full_waypoints:

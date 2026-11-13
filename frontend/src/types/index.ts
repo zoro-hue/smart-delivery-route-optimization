@@ -58,7 +58,7 @@ export interface SolverResult {
   success: boolean;
   algorithm: string;
   algorithm_name?: string;
-  category?: 'classical' | 'quantum_hybrid' | 'quantum_inspired';
+  category?: 'classical' | 'quantum_hybrid' | 'quantum_inspired' | 'cooperative' | string;
   category_label?: string;
   compute_type?: string;
   status?: string;
@@ -83,6 +83,21 @@ export interface SolverResult {
   warnings?: string[];
   validation?: SolverValidation;
   convergence_info?: Record<string, any>;
+  resource_metrics?: {
+    runtime_ms?: number;
+    cpu_time_ms?: number;
+    cpu_utilization_percent?: number;
+    cpu_core_ratio_percent?: number;
+    memory_used_mb?: number;
+    peak_memory_mb?: number;
+    heap_allocated_mb?: number;
+    heap_peak_mb?: number;
+    process_rss_mb?: number;
+    time_complexity?: string;
+    space_complexity?: string;
+    measurement_available?: boolean;
+    measurement_method?: string;
+  };
   error?: string;
 }
 
@@ -116,6 +131,16 @@ export interface ComparisonItem {
   served_customers: number;
   vehicles_used: number;
   convergence_info?: Record<string, any>;
+  cpu_utilization_percent?: number;
+  cpu_core_ratio_percent?: number;
+  memory_used_mb?: number;
+  peak_memory_mb?: number;
+  heap_allocated_mb?: number;
+  heap_peak_mb?: number;
+  process_rss_mb?: number;
+  time_complexity?: string;
+  space_complexity?: string;
+  resource_metrics?: Record<string, any>;
   is_best: boolean;
 }
 
@@ -152,7 +177,11 @@ export interface OptimizationResponse {
     two_opt?: SolverResult;
     dijkstra?: SolverResult;
     astar?: SolverResult;
+    tabu_search?: SolverResult;
+    kernighan_lin?: SolverResult;
+    vnd?: SolverResult;
     qiga?: SolverResult;
+    routeiq_cooperative?: SolverResult;
   };
 }
 

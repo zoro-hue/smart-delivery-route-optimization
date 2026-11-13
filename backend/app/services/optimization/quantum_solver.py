@@ -663,8 +663,8 @@ class QuantumVRPSolver:
         n_cust = n - 1  # Excluding depot
         log_lines = []
 
-        # Bound max_iter for responsive web performance
-        max_iter = min(max_iter, 10)
+        # Bound max_iter for responsive web performance (fast variational evaluation)
+        max_iter = min(max_iter, 2)
 
         # Build QUBO formulation bounded by simulator capacity (<= 8-9 qubits)
         if num_vehicles == 1:

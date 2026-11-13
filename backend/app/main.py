@@ -6,6 +6,14 @@ manages database lifecycle, and enables CORS for frontend.
 """
 
 import os
+import sys
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+_BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+for _p in (_PROJECT_ROOT, _BACKEND_ROOT):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

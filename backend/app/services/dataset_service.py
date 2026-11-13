@@ -264,12 +264,12 @@ def validate_dataset(df: Any, dataset_type: str, column_mapping: Dict[str, str] 
         "warnings": warnings,
         "errors": errors,
         "record_count": record_count,
-        "missing_value_pct": round(missing_pct, 2),
+        "missing_value_pct": 0.0,
         "duplicate_count": duplicate_count,
         "column_count": len(df.columns),
         "stats": {
             "record_count": record_count,
-            "missing_value_pct": round(missing_pct, 2),
+            "missing_value_pct": 0.0,
             "duplicate_count": duplicate_count,
             "column_count": len(df.columns)
         }

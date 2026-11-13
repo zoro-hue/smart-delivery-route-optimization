@@ -1,0 +1,5 @@
+N,vehicles,ortools_cost_km,ortools_vnd_cost_km,vnd_delta_km,vnd_improved_pct,feasible
+10,2,39.923,39.923,0.0,0.0,True
+25,3,88.7,88.7,0.0,0.0,True
+50,6,139.813,139.813,0.0,0.0,True
+100,12,276.911,276.911,0.0,0.0,True

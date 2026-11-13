@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -77,23 +77,34 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   const isDark = theme === 'dark';
   const activeRouteColors = isDark ? DARK_ROUTE_COLORS : LIGHT_ROUTE_COLORS;
 
-  const createCustomerIcon = (index: number, isDark: boolean) => {
-  return L.divIcon({
-    className: 'custom-customer-pin',
-    html: `<div style="background-color: ${
-      isDark ? '#141418' : '#080808'
-    }; border: 2px solid ${
-      isDark ? '#B7FF2A' : '#FFFFFF'
-    }; color: ${
-      isDark ? '#B7FF2A' : '#FFFFFF'
-    }; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; box-shadow: ${
-      isDark ? '0 0 12px rgba(183,255,42,0.3), 0 4px 12px rgba(0,0,0,0.6)' : '0 4px 14px rgba(0,0,0,0.3)'
-    };">${index}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
-  });
-};
+  const createCustomerIcon = (index: number, isDark: boolean, isUnvisited?: boolean) => {
+    if (isUnvisited) {
+      return L.divIcon({
+        className: 'custom-customer-pin-unvisited',
+        html: `<div style="background-color: ${
+          isDark ? '#3F1515' : '#FEF2F2'
+        }; border: 2.5px dashed #EF4444; color: #EF4444; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: 0 0 14px rgba(239,68,68,0.7);">${index}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -16],
+      });
+    }
+    return L.divIcon({
+      className: 'custom-customer-pin',
+      html: `<div style="background-color: ${
+        isDark ? '#141418' : '#080808'
+      }; border: 2px solid ${
+        isDark ? '#B7FF2A' : '#FFFFFF'
+      }; color: ${
+        isDark ? '#B7FF2A' : '#FFFFFF'
+      }; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; box-shadow: ${
+        isDark ? '0 0 12px rgba(183,255,42,0.3), 0 4px 12px rgba(0,0,0,0.6)' : '0 4px 14px rgba(0,0,0,0.3)'
+      };">${index}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -16],
+    });
+  };
 
 const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) => {
   const isLime = color.toUpperCase() === '#B7FF2A';
@@ -160,6 +171,15 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
   }
 
   const currentResult = resultsMap[activeAlgo] || resultsMap.classical || Object.values(resultsMap)[0];
+
+  const currentVisitedIndices = useMemo(() => {
+    const visited = new Set<number>();
+    (currentResult?.routes || []).forEach((r) => {
+      (r.stops || []).forEach((s) => { if (s !== 0) visited.add(s); });
+      (r.customer_stops || []).forEach((s) => { if (s !== 0) visited.add(s); });
+    });
+    return visited;
+  }, [currentResult]);
   const comparisonItems = result.comparison_summary?.items || [];
   const bestAlgoId = result.best_feasible_algorithm || result.comparison_summary?.best_algorithm;
   const bestAlgoItem = comparisonItems.find((it) => it.id === bestAlgoId);
@@ -393,8 +413,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
             <CheckCircle2 className={`h-4 w-4 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
             Runtime: {currentResult?.execution_time_sec?.toFixed(3)}s
+            {currentResult?.resource_metrics?.cpu_utilization_percent !== undefined &&
+              ` · ${currentResult.resource_metrics.cpu_utilization_percent.toFixed(0)}% CPU · ${currentResult.resource_metrics.memory_used_mb}MB`}
           </span>
         </div>
       </div>
@@ -434,17 +456,24 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             </Marker>
 
             {/* Customer Delivery Pins (Numbered 1, 2, 3... 18) - Skip index 0 which is the Origin Depot */}
-            {result.problem?.locations?.slice(1).map((loc, idx) => (
-              <Marker key={idx + 1} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark)}>
-                <Popup>
-                  <div className="text-xs font-sans">
-                    <strong className="text-[#080808] dark:text-[#F5F5F7]">Customer Delivery Stop #{idx + 1}</strong>
-                    <br />
-                    <span className="text-[#555555] dark:text-[#A1A1AA]">Demand: {loc.demand} units</span>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {result.problem?.locations?.slice(1).map((loc, idx) => {
+              const isUnvisited = currentResult && currentResult.routes.length > 0 ? !currentVisitedIndices.has(idx + 1) : false;
+              return (
+                <Marker key={idx + 1} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark, isUnvisited)}>
+                  <Popup>
+                    <div className="text-xs font-sans space-y-1">
+                      <strong className="text-[#080808] dark:text-[#F5F5F7]">Customer Delivery Stop #{idx + 1}</strong>
+                      {isUnvisited && (
+                        <div className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-[10px]">
+                          ⚠️ Unvisited by {currentResult?.algorithm_name || activeAlgo}
+                        </div>
+                      )}
+                      <div className="text-[#555555] dark:text-[#A1A1AA]">Demand: {loc.demand} units</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
 
             {/* Vehicle Routes Polylines & Driver Badges (V1, V2...) */}
             {currentResult?.routes.map((route, rIdx) => {
@@ -503,6 +532,12 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 V1..Vn
               </span>
               <span>Fleet Vehicles</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+              <span className="h-3 w-3 rounded-full bg-red-100 dark:bg-red-950 border border-dashed border-red-500 flex items-center justify-center text-[7px] font-bold text-red-500">
+                !
+              </span>
+              <span>Unvisited</span>
             </span>
           </div>
         </div>
@@ -618,6 +653,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                   <th className="py-3 px-4">Duration</th>
                   <th className="py-3 px-4">Vehicles / Coverage</th>
                   <th className="py-3 px-4">Violations</th>
+                  <th className="py-3 px-4">CPU / RAM</th>
+                  <th className="py-3 px-4">Complexity</th>
                   <th className="py-3 px-4">Objective Cost</th>
                   <th className="py-3 px-4">Runtime</th>
                   <th className="py-3 px-4 text-right">Action</th>
@@ -684,6 +721,30 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                             {item.capacity_violations} cap / {item.unserved_customers} unserved
                           </span>
                         )}
+                      </td>
+
+                      {/* Resource: CPU & Heap / RSS RAM */}
+                      <td className="py-3 px-4 font-technical">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
+                            {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
+                          </span>
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]" title={`Process RSS: ${item.process_rss_mb || 0} MB | Python Heap: ${item.heap_allocated_mb || item.memory_used_mb || 0} MB (peak: ${item.heap_peak_mb || item.peak_memory_mb || 0} MB)`}>
+                            {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Theoretical Big-O Complexity */}
+                      <td className="py-3 px-4 font-technical">
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={`Theoretical Worst-Case Time: ${item.time_complexity || 'O(N^2)'}`}>
+                            T: {item.time_complexity || 'O(N^2)'}
+                          </span>
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={`Theoretical Worst-Case Space: ${item.space_complexity || 'O(N)'}`}>
+                            S: {item.space_complexity || 'O(N)'}
+                          </span>
+                        </div>
                       </td>
 
                       {/* Objective Cost */}

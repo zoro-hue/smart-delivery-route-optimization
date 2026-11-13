@@ -1,0 +1,17 @@
+dataset_size,engine_mode,num_workers,etl_time_ms,boundary_extract_time_ms,total_time_ms,throughput_records_per_sec,output_matches_pandas
+1000,Pandas_In_Memory,1,2.1,0.88,2.98,335244.2,True
+1000,PySpark_local[1],1,35.09,5.52,40.61,24624.6,True
+1000,PySpark_local[2],2,35.07,2.95,38.02,26302.5,True
+1000,PySpark_local[4],4,35.05,1.64,36.69,27252.3,True
+10000,Pandas_In_Memory,1,1.64,1.01,2.65,3773442.5,True
+10000,PySpark_local[1],1,35.3,5.78,41.08,243452.3,True
+10000,PySpark_local[2],2,35.16,3.38,38.53,259506.8,True
+10000,PySpark_local[4],4,35.16,1.97,37.13,269324.4,True
+50000,Pandas_In_Memory,1,4.4,3.45,7.85,6372755.2,True
+50000,PySpark_local[1],1,93.81,7.75,101.56,492318.8,True
+50000,PySpark_local[2],2,90.91,4.24,95.15,525502.0,True
+50000,PySpark_local[4],4,90.29,3.57,93.86,532731.5,True
+100000,Pandas_In_Memory,1,6.93,4.68,11.61,8615787.6,True
+100000,PySpark_local[1],1,184.38,8.04,192.42,519693.5,True
+100000,PySpark_local[2],2,184.85,6.64,191.49,522220.7,True
+100000,PySpark_local[4],4,180.91,4.22,185.13,540154.8,True

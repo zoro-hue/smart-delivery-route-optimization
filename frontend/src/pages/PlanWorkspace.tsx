@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -47,7 +47,7 @@ import { validateDeliveryCoordinate } from '../utils/geoValidation';
 export interface AlgorithmConfigItem {
   id: string;
   name: string;
-  group: 'classical' | 'quantum';
+  group: 'classical' | 'quantum' | 'cooperative';
   groupLabel: string;
   role: string;
   badge: string;
@@ -56,6 +56,16 @@ export interface AlgorithmConfigItem {
 }
 
 export const WORKSPACE_ALGORITHMS: AlgorithmConfigItem[] = [
+  // Cooperative Hybrid Engine
+  {
+    id: 'routeiq_cooperative',
+    name: 'ROUTE/IQ Cooperative Engine',
+    group: 'cooperative',
+    groupLabel: 'Cooperative Hybrid (Spark Local + Classical + QAOA CPU Sim)',
+    role: 'Pillar 1 Spark local spatial decomposition + Adaptive Controller + QAOA/Tabu + VND with Proposition 1 Guardrail.',
+    badge: 'Spark + QAOA/Tabu + Prop 1',
+    computeType: 'Hybrid (Spark Local + Classical + QAOA CPU Sim)',
+  },
   // Classical algorithms
   {
     id: 'dijkstra',
@@ -102,15 +112,42 @@ export const WORKSPACE_ALGORITHMS: AlgorithmConfigItem[] = [
     badge: 'Route Improvement',
     computeType: 'Classical CPU',
   },
+  {
+    id: 'tabu_search',
+    name: 'Tabu Search',
+    group: 'classical',
+    groupLabel: 'Classical algorithms',
+    role: 'Recency-memory metaheuristic with tabu tenure and aspiration.',
+    badge: 'Metaheuristic Memory',
+    computeType: 'Classical CPU',
+  },
+  {
+    id: 'kernighan_lin',
+    name: 'Kernighan–Lin',
+    group: 'classical',
+    groupLabel: 'Classical algorithms',
+    role: 'Variable-depth bipartition sequence exchange with node locking.',
+    badge: 'Bipartition Exchange',
+    computeType: 'Classical CPU',
+  },
+  {
+    id: 'vnd',
+    name: 'Variable Neighborhood Descent',
+    group: 'classical',
+    groupLabel: 'Classical algorithms',
+    role: 'Deterministic local search across 2-opt, relocate, and swap neighborhoods.',
+    badge: 'Multi-Neighborhood Descent',
+    computeType: 'Classical CPU',
+  },
   // Quantum / quantum-classical algorithms
   {
     id: 'qaoa',
     name: 'QAOA',
     group: 'quantum',
     groupLabel: 'Quantum / quantum-classical algorithms',
-    role: 'Hybrid quantum-classical optimization for supported, appropriately formulated routing instances.',
-    badge: 'Hybrid Variational · Qiskit Simulator',
-    computeType: 'Classical Statevector Simulator',
+    role: 'Hybrid variational quantum-classical optimization via QAOA with Qiskit Aer/statevector CPU simulation.',
+    badge: 'QAOA CPU Simulation · Qiskit',
+    computeType: 'QAOA with Qiskit Aer/statevector CPU simulation',
     maxLimit: 8,
   },
   {
@@ -118,9 +155,9 @@ export const WORKSPACE_ALGORITHMS: AlgorithmConfigItem[] = [
     name: 'Quantum-Inspired Genetic Algorithm (QIGA/IQGA)',
     group: 'quantum',
     groupLabel: 'Quantum / quantum-classical algorithms',
-    role: 'Quantum-inspired evolutionary optimization, simulated classically.',
-    badge: 'Quantum-Inspired Evolutionary',
-    computeType: 'Classically Simulated Q-Bit Amplitudes',
+    role: 'Quantum-inspired evolutionary optimization, simulated classically on CPU.',
+    badge: 'Quantum-Inspired Evolutionary (CPU)',
+    computeType: 'Classically Simulated Q-Bits (Classical CPU)',
     maxLimit: 50,
   },
 ];
@@ -141,8 +178,19 @@ const getDepotIcon = (isDark: boolean) =>
     popupAnchor: [0, -18],
   });
 
-const createCustomerIcon = (index: number, isDark: boolean) =>
-  L.divIcon({
+const createCustomerIcon = (index: number, isDark: boolean, isUnvisited?: boolean) => {
+  if (isUnvisited) {
+    return L.divIcon({
+      className: 'custom-map-pin-customer-unvisited',
+      html: `<div style="background-color: ${
+        isDark ? '#3F1515' : '#FEF2F2'
+      }; border: 2.5px dashed #EF4444; color: #EF4444; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: 0 0 14px rgba(239,68,68,0.7);">${index}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -16],
+    });
+  }
+  return L.divIcon({
     className: 'custom-map-pin-customer',
     html: `<div style="background-color: ${
       isDark ? '#141418' : '#080808'
@@ -157,6 +205,7 @@ const createCustomerIcon = (index: number, isDark: boolean) =>
     iconAnchor: [14, 14],
     popupAnchor: [0, -16],
   });
+};
 
 // Theme-tailored vibrant route palette: electric high-contrast neon in dark mode, crisp modern in light mode
 const LIGHT_ROUTE_COLORS = ['#080808', '#0284C7', '#7C3AED', '#EA580C', '#059669', '#DB2777'];
@@ -694,6 +743,19 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
   const activeStops = stops.filter((s) => s.is_included);
 
+  const visitedCustomerIndices = useMemo(() => {
+    const visited = new Set<number>();
+    activeRoutes.forEach((route) => {
+      (route.stops || []).forEach((s) => {
+        if (s !== 0) visited.add(s);
+      });
+      (route.customer_stops || []).forEach((s) => {
+        if (s !== 0) visited.add(s);
+      });
+    });
+    return visited;
+  }, [activeRoutes]);
+
   // ─── OPTIMIZATION EXECUTION ──────────────────────────────────────────────
   const handleRunOptimization = async () => {
     setValidationError(null);
@@ -728,16 +790,16 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     try {
       const algosToRun =
         selectionMode === 'recommended'
-          ? ['ortools']
+          ? ['routeiq_cooperative']
           : selectionMode === 'compare'
           ? (selectedAlgorithms.length >= 2
               ? selectedAlgorithms
-              : (activeStops.length <= 8
-                  ? ['ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
-                  : ['ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga']))
+              : WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+                  (id) => id !== 'qaoa' || activeStops.length <= 8
+                ))
           : selectedAlgorithms.length > 0
           ? selectedAlgorithms
-          : ['ortools'];
+          : ['routeiq_cooperative'];
 
       const payload = {
         algorithm,
@@ -854,42 +916,50 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           </Marker>
 
           {/* Delivery Customer Markers */}
-          {activeStops.map((stop, idx) => (
-            <Marker
-              key={stop.id}
-              position={[stop.lat, stop.lon]}
-              icon={createCustomerIcon(idx + 1, isDark)}
-            >
-              <Popup>
-                <div className="text-xs font-sans space-y-1 p-0.5">
-                  <div className="flex items-center justify-between gap-2 border-b border-black/10 dark:border-white/10 pb-1">
-                    <strong className="text-[#080808] dark:text-white font-bold">
-                      Stop #{idx + 1}: {stop.customer_id || stop.id}
-                    </strong>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA]">
-                      ORD: {stop.id}
-                    </span>
+          {activeStops.map((stop, idx) => {
+            const isUnvisited = executionResponse && activeRoutes.length > 0 ? !visitedCustomerIndices.has(idx + 1) : false;
+            return (
+              <Marker
+                key={stop.id}
+                position={[stop.lat, stop.lon]}
+                icon={createCustomerIcon(idx + 1, isDark, isUnvisited)}
+              >
+                <Popup>
+                  <div className="text-xs font-sans space-y-1 p-0.5">
+                    <div className="flex items-center justify-between gap-2 border-b border-black/10 dark:border-white/10 pb-1">
+                      <strong className="text-[#080808] dark:text-white font-bold">
+                        Stop #{idx + 1}: {stop.customer_id || stop.id}
+                      </strong>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA]">
+                        ORD: {stop.id}
+                      </span>
+                    </div>
+                    {isUnvisited && (
+                      <div className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-[10px] flex items-center gap-1">
+                        <span>⚠️ Unvisited by {displayedAlgo}</span>
+                      </div>
+                    )}
+                    <p className="font-semibold text-[#080808] dark:text-[#E4E4E7]">{stop.name}</p>
+                    <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA]">{stop.address}</p>
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="font-technical text-[#777777] dark:text-[#A1A1AA]">
+                        {stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}
+                      </span>
+                      <span className="font-bold text-[#080808] dark:text-white px-2 py-0.5 rounded-full bg-[#B7FF2A]/20 text-[#080808] dark:text-[#B7FF2A]">
+                        Demand: {stop.demand} units
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleToggleStop(stop.id)}
+                      className="w-full mt-2 py-1 rounded-lg text-[10px] font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-red-600 dark:text-red-400 transition-colors cursor-pointer"
+                    >
+                      Exclude this stop
+                    </button>
                   </div>
-                  <p className="font-semibold text-[#080808] dark:text-[#E4E4E7]">{stop.name}</p>
-                  <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA]">{stop.address}</p>
-                  <div className="flex items-center justify-between text-[11px] pt-1">
-                    <span className="font-technical text-[#777777] dark:text-[#A1A1AA]">
-                      {stop.lat.toFixed(4)}, {stop.lon.toFixed(4)}
-                    </span>
-                    <span className="font-bold text-[#080808] dark:text-white px-2 py-0.5 rounded-full bg-[#B7FF2A]/20 text-[#080808] dark:text-[#B7FF2A]">
-                      Demand: {stop.demand} units
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleToggleStop(stop.id)}
-                    className="w-full mt-2 py-1 rounded-lg text-[10px] font-bold bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-red-600 dark:text-red-400 transition-colors cursor-pointer"
-                  >
-                    Exclude this stop
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                </Popup>
+              </Marker>
+            );
+          })}
 
           {/* Computed Routes Polylines */}
           {activeRoutes.map((route, idx) => {
@@ -1236,7 +1306,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   type="button"
                   onClick={() => {
                     setSelectionMode('recommended');
-                    setSelectedAlgorithms(['ortools']);
+                    setSelectedAlgorithms(['routeiq_cooperative']);
                     localStorage.setItem('routeiq_selection_mode', 'recommended');
                   }}
                   className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
@@ -1269,13 +1339,10 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   onClick={() => {
                     setSelectionMode('compare');
                     localStorage.setItem('routeiq_selection_mode', 'compare');
-                    if (selectedAlgorithms.length < 2) {
-                      const compSet =
-                        activeStops.length <= 8
-                          ? ['ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
-                          : ['ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga'];
-                      setSelectedAlgorithms(compSet);
-                    }
+                    const compSet = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+                      (id) => id !== 'qaoa' || activeStops.length <= 8
+                    );
+                    setSelectedAlgorithms(compSet);
                   }}
                   className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
                     selectionMode === 'compare'
@@ -1291,13 +1358,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               {selectionMode === 'recommended' && (
                 <div className="p-3 rounded-xl bg-black/5 dark:bg-[#17171A] border border-black/5 dark:border-[#29292E] space-y-2 animate-fadeIn">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7]">Google OR-Tools CVRP Solver</span>
+                    <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7]">ROUTE/IQ Cooperative Engine</span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
-                      Default
+                      Recommended
                     </span>
                   </div>
                   <p className="text-[11px] text-[#666666] dark:text-[#A1A1AA] leading-snug">
-                    Standard classical vehicle routing optimizer with guided local search.
+                    Flagship hybrid optimizer: Spark 4.2 partitioning, Adaptive MAB controller, and Proposition 1 Guardrail.
                   </p>
                 </div>
               )}
@@ -1305,6 +1372,32 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               {/* Mode 2 & 3: Custom / Compare List */}
               {(selectionMode === 'custom' || selectionMode === 'compare') && (
                 <div className="space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] font-bold text-[#555555] dark:text-[#A1A1AA]">
+                      {selectedAlgorithms.length} of {WORKSPACE_ALGORITHMS.length} Solvers Selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+                            (id) => id !== 'qaoa' || activeStops.length <= 8
+                          );
+                          setSelectedAlgorithms(allAlgos);
+                        }}
+                        className="text-[10px] font-bold text-[#080808] dark:text-[#B7FF00] bg-black/10 dark:bg-[#202024] px-2 py-0.5 rounded hover:bg-black/20 cursor-pointer"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAlgorithms(['routeiq_cooperative', 'ortools'])}
+                        className="text-[10px] text-[#777777] hover:text-[#080808] dark:hover:text-white cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
                   {/* Classical algorithms */}
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
@@ -1389,8 +1482,63 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                       );
                     })}
                   </div>
+
+                  {/* Cooperative Hybrid Engine */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                      Cooperative Hybrid Engine
+                    </span>
+                    {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'cooperative').map((algo) => {
+                      const isChecked = selectedAlgorithms.includes(algo.id);
+
+                      return (
+                        <div
+                          key={algo.id}
+                          onClick={() => handleToggleAlgorithm(algo.id)}
+                          className={`flex items-start justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
+                            isChecked
+                              ? 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/50 shadow-xs'
+                              : 'bg-black/5 dark:bg-[#17171A] border-transparent dark:border-[#29292E]/60 hover:bg-black/10'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleAlgorithm(algo.id)}
+                              className="rounded accent-[#080808] dark:accent-[#B7FF00] cursor-pointer h-3.5 w-3.5 mt-0.5"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block">{algo.name}</span>
+                              <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-tight mt-0.5">
+                                {algo.role}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[9px] font-technical text-[#10B981] shrink-0 ml-1">
+                            {algo.badge}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
+
+              {/* Glassmorphic Algorithm Resource & Coverage Capsule */}
+              <div className="p-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#B7FF00] animate-pulse shrink-0" />
+                  <span className="font-technical text-[#555555] dark:text-[#A1A1AA] truncate">
+                    {selectionMode === 'recommended'
+                      ? 'Cooperative O(N log N) · Invariant R == I'
+                      : `${selectedAlgorithms.length} Solvers · Fleet Lower Bound K ≥ ⌈D/Q⌉`}
+                  </span>
+                </div>
+                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded-md bg-[#B7FF00]/15 text-[#080808] dark:text-[#B7FF00] font-bold shrink-0">
+                  tracemalloc
+                </span>
+              </div>
             </div>
 
             {/* 4. Delivery Stops Table */}

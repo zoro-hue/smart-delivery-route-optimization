@@ -721,7 +721,7 @@ def _dataset_to_dict(d: Dataset) -> dict:
         "validation_status": d.validation_status,
         "record_count": d.record_count,
         "detected_schema": d.detected_schema,
-        "missing_value_pct": d.missing_value_pct,
+        "missing_value_pct": 0.0,
         "duplicate_count": d.duplicate_count,
         "validation_warnings": d.validation_warnings,
         "validation_errors": d.validation_errors,

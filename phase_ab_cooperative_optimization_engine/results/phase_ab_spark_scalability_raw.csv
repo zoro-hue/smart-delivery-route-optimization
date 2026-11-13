@@ -1,0 +1,9 @@
+dataset_size,engine_name,execution_target,ingest_clean_time_ms,decomposition_time_ms,total_pipeline_time_ms,throughput_stops_per_sec,boundary_stops_extracted,outputs_match_pandas
+1000,Pandas_In_Memory,Single_Thread_CPU,15.92,3.24,19.16,52201.3,16,True
+1000,Apache_Spark_4.2.0,local[*]_Multi_Core_Worker,3.88,6541.88,6545.76,152.8,16,True
+10000,Pandas_In_Memory,Single_Thread_CPU,10.23,5.2,15.43,648247.8,16,True
+10000,Apache_Spark_4.2.0,local[*]_Multi_Core_Worker,7.22,1090.59,1097.81,9109.0,16,True
+50000,Pandas_In_Memory,Single_Thread_CPU,18.26,12.72,30.98,1613835.1,16,True
+50000,Apache_Spark_4.2.0,local[*]_Multi_Core_Worker,21.47,1955.41,1976.88,25292.4,16,True
+100000,Pandas_In_Memory,Single_Thread_CPU,28.67,18.14,46.81,2136131.4,16,True
+100000,Apache_Spark_4.2.0,local[*]_Multi_Core_Worker,26.96,3433.23,3460.19,28900.1,16,True
