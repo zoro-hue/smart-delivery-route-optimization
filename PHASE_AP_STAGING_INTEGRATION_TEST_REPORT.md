@@ -33,4 +33,5 @@ The isolated Render staging service `routeiq-backend-staging` has **not been pro
 To activate the isolated staging backend:
 1. Provide approval to provision `routeiq-backend-staging` on Render, **OR**
 2. Deploy the prepared `render.staging.yaml` blueprint via Render Dashboard (see [PHASE_AP_RENDER_STAGING_CONFIGURATION.md](file:///d:/UROP/smart-delivery-route-optimization/PHASE_AP_RENDER_STAGING_CONFIGURATION.md)).
-3. Once the staging service is live at `https://route-iq-backend-staging.onrender.com`, end-to-end live testing will be executed against `/health`, `/api/optimization/algorithms`, and the 18-stop benchmark.
+3. Once the staging service is live at `https://routeiq-backend-staging.onrender.com`, end-to-end live testing will be executed against `/health`, `/api/optimization/algorithms`, and the 18-stop benchmark.
+

@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document details the API routing architecture implemented in the frontend to ensure that **Vercel Preview Deployments** communicate exclusively with the isolated staging backend (`https://route-iq-backend-staging.onrender.com`), while **Production Deployments** continue communicating exclusively with the production backend (`https://route-iq-backend.onrender.com`).
+This document details the API routing architecture implemented in the frontend to ensure that **Vercel Preview Deployments** communicate exclusively with the isolated staging backend (`https://routeiq-backend-staging.onrender.com`), while **Production Deployments** continue communicating exclusively with the production backend (`https://route-iq-backend.onrender.com`).
 
 ---
 
@@ -13,7 +13,7 @@ In [frontend/src/services/api.ts](file:///d:/UROP/smart-delivery-route-optimizat
 ```typescript
 // Production and Staging backend endpoints on Render
 const PRODUCTION_BACKEND_URL = 'https://route-iq-backend.onrender.com';
-const STAGING_BACKEND_URL = 'https://route-iq-backend-staging.onrender.com';
+const STAGING_BACKEND_URL = 'https://routeiq-backend-staging.onrender.com';
 
 const isBrowser = typeof window !== 'undefined';
 const isLocalhost =
@@ -77,7 +77,7 @@ const http = axios.create({
    - Even if `frontend/.env.production` inlines `VITE_API_URL=https://route-iq-backend.onrender.com`, the resolver explicitly checks `!rawApiUrl.includes('route-iq-backend.onrender.com')`.
    - If the inlined variable is the production URL, the preview resolver ignores it and binds strictly to `STAGING_BACKEND_URL`.
 3. **CORS Direct Request:**
-   - Because `API_BASE` is an absolute URL (`https://route-iq-backend-staging.onrender.com/api`), Axios sends HTTP requests directly to the staging backend.
+   - Because `API_BASE` is an absolute URL (`https://routeiq-backend-staging.onrender.com/api`), Axios sends HTTP requests directly to the staging backend.
    - It bypasses the static `vercel.json` rewrite (`/api/:path*`), avoiding any proxy to the production backend.
    - Backend CORS dynamically permits the request via `CORS_ORIGIN_REGEX=^https:\/\/.*\.vercel\.app$`.
 
@@ -90,7 +90,7 @@ For customized staging URLs or custom preview domains, environment variables can
 1. Open [vercel.com](https://vercel.com) $\rightarrow$ Project **route-iq-frontend** $\rightarrow$ **Settings** $\rightarrow$ **Environment Variables**.
 2. Add Variable:
    - **Key:** `VITE_STAGING_API_URL`
-   - **Value:** `https://route-iq-backend-staging.onrender.com`
+   - **Value:** `https://routeiq-backend-staging.onrender.com`
    - **Environment:** Select **Preview** only (uncheck Production and Development).
 3. Save.
 
@@ -102,4 +102,5 @@ For customized staging URLs or custom preview domains, environment variables can
 - [x] Zero silent fallback from preview to production.
 - [x] TypeScript build verified: 2589 modules transformed, 0 compile errors.
 - [x] Production domain (`route-iq-frontend-nine.vercel.app`) remains connected to `route-iq-backend.onrender.com`.
-- [x] Staging domain (`*.vercel.app` preview) will connect to `route-iq-backend-staging.onrender.com`.
+- [x] Staging domain (`*.vercel.app` preview) will connect to `routeiq-backend-staging.onrender.com`.
+

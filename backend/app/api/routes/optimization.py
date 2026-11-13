@@ -1,13 +1,15 @@
 """
 Optimization & Experiments API — Classical VRP, QAOA, Comparison, Experiment History
 """
+from __future__ import annotations
 
+import gc
 import json
 import math
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple, Set
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
@@ -315,11 +317,11 @@ async def run_optimization(
         if req.selected_algorithms and len(req.selected_algorithms) >= 2:
             to_run = list(req.selected_algorithms)
         else:
-            # Default comparison suite across classical and quantum-inspired
-            to_run = ["ortools", "clarke_wright", "two_opt", "qiga"]
-            # Only add QAOA if within safe qubit limit (<= 8 customers + depot = 9 nodes)
-            if n <= 9:
-                to_run.append("qaoa")
+            # Default comparison suite across all registered canonical algorithms
+            to_run = [a["id"] for a in AVAILABLE_ALGORITHMS]
+            # Exclude QAOA only if n > 9 due to qubit/statevector scaling limits
+            if n > 9 and "qaoa" in to_run:
+                to_run.remove("qaoa")
     elif mode == "custom":
         if req.selected_algorithms and len(req.selected_algorithms) > 0:
             to_run = list(req.selected_algorithms)
@@ -645,7 +647,9 @@ async def run_optimization(
         if len(to_run) == 1:
             results[to_run[0]] = _execute_single_algo(to_run[0])
         else:
-            with ThreadPoolExecutor(max_workers=min(len(to_run), 8)) as executor:
+            # Staging and production instances run on memory-constrained containers (512MB RAM).
+            # Bounding workers to 2 with explicit garbage collection prevents transient OOM and 502 Bad Gateway.
+            with ThreadPoolExecutor(max_workers=min(len(to_run), 2)) as executor:
                 future_to_algo = {executor.submit(_execute_single_algo, a): a for a in to_run}
                 for fut in future_to_algo:
                     a = future_to_algo[fut]
@@ -654,6 +658,8 @@ async def run_optimization(
                     except Exception as exc:
                         logger.error(f"Concurrent worker for {a} raised: {exc}")
                         results[a] = {"success": False, "error": str(exc), "routes": [], "status": "FAILED"}
+                    finally:
+                        gc.collect()
 
         # Safely attempt persistence in ExperimentResult table for each algorithm
         for a_name, a_res in results.items():

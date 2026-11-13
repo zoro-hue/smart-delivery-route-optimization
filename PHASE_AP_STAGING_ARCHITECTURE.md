@@ -87,7 +87,7 @@ To eliminate this coupling, ROUTE/IQ implements strict environment segregation:
  ────────────────────────────────────────────────────────
   Git Branch:         research/phase-ae-backend-integration (dfb0cdf+)
   Vercel Frontend:    https://route-iq-frontend-git-resear-*.vercel.app (Preview)
-  Render Backend:     https://route-iq-backend-staging.onrender.com (New Service)
+  Render Backend:     https://routeiq-backend-staging.onrender.com (New Service)
   Database:           Isolated Staging SQLite (staging_routeiq.db)
   Algorithm Count:    11 Canonical Algorithms (Cooperative + Standalone Metaheuristics)
   Route Repair:       Universal Coverage R == I + Capacity-Aware Merging
@@ -108,7 +108,8 @@ To eliminate this coupling, ROUTE/IQ implements strict environment segregation:
    - Secrets isolation: Staging does not share or expose production credentials.
 3. **Fail-Safe Preview API Routing (No Silent Fallback):**
    - `frontend/src/services/api.ts` actively inspects `window.location.hostname`.
-   - If on a Vercel preview domain (`route-iq-frontend-*.vercel.app`), it strictly routes to `https://route-iq-backend-staging.onrender.com/api`.
+   - If on a Vercel preview domain (`route-iq-frontend-*.vercel.app`), it strictly routes to `https://routeiq-backend-staging.onrender.com/api`.
    - If staging is unavailable, the application logs an explicit warning in the console. It **never falls back to production**.
 4. **CORS Boundary Compliance:**
    - Backend CORS in `backend/app/main.py` matches `^https:\/\/.*\.vercel\.app$`, allowing both production and preview Vercel domains while rejecting unauthorized origins.
+

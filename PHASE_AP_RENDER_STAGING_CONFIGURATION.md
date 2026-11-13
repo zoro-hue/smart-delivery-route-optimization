@@ -5,7 +5,7 @@
 This document specifies the exact configuration for provisioning the isolated **Render Staging Web Service** for ROUTE/IQ.
 
 - **Service Name:** `routeiq-backend-staging`
-- **Render URL:** `https://route-iq-backend-staging.onrender.com`
+- **Render URL:** `https://routeiq-backend-staging.onrender.com`
 - **Source Repository:** `https://github.com/zoro-hue/smart-delivery-route-optimization`
 - **Target Git Branch:** `research/phase-ae-backend-integration`
 - **Runtime Environment:** `Docker`
@@ -108,18 +108,19 @@ Once provisioned, the staging service will be verified using the following autom
 
 1. **Health Probe:**
    ```bash
-   curl -s -i https://route-iq-backend-staging.onrender.com/health
+   curl -s -i https://routeiq-backend-staging.onrender.com/health
    ```
    *Expected Response:* `HTTP 200 OK`, `{"status": "healthy", "version": "2.0.0", "environment": "staging", ...}`
 2. **Algorithm Registry Probe:**
    ```bash
-   curl -s https://route-iq-backend-staging.onrender.com/api/optimization/algorithms
+   curl -s https://routeiq-backend-staging.onrender.com/api/optimization/algorithms
    ```
    *Expected Response:* `HTTP 200 OK`, `count: 11`, confirming all 11 algorithms including `routeiq_cooperative`, `tabu_search`, `kernighan_lin`, and `vnd`.
 3. **Optimization Execution Probe (18-Stop Test Case):**
    ```bash
-   curl -s -X POST https://route-iq-backend-staging.onrender.com/api/optimization/run \
+   curl -s -X POST https://routeiq-backend-staging.onrender.com/api/optimization/run \
      -H "Content-Type: application/json" \
      -d @test_payload_18_stops.json
    ```
    *Expected Response:* `HTTP 200 OK`, `status: "FEASIBLE"`, 18 served stops, 0 dropped stops, 0 capacity violations.
+

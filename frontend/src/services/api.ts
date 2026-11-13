@@ -2,10 +2,10 @@ import axios from 'axios';
 import { Dataset, AnalyticsSummary, OptimizationResponse } from '../types';
 
 // In production, configure VITE_API_URL (e.g. https://route-iq-backend.onrender.com)
-// In staging/preview, configure VITE_STAGING_API_URL (e.g. https://route-iq-backend-staging.onrender.com)
+// In staging/preview, configure VITE_STAGING_API_URL (e.g. https://routeiq-backend-staging.onrender.com)
 // In local dev, defaults to '/api' which is proxied by Vite to http://127.0.0.1:8000
 const PRODUCTION_BACKEND_URL = 'https://route-iq-backend.onrender.com';
-const STAGING_BACKEND_URL = 'https://route-iq-backend-staging.onrender.com';
+const STAGING_BACKEND_URL = 'https://routeiq-backend-staging.onrender.com';
 
 const isBrowser = typeof window !== 'undefined';
 const isLocalhost =
@@ -33,7 +33,7 @@ function resolveApiBase(): string {
   // 2. Vercel Preview Deployments: Route strictly to isolated staging backend
   if (isVercelPreview) {
     let target = explicitStagingUrl;
-    if (!target && rawApiUrl && !rawApiUrl.includes('route-iq-backend.onrender.com')) {
+    if (!target && rawApiUrl && !rawApiUrl.includes('route-iq-backend.onrender.com') && !rawApiUrl.includes('routeiq-backend.onrender.com')) {
       target = rawApiUrl;
     }
     if (!target) {

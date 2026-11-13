@@ -507,11 +507,11 @@ class RoadNetworkService:
             # Retrieve road geometry connecting node_u and node_v
             road_pts = self.get_road_path_geometry(node_u, node_v)
             if not road_pts:
-                logger.error(
-                    f"Routing failure: no connected road path between stop {s_u} (node {node_u}) "
-                    f"and stop {s_v} (node {node_v}). Skipping invalid segment."
+                logger.warning(
+                    f"Routing fallback: no connected road path between stop {s_u} (node {node_u}) "
+                    f"and stop {s_v} (node {node_v}). Using direct coordinate segment to guarantee universal stop coverage."
                 )
-                continue
+                road_pts = [(orig_u[0], orig_u[1]), (orig_v[0], orig_v[1])]
 
             # First waypoint of the route: snapped road position of stop s_u
             if not full_waypoints:

@@ -794,9 +794,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           : selectionMode === 'compare'
           ? (selectedAlgorithms.length >= 2
               ? selectedAlgorithms
-              : (activeStops.length <= 8
-                  ? ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
-                  : ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga']))
+              : WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+                  (id) => id !== 'qaoa' || activeStops.length <= 8
+                ))
           : selectedAlgorithms.length > 0
           ? selectedAlgorithms
           : ['routeiq_cooperative'];
@@ -1339,13 +1339,10 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   onClick={() => {
                     setSelectionMode('compare');
                     localStorage.setItem('routeiq_selection_mode', 'compare');
-                    if (selectedAlgorithms.length < 2) {
-                      const compSet =
-                        activeStops.length <= 8
-                          ? ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'qiga', 'qaoa']
-                          : ['routeiq_cooperative', 'ortools', 'clarke_wright', 'two_opt', 'dijkstra', 'astar', 'qiga'];
-                      setSelectedAlgorithms(compSet);
-                    }
+                    const compSet = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+                      (id) => id !== 'qaoa' || activeStops.length <= 8
+                    );
+                    setSelectedAlgorithms(compSet);
                   }}
                   className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
                     selectionMode === 'compare'
@@ -1375,6 +1372,32 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               {/* Mode 2 & 3: Custom / Compare List */}
               {(selectionMode === 'custom' || selectionMode === 'compare') && (
                 <div className="space-y-3 animate-fadeIn">
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] font-bold text-[#555555] dark:text-[#A1A1AA]">
+                      {selectedAlgorithms.length} of {WORKSPACE_ALGORITHMS.length} Solvers Selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
+                            (id) => id !== 'qaoa' || activeStops.length <= 8
+                          );
+                          setSelectedAlgorithms(allAlgos);
+                        }}
+                        className="text-[10px] font-bold text-[#080808] dark:text-[#B7FF00] bg-black/10 dark:bg-[#202024] px-2 py-0.5 rounded hover:bg-black/20 cursor-pointer"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAlgorithms(['routeiq_cooperative', 'ortools'])}
+                        className="text-[10px] text-[#777777] hover:text-[#080808] dark:hover:text-white cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
                   {/* Classical algorithms */}
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
