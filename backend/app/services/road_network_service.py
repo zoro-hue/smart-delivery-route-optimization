@@ -131,16 +131,11 @@ class RoadNetworkService:
         gzip_pickle_path = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_newyork.pickle.gz")
         fallback_pickle = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_manhatten.pickle")
 
-        # 0. On memory-constrained container environments (e.g. Render 512MB free tier),
-        # prefer the lightweight Manhattan road network graph (4,426 nodes, ~8MB RAM)
-        # to prevent Linux cgroup OOM crashes that occur with the 380MB 5-borough graph.
-        use_compact = (
-            os.environ.get("USE_MANHATTAN_ROAD_GRAPH", "1").lower() in ("1", "true", "yes")
-            or settings.ENVIRONMENT in ("staging", "preview")
-        )
+        # Check if user explicitly requests compact Manhattan road graph
+        use_compact = os.environ.get("USE_MANHATTAN_ROAD_GRAPH", "0").lower() in ("1", "true", "yes")
         if use_compact and os.path.exists(fallback_pickle):
             try:
-                logger.info(f"Loading lightweight Manhattan road graph from {fallback_pickle} for 512MB RAM compliance...")
+                logger.info(f"Loading lightweight Manhattan road graph from {fallback_pickle}...")
                 with open(fallback_pickle, "rb") as f:
                     self.G = pickle.load(f)
                 logger.info(f"Loaded lightweight road graph: {self.G.number_of_nodes()} nodes, {self.G.number_of_edges()} edges")
@@ -148,7 +143,7 @@ class RoadNetworkService:
                 logger.error(f"Failed to load {fallback_pickle}: {e}")
                 self.G = None
 
-        # 1. Try loading pre-built newyork road graph raw pickle first
+        # 1. Load full authentic NYC 5-Borough road graph (212MB RAM, fully connected across all boroughs)
         if self.G is None and os.path.exists(pickle_path):
             try:
                 logger.info(f"Loading NYC 5-Borough road graph from {pickle_path}...")
