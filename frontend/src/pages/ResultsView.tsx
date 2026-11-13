@@ -16,6 +16,8 @@ import {
   GitCompare,
   BarChart3,
   Layers,
+  AlertTriangle,
+  RotateCw,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -392,13 +394,13 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             Vehicles Assigned
           </span>
           <div className="text-lg sm:text-xl font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
-            {currentResult?.routes.length || settings.defaultVehicles} Drivers
+            {(currentResult?.routes ?? []).length || settings.defaultVehicles} Drivers
           </div>
           <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
             {result.problem?.num_vehicles
-              ? `${currentResult?.routes.length || 0} of ${result.problem.num_vehicles} fleet active${
-                  (result.problem.num_vehicles - (currentResult?.routes.length || 0)) > 0
-                    ? ` (${result.problem.num_vehicles - (currentResult?.routes.length || 0)} surplus)`
+              ? `${(currentResult?.routes ?? []).length} of ${result.problem.num_vehicles} fleet active${
+                  (result.problem.num_vehicles - (currentResult?.routes ?? []).length) > 0
+                    ? ` (${result.problem.num_vehicles - (currentResult?.routes ?? []).length} surplus)`
                     : ''
                 }`
               : 'Active fleet routes'}
@@ -420,6 +422,31 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </span>
         </div>
       </div>
+
+      {/* Solver Failure or Timeout Warning Banner */}
+      {(currentResult?.status === 'FAILED' || currentResult?.status === 'TIMED_OUT') && (
+        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
+            <div>
+              <strong className="text-xs font-bold block">
+                {currentResult?.algorithm_name || activeAlgo.toUpperCase()} {currentResult?.status === 'TIMED_OUT' ? 'Timed Out' : 'Failed'}
+              </strong>
+              <p className="text-[11px] opacity-90">
+                {currentResult?.error || 'Solver could not find a feasible sequence within limits. Other solvers remain unaffected.'}
+              </p>
+            </div>
+          </div>
+          {bestAlgoItem && (
+            <button
+              onClick={() => setActiveAlgo(bestAlgoItem.id)}
+              className="px-3 py-1.5 rounded-xl bg-red-600 text-white font-bold text-xs hover:bg-red-700 transition-all cursor-pointer shrink-0"
+            >
+              Switch to {bestAlgoItem.name}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ─── MAIN RESULTS LAYOUT: MAP & DRIVER SEQUENCES ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -456,8 +483,9 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             </Marker>
 
             {/* Customer Delivery Pins (Numbered 1, 2, 3... 18) - Skip index 0 which is the Origin Depot */}
-            {result.problem?.locations?.slice(1).map((loc, idx) => {
-              const isUnvisited = currentResult && currentResult.routes.length > 0 ? !currentVisitedIndices.has(idx + 1) : false;
+            {(result.problem?.locations ?? []).slice(1).map((loc, idx) => {
+              const hasRoutes = (currentResult?.routes ?? []).length > 0;
+              const isUnvisited = hasRoutes ? !currentVisitedIndices.has(idx + 1) : false;
               return (
                 <Marker key={idx + 1} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark, isUnvisited)}>
                   <Popup>
@@ -476,7 +504,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             })}
 
             {/* Vehicle Routes Polylines & Driver Badges (V1, V2...) */}
-            {currentResult?.routes.map((route, rIdx) => {
+            {(currentResult?.routes ?? []).map((route, rIdx) => {
               const color = activeRouteColors[rIdx % activeRouteColors.length];
               const driverNumber = rIdx + 1;
               const positions =
@@ -500,7 +528,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         <div className="text-xs font-sans">
                           <strong className="text-[#080808] dark:text-[#F5F5F7]">Fleet Vehicle Driver V{driverNumber}</strong>
                           <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Distance: {route.distance_km.toFixed(1)} km</span>
+                          <span className="text-[#555555] dark:text-[#A1A1AA]">Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km</span>
                           <br />
                           <span className="text-[#555555] dark:text-[#A1A1AA]">Load: {Math.round(route.load || 0)} units</span>
                         </div>
@@ -551,9 +579,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             </span>
 
             <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-              {currentResult?.routes.map((route: VehicleRoute, idx: number) => {
+              {(currentResult?.routes ?? []).map((route: VehicleRoute, idx: number) => {
                 const color = activeRouteColors[idx % activeRouteColors.length];
                 const driverNumber = idx + 1;
+                const stopsArr = route.stops ?? [];
                 return (
                   <div
                     key={`schedule-driver-${driverNumber}-${idx}`}
@@ -567,20 +596,27 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         />
                         <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">Driver #{driverNumber}</span>
                         <span className="text-[11px] text-[#777777] dark:text-[#A1A1AA]">
-                          ({Math.max(0, route.stops.length - 2)} stops)
+                          ({Math.max(0, stopsArr.length - 2)} stops)
                         </span>
                       </div>
                       <span className="font-technical font-bold text-[#080808] dark:text-[#B7FF00]">
-                        {route.distance_km.toFixed(1)} km
+                        {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
                       </span>
                     </div>
 
                     <div className="text-[11px] text-[#777777] dark:text-[#A1A1AA] font-technical">
-                      Stop sequence: {route.stops.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')}
+                      Stop sequence: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')}
                     </div>
                   </div>
                 );
               })}
+              {(currentResult?.routes ?? []).length === 0 && (
+                <div className="text-center py-6 text-xs text-[#777777] dark:text-[#A1A1AA]">
+                  {currentResult?.status === 'FAILED'
+                    ? `Solver failed: ${currentResult?.error || 'No route generated'}`
+                    : 'No routes assigned for this solver selection.'}
+                </div>
+              )}
             </div>
           </div>
 
@@ -687,34 +723,59 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         </span>
                       </td>
 
-                      {/* Feasibility */}
+                      {/* Feasibility & Individual Solver Status */}
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center gap-1 font-bold ${
-                          item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
-                        }`}>
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
-                        </span>
+                        {item.status === 'RUNNING' ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                            <RotateCw className="h-3 w-3 animate-spin" />
+                            <span>Running...</span>
+                          </span>
+                        ) : item.status === 'PENDING' ? (
+                          <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
+                            <span>Pending</span>
+                          </span>
+                        ) : item.status === 'TIMED_OUT' ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-orange-500">
+                            <span>Timed Out</span>
+                          </span>
+                        ) : item.status === 'FAILED' ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-red-500" title={item.error || 'Solver failed'}>
+                            <span>Failed</span>
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 font-bold ${
+                            item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
+                          }`}>
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
+                          </span>
+                        )}
                       </td>
 
                       {/* Total Distance */}
                       <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                        {item.total_distance_km.toFixed(2)} km
+                        {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
+                          ? `${item.total_distance_km.toFixed(2)} km`
+                          : (item.status === 'RUNNING' ? 'Computing...' : '—')}
                       </td>
 
                       {/* Travel Time */}
                       <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                        {Math.round(item.total_travel_time_min)} min
+                        {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
                       </td>
 
                       {/* Vehicles & Coverage */}
                       <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                        {item.vehicles_used} vehicles · {item.served_customers} stops
+                        {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
                       </td>
 
                       {/* Violations */}
                       <td className="py-3 px-4 font-technical">
-                        {item.capacity_violations === 0 && item.unserved_customers === 0 ? (
+                        {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
+                          <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Error'}>
+                            {item.error || 'Execution failed'}
+                          </span>
+                        ) : item.capacity_violations === 0 && item.unserved_customers === 0 ? (
                           <span className="text-[#22C55E] font-bold">0 violations</span>
                         ) : (
                           <span className="text-red-500 font-bold">
@@ -749,12 +810,12 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
                       {/* Objective Cost */}
                       <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                        {item.total_objective_cost.toFixed(2)}
+                        {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
                       </td>
 
                       {/* Runtime */}
                       <td className="py-3 px-4 font-technical text-[#777777] dark:text-[#A1A1AA]">
-                        {item.execution_time_sec.toFixed(3)}s
+                        {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
                       </td>
 
                       {/* View Action */}

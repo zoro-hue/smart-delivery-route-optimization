@@ -53,6 +53,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
+    # Pre-warm authentic NYC road network graph and KD-Tree
+    try:
+        from app.services.road_network_service import road_network_service
+        road_network_service.ensure_loaded()
+        logger.info("Road network graph and KD-tree pre-warmed on server startup.")
+    except Exception as rn_err:
+        logger.warning(f"Road network pre-warm non-fatal error: {rn_err}")
+
     yield
 
     logger.info("Shutting down Smart Delivery Route Optimization Engine...")

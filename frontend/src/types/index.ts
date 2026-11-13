@@ -142,6 +142,7 @@ export interface ComparisonItem {
   space_complexity?: string;
   resource_metrics?: Record<string, any>;
   is_best: boolean;
+  error?: string;
 }
 
 export interface ComparisonSummary {

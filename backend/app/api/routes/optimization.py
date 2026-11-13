@@ -323,7 +323,7 @@ async def run_optimization(
             # Exclude QAOA only if n > 9 due to qubit/statevector scaling limits
             if n > 9 and "qaoa" in to_run:
                 to_run.remove("qaoa")
-    elif mode == "custom":
+    elif mode in ("custom", "single", "individual"):
         if req.selected_algorithms and len(req.selected_algorithms) > 0:
             to_run = list(req.selected_algorithms)
         else:
@@ -659,7 +659,22 @@ async def run_optimization(
                 results[a] = _execute_single_algo(a)
             except Exception as exc:
                 logger.error(f"Solver for {a} raised: {exc}")
-                results[a] = {"success": False, "error": str(exc), "routes": [], "status": "FAILED"}
+                results[a] = {
+                    "success": False,
+                    "error": str(exc),
+                    "routes": [],
+                    "status": "FAILED",
+                    "execution_time_sec": 0.0,
+                    "total_distance_km": 0.0,
+                    "total_travel_time_min": 0.0,
+                    "total_objective_cost": 0.0,
+                    "capacity_violations": 0,
+                    "unserved_customers": n - 1,
+                    "served_customers": 0,
+                    "is_feasible": False,
+                    "algorithm": a,
+                    "algorithm_name": a.upper(),
+                }
             finally:
                 gc.collect()
             # Yield control to event loop so container health checks (/health) and proxy keepalives remain fully responsive

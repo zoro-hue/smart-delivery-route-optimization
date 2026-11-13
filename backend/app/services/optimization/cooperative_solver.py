@@ -11,6 +11,7 @@ This service implements the complete end-to-end cooperative architecture establi
 Phases AB, AC, and AD for production deployment in ROUTE/IQ.
 """
 
+import os
 import time
 import math
 import copy
@@ -333,5 +334,6 @@ class CooperativeVRPSolver:
         }
 
 
-# Global singleton instance
-cooperative_solver = CooperativeVRPSolver()
+# Global singleton instance (Spark enabled conditionally for big-data workloads to preserve 512MB container RAM)
+_enable_spark = os.environ.get("ENABLE_SPARK_VRP", "0").lower() in ("1", "true", "yes")
+cooperative_solver = CooperativeVRPSolver(use_spark=_enable_spark)
