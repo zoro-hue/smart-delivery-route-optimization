@@ -111,6 +111,7 @@ class RoadNetworkService:
         self._lock = threading.Lock()
         self._path_cache: Dict[Tuple[str, str], List[str]] = {}
         self._dist_cache: Dict[Tuple[str, str], float] = {}
+        self._geom_cache: Dict[Tuple[str, str], List[Tuple[float, float]]] = {}
         self._snap_cache: Dict[Tuple[float, float], Tuple[str, float, float, float]] = {}
         # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
         # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
@@ -148,7 +149,7 @@ class RoadNetworkService:
                 self.G = None
 
         # 1. Try loading pre-built newyork road graph raw pickle first
-        if os.path.exists(pickle_path):
+        if self.G is None and os.path.exists(pickle_path):
             try:
                 logger.info(f"Loading NYC 5-Borough road graph from {pickle_path}...")
                 with open(pickle_path, "rb") as f:
@@ -218,6 +219,13 @@ class RoadNetworkService:
         if self.G is None:
             logger.error("No valid NYC road graph found! Please ensure road_graph_newyork.pickle.gz exists.")
             return
+
+        # Ensure all edge 'length' attributes are strictly Python floats (prevents TypeError: int + str in Dijkstra)
+        for _, _, d in self.G.edges(data=True):
+            try:
+                d["length"] = float(d.get("length", 100.0))
+            except Exception:
+                d["length"] = 100.0
 
         # Prepare node lists and spatial index without heavy SCC recursion
         self.nodes_list = list(self.G.nodes())
@@ -412,6 +420,10 @@ class RoadNetworkService:
             u_d = self.G.nodes[u_node]
             return [(float(u_d["y"]), float(u_d["x"]))]
 
+        # Check geometry coordinates cache first for instant sub-millisecond retrieval
+        if (u_node, v_node) in self._geom_cache:
+            return self._geom_cache[(u_node, v_node)]
+
         # Check path cache first for instant retrieval
         path_nodes = self._path_cache.get((u_node, v_node))
 
@@ -493,6 +505,7 @@ class RoadNetworkService:
                 coords.append(u_pt)
             coords.append(v_pt)
 
+        self._geom_cache[(u_node, v_node)] = coords
         return coords
 
     def reconstruct_vehicle_road_route(
