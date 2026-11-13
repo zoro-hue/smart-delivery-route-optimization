@@ -366,8 +366,13 @@ def profile_algorithm_execution(
     Python heap allocation (tracemalloc), and process resident RAM (psutil).
     Keeps theoretical asymptotic complexity strictly separated from empirical measurements.
     """
-    import psutil
-    process = psutil.Process()
+    process = None
+    try:
+        import psutil
+        process = psutil.Process()
+    except Exception:
+        process = None
+
     tracemalloc.start()
     t0_wall = time.perf_counter()
     t0_cpu = time.process_time()
@@ -379,10 +384,12 @@ def profile_algorithm_execution(
         t1_wall = time.perf_counter()
         current_heap, peak_heap = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        try:
-            process_rss_bytes = process.memory_info().rss
-        except Exception:
-            process_rss_bytes = 0
+        process_rss_bytes = 0
+        if process is not None:
+            try:
+                process_rss_bytes = process.memory_info().rss
+            except Exception:
+                process_rss_bytes = 0
 
     wall_ms = round((t1_wall - t0_wall) * 1000.0, 2)
     cpu_ms = round((t1_cpu - t0_cpu) * 1000.0, 2)
