@@ -155,6 +155,17 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
     }
   }, [result]);
 
+  const currentResult = resultsMap[activeAlgo] || resultsMap.classical || Object.values(resultsMap)[0];
+
+  const currentVisitedIndices = useMemo(() => {
+    const visited = new Set<number>();
+    (currentResult?.routes || []).forEach((r) => {
+      (r.stops || []).forEach((s) => { if (s !== 0) visited.add(s); });
+      (r.customer_stops || []).forEach((s) => { if (s !== 0) visited.add(s); });
+    });
+    return visited;
+  }, [currentResult]);
+
   if (!result || algoKeys.length === 0) {
     return (
       <div className="py-20 text-center space-y-4">
@@ -171,17 +182,6 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       </div>
     );
   }
-
-  const currentResult = resultsMap[activeAlgo] || resultsMap.classical || Object.values(resultsMap)[0];
-
-  const currentVisitedIndices = useMemo(() => {
-    const visited = new Set<number>();
-    (currentResult?.routes || []).forEach((r) => {
-      (r.stops || []).forEach((s) => { if (s !== 0) visited.add(s); });
-      (r.customer_stops || []).forEach((s) => { if (s !== 0) visited.add(s); });
-    });
-    return visited;
-  }, [currentResult]);
   const comparisonItems = result.comparison_summary?.items || [];
   const bestAlgoId = result.best_feasible_algorithm || result.comparison_summary?.best_algorithm;
   const bestAlgoItem = comparisonItems.find((it) => it.id === bestAlgoId);
