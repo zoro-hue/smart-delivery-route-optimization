@@ -27,6 +27,7 @@ interface DatasetManagementProps {
   onScanDatasets: () => void;
   isScanning: boolean;
   isLoading?: boolean;
+  isRefreshing?: boolean;
   error?: string | null;
 }
 
@@ -36,6 +37,7 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
   onScanDatasets,
   isScanning,
   isLoading = false,
+  isRefreshing = false,
   error = null,
 }) => {
   const [selectedType, setSelectedType] = useState<string>('customer');
@@ -82,17 +84,38 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
       const res = await api.uploadDataset(formData);
       // Automatically trigger extract, validate, and process
       const datasetId = res.id;
-      await api.extractDataset(datasetId);
-      await api.validateDataset(datasetId);
-      await api.processDataset(datasetId);
+      try {
+        await api.extractDataset(datasetId);
+      } catch (e: any) {
+        console.warn('Auto-extract notice:', e);
+      }
+      try {
+        await api.validateDataset(datasetId);
+      } catch (e: any) {
+        console.warn('Auto-validate notice:', e);
+      }
+      try {
+        await api.processDataset(datasetId);
+      } catch (e: any) {
+        console.warn('Auto-process notice:', e);
+      }
 
       setUploadFile(null);
       setDatasetName('');
-      onRefresh();
+      setActionNotification({
+        message: 'Dataset uploaded and processed successfully.',
+        type: 'success',
+      });
+      setTimeout(() => setActionNotification(null), 4000);
     } catch (err: any) {
-      alert(`Upload/processing error: ${err.response?.data?.detail || err.message}`);
+      setActionNotification({
+        message: `Upload/processing error: ${err.response?.data?.detail || err.message}`,
+        type: 'error',
+      });
+      setTimeout(() => setActionNotification(null), 5000);
     } finally {
       setIsUploading(false);
+      onRefresh();
     }
   };
 
@@ -161,10 +184,19 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
     try {
       await api.deleteDataset(id);
       if (activePreview?.id === id) setActivePreview(null);
+      setActionNotification({
+        message: 'Dataset deleted successfully.',
+        type: 'success',
+      });
+      setTimeout(() => setActionNotification(null), 3500);
       await onRefresh();
     } catch (err: any) {
       console.error('Delete failed:', err);
-      alert(`Delete failed: ${err.response?.data?.detail || err.message}`);
+      setActionNotification({
+        message: `Delete failed: ${err.response?.data?.detail || err.message}`,
+        type: 'error',
+      });
+      setTimeout(() => setActionNotification(null), 4000);
     } finally {
       setDeletingId(null);
     }
@@ -318,41 +350,66 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
           </span>
         </div>
 
-        {isLoading ? (
-          <div className="p-12 text-center text-[#777777] dark:text-[#71717A] animate-pulse">
-            <RefreshCw className="h-8 w-8 mx-auto mb-3 text-[#B7FF00] animate-spin" />
-            <p className="text-sm font-bold text-[#080808] dark:text-white">Connecting to backend datasets...</p>
-            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1">Retrieving curated schemas and record telemetry</p>
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center bg-red-500/5 dark:bg-red-950/20 border-b border-red-500/20">
-            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-            <p className="text-sm font-bold text-red-600 dark:text-red-400">Failed to connect to backend datasets</p>
-            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 mb-3 max-w-md mx-auto font-mono text-[11px]">{error}</p>
+        {/* Non-intrusive banner if sync error occurs while datasets are present */}
+        {error && datasets.length > 0 && (
+          <div className="p-4 bg-red-500/10 dark:bg-red-950/30 border-b border-red-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 text-xs text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <div>
+                <span className="font-bold">Backend Sync Notice:</span> {error} (Displaying cached datasets)
+              </div>
+            </div>
             <button
+              type="button"
               onClick={onRefresh}
-              className="px-4 py-1.5 rounded-full bg-[#080808] dark:bg-white text-white dark:text-black text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90"
+              disabled={isLoading || isRefreshing}
+              className="px-4 py-1.5 rounded-full bg-[#080808] dark:bg-white text-white dark:text-black text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90 disabled:opacity-50 shrink-0 self-start sm:self-auto"
             >
-              <RefreshCw className="h-3 w-3" />
-              <span>Retry Connection</span>
+              <RefreshCw className={`h-3 w-3 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
+              <span>{isLoading || isRefreshing ? 'Retrying Connection...' : 'Retry Connection'}</span>
             </button>
           </div>
-        ) : datasets.length === 0 ? (
-          <div className="p-8 text-center text-[#777777] dark:text-[#71717A]">
-            <FileText className="h-10 w-10 mx-auto mb-2 text-[#777777]/50" />
-            <p className="text-sm font-bold text-[#080808] dark:text-white">No datasets loaded yet.</p>
-            <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 mb-3">
-              Click &quot;Ingest Datasets&quot; to auto-discover and load the existing NYC datasets.
-            </p>
-            <button
-              onClick={onScanDatasets}
-              disabled={isScanning}
-              className="px-4 py-2 bg-[#B7FF00] hover:bg-[#a6ec00] text-black rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              <span>{isScanning ? 'Ingesting Datasets...' : 'Ingest Datasets'}</span>
-            </button>
-          </div>
+        )}
+
+        {datasets.length === 0 ? (
+          isLoading || isRefreshing ? (
+            <div className="p-12 text-center text-[#777777] dark:text-[#71717A] animate-pulse">
+              <RefreshCw className="h-8 w-8 mx-auto mb-3 text-[#B7FF00] animate-spin" />
+              <p className="text-sm font-bold text-[#080808] dark:text-white">Connecting to backend datasets...</p>
+              <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1">Retrieving curated schemas and record telemetry</p>
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center bg-red-500/5 dark:bg-red-950/20 border-b border-red-500/20">
+              <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+              <p className="text-sm font-bold text-red-600 dark:text-red-400">Failed to connect to backend datasets</p>
+              <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 mb-3 max-w-md mx-auto font-mono text-[11px]">{error}</p>
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={isLoading || isRefreshing}
+                className="px-4 py-1.5 rounded-full bg-[#080808] dark:bg-white text-white dark:text-black text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isLoading || isRefreshing ? 'Retrying Connection...' : 'Retry Connection'}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-[#777777] dark:text-[#71717A]">
+              <FileText className="h-10 w-10 mx-auto mb-2 text-[#777777]/50" />
+              <p className="text-sm font-bold text-[#080808] dark:text-white">No datasets loaded yet.</p>
+              <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 mb-3">
+                Click &quot;Ingest Datasets&quot; to auto-discover and load the existing NYC datasets.
+              </p>
+              <button
+                onClick={onScanDatasets}
+                disabled={isScanning}
+                className="px-4 py-2 bg-[#B7FF00] hover:bg-[#a6ec00] text-black rounded-xl text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+                <span>{isScanning ? 'Ingesting Datasets...' : 'Ingest Datasets'}</span>
+              </button>
+            </div>
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">

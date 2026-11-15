@@ -57,24 +57,89 @@ const http = axios.create({
   timeout: 120000,
 });
 
+// Helper for critical read requests with exponential backoff and preview-to-production fallback
+async function requestWithRetry<T>(
+  requestFn: () => Promise<T>,
+  options: {
+    retries?: number;
+    delayMs?: number;
+    fallbackFn?: () => Promise<T>;
+  } = {}
+): Promise<T> {
+  const retries = options.retries ?? 3;
+  let delay = options.delayMs ?? 1000;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (err: any) {
+      if (attempt === retries) {
+        if (options.fallbackFn) {
+          console.warn('[ROUTE/IQ API] Primary request failed after retries, invoking fallback backend...', err.message);
+          try {
+            return await options.fallbackFn();
+          } catch (fallbackErr: any) {
+            console.error('[ROUTE/IQ API] Fallback backend also failed:', fallbackErr);
+            throw err;
+          }
+        }
+        throw err;
+      }
+      console.warn(`[ROUTE/IQ API] Request attempt ${attempt + 1}/${retries + 1} failed (${err.message}). Retrying in ${delay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay * 1.5, 4000);
+    }
+  }
+  return await requestFn();
+}
+
 export const api = {
   // Health
   checkHealth: async () => {
-    const res = await http.get('/health');
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get('/health', { timeout: 15000 });
+        return res.data;
+      },
+      {
+        retries: 2,
+        delayMs: 1000,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/health`, { timeout: 15000 });
+              return fallbackRes.data;
+            }
+          : undefined,
+      }
+    );
   },
 
   // Datasets
   getDatasets: async (): Promise<Dataset[]> => {
-    const res = await http.get('/datasets');
-    if (!Array.isArray(res.data)) {
-      throw new Error(
-        typeof res.data === 'string' && res.data.includes('<!doctype')
-          ? 'Backend endpoint returned HTML. Please verify deployment routing.'
-          : 'Invalid response format from datasets endpoint'
-      );
-    }
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get('/datasets', { timeout: 35000 });
+        if (!Array.isArray(res.data)) {
+          throw new Error(
+            typeof res.data === 'string' && res.data.includes('<!doctype')
+              ? 'Backend endpoint returned HTML. Please verify deployment routing.'
+              : 'Invalid response format from datasets endpoint'
+          );
+        }
+        return res.data;
+      },
+      {
+        retries: 3,
+        delayMs: 1200,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/datasets`, { timeout: 35000 });
+              if (Array.isArray(fallbackRes.data)) return fallbackRes.data;
+              throw new Error('Invalid response from fallback production endpoint');
+            }
+          : undefined,
+      }
+    );
   },
 
   scanWorkspace: async () => {
@@ -124,8 +189,22 @@ export const api = {
   },
 
   getPreview: async (datasetId: string, rows = 20) => {
-    const res = await http.get(`/datasets/${datasetId}/preview?rows=${rows}`);
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get(`/datasets/${datasetId}/preview?rows=${rows}`, { timeout: 25000 });
+        return res.data;
+      },
+      {
+        retries: 2,
+        delayMs: 1000,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/datasets/${datasetId}/preview?rows=${rows}`, { timeout: 25000 });
+              return fallbackRes.data;
+            }
+          : undefined,
+      }
+    );
   },
 
   deleteDataset: async (datasetId: string) => {
@@ -135,19 +214,61 @@ export const api = {
 
   // Analytics & Road Network
   getAnalyticsSummary: async (): Promise<AnalyticsSummary> => {
-    const res = await http.get('/analytics/summary');
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get('/analytics/summary', { timeout: 25000 });
+        return res.data;
+      },
+      {
+        retries: 2,
+        delayMs: 1000,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/analytics/summary`, { timeout: 25000 });
+              return fallbackRes.data;
+            }
+          : undefined,
+      }
+    );
   },
 
   getRoadNetwork: async () => {
-    const res = await http.get('/road-network');
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get('/road-network', { timeout: 25000 });
+        return res.data;
+      },
+      {
+        retries: 2,
+        delayMs: 1000,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/road-network`, { timeout: 25000 });
+              return fallbackRes.data;
+            }
+          : undefined,
+      }
+    );
   },
 
   // Optimization
   getDeliveryStops: async (limit = 50) => {
-    const res = await http.get(`/delivery-stops?limit=${limit}`);
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get(`/delivery-stops?limit=${limit}`, { timeout: 25000 });
+        return res.data;
+      },
+      {
+        retries: 2,
+        delayMs: 1000,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/delivery-stops?limit=${limit}`, { timeout: 25000 });
+              return fallbackRes.data;
+            }
+          : undefined,
+      }
+    );
   },
 
   estimateProblemSize: async (params: any) => {
@@ -156,8 +277,22 @@ export const api = {
   },
 
   getAlgorithms: async () => {
-    const res = await http.get('/optimization/algorithms');
-    return res.data;
+    return requestWithRetry(
+      async () => {
+        const res = await http.get('/optimization/algorithms', { timeout: 25000 });
+        return res.data;
+      },
+      {
+        retries: 2,
+        delayMs: 1000,
+        fallbackFn: (isVercelPreview && !rawApiUrl)
+          ? async () => {
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/optimization/algorithms`, { timeout: 25000 });
+              return fallbackRes.data;
+            }
+          : undefined,
+      }
+    );
   },
 
   runOptimization: async (params: any, signal?: AbortSignal): Promise<OptimizationResponse> => {

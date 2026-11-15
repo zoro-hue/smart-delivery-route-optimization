@@ -23,7 +23,16 @@ export const App: React.FC = () => {
     } catch {}
   };
 
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [datasets, setDatasets] = useState<Dataset[]>(() => {
+    try {
+      const cached = localStorage.getItem('routeiq_cached_datasets');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
   const [isDatasetsLoading, setIsDatasetsLoading] = useState<boolean>(true);
   const [datasetsError, setDatasetsError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
@@ -42,6 +51,8 @@ export const App: React.FC = () => {
 
   const refreshData = async () => {
     setIsRefreshing(true);
+    setIsDatasetsLoading(true);
+    setDatasetsError(null);
     try {
       const [ds, an, hl] = await Promise.allSettled([
         api.getDatasets(),
@@ -52,6 +63,9 @@ export const App: React.FC = () => {
       if (ds.status === 'fulfilled') {
         setDatasets(ds.value);
         setDatasetsError(null);
+        try {
+          localStorage.setItem('routeiq_cached_datasets', JSON.stringify(ds.value));
+        } catch {}
       } else {
         const msg = ds.reason?.response?.data?.detail || ds.reason?.message || 'Failed to load datasets';
         setDatasetsError(msg);
@@ -148,6 +162,7 @@ export const App: React.FC = () => {
               onScanDatasets={handleScanWorkspace}
               isScanning={isScanning}
               isLoading={isDatasetsLoading}
+              isRefreshing={isRefreshing}
               error={datasetsError}
             />
           </ErrorBoundary>
