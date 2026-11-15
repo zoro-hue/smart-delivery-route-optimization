@@ -569,7 +569,12 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         }));
 
         // Terminal state check
-        if (statusRes.status === 'COMPLETED' || statusRes.status === 'FAILED' || statusRes.status === 'CANCELLED') {
+        if (
+          statusRes.status === 'COMPLETED' ||
+          statusRes.status === 'FAILED' ||
+          statusRes.status === 'CANCELLED' ||
+          statusRes.status === 'INTERRUPTED'
+        ) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setIsComparing(false);
@@ -592,6 +597,11 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           } else if (statusRes.status === 'CANCELLED') {
             setFeedbackMessage('Optimization stopped by user.');
             setTimeout(() => setFeedbackMessage(null), 4000);
+          } else if (statusRes.status === 'INTERRUPTED') {
+            setFeedbackMessage(
+              'Optimization was interrupted by a server restart. Displaying available results.'
+            );
+            setTimeout(() => setFeedbackMessage(null), 8000);
           } else if (statusRes.status === 'FAILED') {
             setValidationError(`Optimization job failed: ${statusRes.error || 'Solver failure'}`);
             setTimeout(() => setValidationError(null), 8000);
@@ -600,8 +610,21 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       } catch (pollErr: any) {
         consecutiveErrors++;
         console.warn(`Job status poll warning (attempt ${consecutiveErrors}):`, pollErr);
-        if (consecutiveErrors >= 6) {
+        if (consecutiveErrors >= 6 && consecutiveErrors < 10) {
           setValidationError('Backend network connection slow or interrupted. Continuing to poll...');
+        } else if (consecutiveErrors >= 10) {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+          setIsComparing(false);
+          setActiveJobId(null);
+          activeJobIdRef.current = null;
+          try {
+            localStorage.removeItem('routeiq_active_job_id');
+          } catch {}
+          setValidationError(
+            'Optimization polling timed out after repeated connection interruptions. You can run optimization again.'
+          );
+          setTimeout(() => setValidationError(null), 10000);
         }
       }
     }, 1200);

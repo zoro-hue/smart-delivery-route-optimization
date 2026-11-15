@@ -238,7 +238,26 @@ async def get_optimization_algorithms():
 
 # ─── Optimization Helper Functions & Job Architecture ─────────────
 
+import psutil
+
+def _get_process_memory_mb() -> float:
+    try:
+        return round(psutil.Process().memory_info().rss / (1024 * 1024), 2)
+    except Exception:
+        return 0.0
+
 _active_jobs: Dict[str, Dict[str, Any]] = {}
+_MAX_ACTIVE_JOBS = 5
+_job_semaphore = asyncio.Semaphore(1)
+
+
+def _evict_old_active_jobs():
+    """Keep in-memory active jobs bounded to prevent monotonically growing heap allocations."""
+    if len(_active_jobs) > _MAX_ACTIVE_JOBS:
+        sorted_keys = sorted(_active_jobs.keys(), key=lambda k: _active_jobs[k].get("created_at", 0))
+        to_evict = sorted_keys[: len(_active_jobs) - _MAX_ACTIVE_JOBS]
+        for ek in to_evict:
+            _active_jobs.pop(ek, None)
 
 
 def _prepare_optimization_problem(req: OptimizationRequest):
@@ -840,149 +859,157 @@ async def _run_background_solvers_for_job(
     route_geometry_cache: Dict[Tuple[int, ...], List[Dict[str, Any]]],
 ):
     """Progressive background solver worker executing remaining comparison algorithms."""
-    job = _active_jobs.get(job_id)
-    if not job:
-        return
+    async with _job_semaphore:
+        job = _active_jobs.get(job_id)
+        if not job:
+            return
 
-    remaining_algos = [a for a in to_run if a != primary_algo]
-    for algo in remaining_algos:
-        if job.get("is_cancelled"):
-            logger.info(f"Job {job_id} cancelled by user. Terminating remaining solvers.")
-            for rem in remaining_algos:
-                if job["solver_statuses"].get(rem) == "pending":
-                    job["solver_statuses"][rem] = "cancelled"
-            job["status"] = "CANCELLED"
+        remaining_algos = [a for a in to_run if a != primary_algo]
+        for algo in remaining_algos:
+            if job.get("is_cancelled"):
+                logger.info(f"Job {job_id} cancelled by user. Terminating remaining solvers.")
+                for rem in remaining_algos:
+                    if job["solver_statuses"].get(rem) == "pending":
+                        job["solver_statuses"][rem] = "cancelled"
+                job["status"] = "CANCELLED"
+                job["updated_at"] = time.time()
+                break
+
+            job["solver_statuses"][algo] = "running"
             job["updated_at"] = time.time()
-            break
+            # Yield to event loop so status polling requests are served with sub-5ms latency
+            await asyncio.sleep(0.05)
 
-        job["solver_statuses"][algo] = "running"
-        job["updated_at"] = time.time()
-        # Yield to event loop so status polling requests are served with sub-5ms latency
-        await asyncio.sleep(0.05)
-
-        try:
-            if algo == "qaoa":
-                # Timeout safeguard: max 3.5s for QAOA statevector simulation
-                try:
-                    algo_res = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            _solve_single_algo,
-                            algo, n, num_vehicles, vehicle_capacity,
-                            classical_time_limit_sec, qaoa_depth, qaoa_shots,
-                            qaoa_optimizer, qaoa_penalty, random_seed,
-                            locations, demands_int, capacities, adjusted_matrix,
-                            objective_weights, snapped_node_ids, road_warnings,
-                            route_geometry_cache
-                        ),
-                        timeout=3.5
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning(f"QAOA statevector simulation timed out after 3.5s for job {job_id}")
-                    algo_res = {
-                        "success": False,
-                        "error": "QAOA statevector CPU simulation timed out (3.5s deadline)",
-                        "routes": [],
-                        "status": "FAILED",
-                        "execution_time_sec": 3.5,
-                        "total_distance_km": 0.0,
-                        "total_travel_time_min": 0.0,
-                        "total_objective_cost": 0.0,
-                        "capacity_violations": 0,
-                        "unserved_customers": n - 1,
-                        "served_customers": 0,
-                        "is_feasible": False,
-                        "algorithm": "qaoa",
-                        "algorithm_name": "QAOA Hybrid",
-                        "category": "quantum_hybrid",
-                        "category_label": "Quantum-Classical Simulation",
-                        "compute_type": "QAOA with Qiskit Aer/statevector CPU simulation",
-                    }
-            else:
-                algo_res = await asyncio.to_thread(
-                    _solve_single_algo,
-                    algo, n, num_vehicles, vehicle_capacity,
-                    classical_time_limit_sec, qaoa_depth, qaoa_shots,
-                    qaoa_optimizer, qaoa_penalty, random_seed,
-                    locations, demands_int, capacities, adjusted_matrix,
-                    objective_weights, snapped_node_ids, road_warnings,
-                    route_geometry_cache
-                )
-
-            job["results"][algo] = algo_res
-            job["solver_statuses"][algo] = "completed" if algo_res.get("is_feasible", False) else (algo_res.get("status") or "completed")
-            job["completed_algorithms"] += 1
-
-        except Exception as exc:
-            logger.error(f"Solver {algo} raised exception in background job {job_id}: {exc}")
-            job["results"][algo] = {
-                "success": False,
-                "error": str(exc),
-                "routes": [],
-                "status": "FAILED",
-                "execution_time_sec": 0.0,
-                "total_distance_km": 0.0,
-                "total_travel_time_min": 0.0,
-                "total_objective_cost": 0.0,
-                "capacity_violations": 0,
-                "unserved_customers": n - 1,
-                "served_customers": 0,
-                "is_feasible": False,
-                "algorithm": algo,
-                "algorithm_name": algo.upper(),
-            }
-            job["solver_statuses"][algo] = "failed"
-            job["solver_errors"][algo] = str(exc)
-            job["completed_algorithms"] += 1
-        finally:
-            gc.collect()
-
-        # Update comparison summary incrementally after each finished algorithm
-        job["comparison_summary"] = _build_comparison_summary(
-            to_run, job["results"], total_cust_demand, total_fleet_capacity, n
-        )
-        job["updated_at"] = time.time()
-        # Yield to event loop
-        await asyncio.sleep(0.05)
-
-    if not job.get("is_cancelled"):
-        job["status"] = "COMPLETED"
-        job["completed_at"] = time.time()
-        job["updated_at"] = time.time()
-
-    # Persist in DB
-    try:
-        from app.db.session import async_session_factory
-        async with async_session_factory() as session:
-            exp_stmt = select(Experiment).where(Experiment.id == experiment_id)
-            exp_res = await session.execute(exp_stmt)
-            exp = exp_res.scalar_one_or_none()
-            if exp:
-                exp.status = job["status"]
-                await session.flush()
-                for a_name, a_res in job["results"].items():
-                    if a_name == "classical" and "ortools" in job["results"]:
-                        continue
+            try:
+                if algo == "qaoa":
+                    # Timeout safeguard: max 3.5s for QAOA statevector simulation
                     try:
-                        er = ExperimentResult(
-                            experiment_id=exp.id,
-                            algorithm=a_name,
-                            total_distance_km=a_res.get("total_distance_km", 0),
-                            total_travel_time_min=a_res.get("total_travel_time_min", 0),
-                            total_objective_cost=a_res.get("total_objective_cost", 0),
-                            execution_time_sec=a_res.get("execution_time_sec", 0),
-                            is_feasible=a_res.get("is_feasible", False),
-                            capacity_violations=a_res.get("capacity_violations", 0),
-                            unserved_customers=a_res.get("unserved_customers", 0),
-                            routes=a_res.get("routes", []),
-                            solver_log=a_res.get("solver_log", ""),
-                            warnings=a_res.get("warnings", []),
+                        algo_res = await asyncio.wait_for(
+                            asyncio.to_thread(
+                                _solve_single_algo,
+                                algo, n, num_vehicles, vehicle_capacity,
+                                classical_time_limit_sec, qaoa_depth, qaoa_shots,
+                                qaoa_optimizer, qaoa_penalty, random_seed,
+                                locations, demands_int, capacities, adjusted_matrix,
+                                objective_weights, snapped_node_ids, road_warnings,
+                                route_geometry_cache
+                            ),
+                            timeout=3.5
                         )
-                        session.add(er)
-                    except Exception:
-                        pass
-                await session.commit()
-    except Exception as db_err:
-        logger.warning(f"Could not persist job results to database: {db_err}")
+                    except asyncio.TimeoutError:
+                        logger.warning(f"QAOA statevector simulation timed out after 3.5s for job {job_id}")
+                        algo_res = {
+                            "success": False,
+                            "error": "QAOA statevector CPU simulation timed out (3.5s deadline)",
+                            "routes": [],
+                            "status": "FAILED",
+                            "execution_time_sec": 3.5,
+                            "total_distance_km": 0.0,
+                            "total_travel_time_min": 0.0,
+                            "total_objective_cost": 0.0,
+                            "capacity_violations": 0,
+                            "unserved_customers": n - 1,
+                            "served_customers": 0,
+                            "is_feasible": False,
+                            "algorithm": "qaoa",
+                            "algorithm_name": "QAOA Hybrid",
+                            "category": "quantum_hybrid",
+                            "category_label": "Quantum-Classical Simulation",
+                            "compute_type": "QAOA with Qiskit Aer/statevector CPU simulation",
+                        }
+                else:
+                    algo_res = await asyncio.to_thread(
+                        _solve_single_algo,
+                        algo, n, num_vehicles, vehicle_capacity,
+                        classical_time_limit_sec, qaoa_depth, qaoa_shots,
+                        qaoa_optimizer, qaoa_penalty, random_seed,
+                        locations, demands_int, capacities, adjusted_matrix,
+                        objective_weights, snapped_node_ids, road_warnings,
+                        route_geometry_cache
+                    )
+
+                job["results"][algo] = algo_res
+                job["solver_statuses"][algo] = "completed" if algo_res.get("is_feasible", False) else (algo_res.get("status") or "completed")
+                job["completed_algorithms"] += 1
+
+            except Exception as exc:
+                logger.error(f"Solver {algo} raised exception in background job {job_id}: {exc}")
+                job["results"][algo] = {
+                    "success": False,
+                    "error": str(exc),
+                    "routes": [],
+                    "status": "FAILED",
+                    "execution_time_sec": 0.0,
+                    "total_distance_km": 0.0,
+                    "total_travel_time_min": 0.0,
+                    "total_objective_cost": 0.0,
+                    "capacity_violations": 0,
+                    "unserved_customers": n - 1,
+                    "served_customers": 0,
+                    "is_feasible": False,
+                    "algorithm": algo,
+                    "algorithm_name": algo.upper(),
+                }
+                job["solver_statuses"][algo] = "failed"
+                job["solver_errors"][algo] = str(exc)
+                job["completed_algorithms"] += 1
+            finally:
+                gc.collect()
+                curr_rss = _get_process_memory_mb()
+                if curr_rss > 380.0:
+                    logger.info(f"Memory threshold exceeded ({curr_rss} MB > 380 MB). Evicting transient road caches.")
+                    road_network_service.clear_transient_caches()
+                    gc.collect()
+
+            # Update comparison summary incrementally after each finished algorithm
+            job["comparison_summary"] = _build_comparison_summary(
+                to_run, job["results"], total_cust_demand, total_fleet_capacity, n
+            )
+            job["updated_at"] = time.time()
+            # Yield to event loop
+            await asyncio.sleep(0.05)
+
+        if not job.get("is_cancelled"):
+            job["status"] = "COMPLETED"
+            job["completed_at"] = time.time()
+            job["updated_at"] = time.time()
+
+        # Persist in DB
+        try:
+            from app.db.session import async_session_factory
+            async with async_session_factory() as session:
+                exp_stmt = select(Experiment).where(Experiment.id == experiment_id)
+                exp_res = await session.execute(exp_stmt)
+                exp = exp_res.scalar_one_or_none()
+                if exp:
+                    exp.status = job["status"]
+                    await session.flush()
+                    for a_name, a_res in job["results"].items():
+                        if a_name == "classical" and "ortools" in job["results"]:
+                            continue
+                        try:
+                            er = ExperimentResult(
+                                experiment_id=exp.id,
+                                algorithm=a_name,
+                                total_distance_km=a_res.get("total_distance_km", 0),
+                                total_travel_time_min=a_res.get("total_travel_time_min", 0),
+                                total_objective_cost=a_res.get("total_objective_cost", 0),
+                                execution_time_sec=a_res.get("execution_time_sec", 0),
+                                is_feasible=a_res.get("is_feasible", False),
+                                capacity_violations=a_res.get("capacity_violations", 0),
+                                unserved_customers=a_res.get("unserved_customers", 0),
+                                routes=a_res.get("routes", []),
+                                solver_log=a_res.get("solver_log", ""),
+                                warnings=a_res.get("warnings", []),
+                            )
+                            session.add(er)
+                        except Exception:
+                            pass
+                    await session.commit()
+        except Exception as db_err:
+            logger.warning(f"Could not persist job results to database: {db_err}")
+
+        _evict_old_active_jobs()
 
 
 # ─── Optimization Job Endpoints ──────────────────────────────────
@@ -1096,6 +1123,7 @@ async def start_optimization_job(
         "error": None,
     }
     _active_jobs[job_id] = job_record
+    _evict_old_active_jobs()
 
     # If comparison suite, launch progressive background worker
     if not is_single:
@@ -1170,18 +1198,30 @@ async def get_optimization_job_status(
     to_run = exp.algorithm.split(",") if exp.algorithm else list(results.keys())
     statuses = {a: "completed" for a in results.keys()}
 
+    exp_status = (exp.status or "COMPLETED").upper()
+
     return {
         "job_id": job_id,
         "experiment_id": exp.id,
-        "status": exp.status.upper() if exp.status else "COMPLETED",
+        "status": exp_status,
+        "selection_mode": "compare",
+        "selected_algorithms": to_run,
         "primary_algorithm": to_run[0] if to_run else "ortools",
         "completed_algorithms": len(results),
         "total_algorithms": len(to_run),
         "solver_statuses": statuses,
         "solver_errors": {},
         "results": results,
-        "is_cancelled": exp.status == "cancelled",
-        "error": exp.error_message,
+        "comparison_summary": _build_comparison_summary(to_run, results, 0, 0, exp.num_customers or 19) if results else {},
+        "problem": {
+            "num_customers": exp.num_customers,
+            "num_vehicles": exp.num_vehicles,
+            "depot_lat": exp.depot_lat,
+            "depot_lon": exp.depot_lon,
+            "vehicle_capacity": exp.vehicle_capacity,
+        },
+        "is_cancelled": exp_status == "CANCELLED",
+        "error": exp.error_message or ("Process interrupted by server restart" if exp_status == "INTERRUPTED" else None),
         "elapsed_sec": 0.0,
     }
 
@@ -1405,7 +1445,7 @@ async def get_delivery_stops(limit: int = 50):
 
     if data_processor.customers_df is not None and len(data_processor.customers_df) > 0:
         total_rows = len(data_processor.customers_df)
-        df = data_processor.customers_df.copy()
+        df = data_processor.customers_df.head(max(limit * 3, 200)).copy()
         if 'latitude' not in df.columns or df['latitude'].isna().all() or ('coordinates_source' in df.columns and df['coordinates_source'].iloc[0] == 'estimated'):
             df = data_processor.assign_coordinates_to_customers(df, data_processor.locations_df)
 

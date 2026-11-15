@@ -50,6 +50,25 @@ async def lifespan(app: FastAPI):
         from app.db.session import async_session_factory
         async with async_session_factory() as session:
             await seed_bundled_datasets(session)
+
+            # Recover interrupted jobs from potential prior crash / OOM restart
+            try:
+                from app.db.models import Experiment
+                from sqlalchemy import update
+                stmt = (
+                    update(Experiment)
+                    .where(Experiment.status.in_(["running", "partial", "pending", "RUNNING", "PARTIAL", "PENDING"]))
+                    .values(
+                        status="INTERRUPTED",
+                        error_message="Job was interrupted by a server restart or memory limit recovery event."
+                    )
+                )
+                res = await session.execute(stmt)
+                await session.commit()
+                if res.rowcount > 0:
+                    logger.warning(f"Recovered {res.rowcount} interrupted job(s) from prior session and marked status as 'INTERRUPTED'.")
+            except Exception as rec_err:
+                logger.warning(f"Non-fatal error during job recovery on startup: {rec_err}")
     except Exception as e:
         logger.error(f"Database initialization error: {e}")
 
@@ -136,6 +155,30 @@ async def health_check():
         "qiskit_compute_mode": "CPU Statevector Simulation (Qiskit Aer / Reference Simulator)",
         "qiskit_qpu_connected": False,
         "database": "sqlite" if not settings.USE_POSTGRES else "postgresql",
+    }
+
+
+@app.get("/api/system/memory", tags=["Telemetry"])
+async def memory_telemetry():
+    """Real-time process memory telemetry for production monitoring."""
+    import psutil
+    from app.services.road_network_service import road_network_service
+    proc = psutil.Process()
+    mem_info = proc.memory_info()
+    rss_mb = round(mem_info.rss / (1024 * 1024), 2)
+    vms_mb = round(mem_info.vms / (1024 * 1024), 2)
+    return {
+        "process_rss_mb": rss_mb,
+        "process_vms_mb": vms_mb,
+        "render_memory_limit_mb": 512.0,
+        "render_headroom_mb": round(512.0 - rss_mb, 2),
+        "road_network_loaded": road_network_service.is_ready(),
+        "transient_caches": {
+            "snap_cache_size": len(road_network_service._snap_cache),
+            "path_cache_size": len(road_network_service._path_cache),
+            "geom_cache_size": len(road_network_service._geom_cache),
+            "dist_cache_size": len(road_network_service._dist_cache),
+        }
     }
 
 

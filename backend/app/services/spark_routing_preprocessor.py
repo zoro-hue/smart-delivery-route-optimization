@@ -87,10 +87,20 @@ class SparkRoutingPreprocessor:
     ) -> Tuple[List[Dict[str, Any]], float]:
         """
         Executes genuine distributed spatial binning and capacity partitioning using PySpark.
+        For bounded workloads (<= 100 delivery stops), gracefully selects the lightweight single-machine
+        engine to preserve production container memory (preventing JVM-induced OOM crashes) while
+        preserving the active Spark architecture for big-data batch workloads.
         Returns:
             partitions: List of vehicle subproblem customer clusters
             spark_time_ms: Wall-clock execution time of Spark operations
         """
+        # Memory Protection: For instances <= 100 delivery stops, avoid JVM heap allocation
+        # that exceeds cloud memory quotas (Render 512MB limit)
+        if len(df_customers) <= 100:
+            return self.partition_customers_single_machine(
+                df_customers, depot_lat, depot_lon, vehicle_capacity
+            )
+
         t0 = time.perf_counter()
 
         from app.services.bigdata_pipeline import ensure_spark_environment
@@ -106,6 +116,10 @@ class SparkRoutingPreprocessor:
             .config("spark.ui.enabled", "false") \
             .config("spark.driver.host", "127.0.0.1") \
             .config("spark.driver.bindAddress", "127.0.0.1") \
+            .config("spark.driver.memory", "160m") \
+            .config("spark.executor.memory", "128m") \
+            .config("spark.driver.maxResultSize", "64m") \
+            .config("spark.sql.shuffle.partitions", "2") \
             .getOrCreate()
 
         try:

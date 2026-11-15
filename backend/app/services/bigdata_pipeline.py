@@ -185,6 +185,10 @@ class BigDataPipelineService:
             .config("spark.ui.enabled", "false") \
             .config("spark.driver.host", "127.0.0.1") \
             .config("spark.driver.bindAddress", "127.0.0.1") \
+            .config("spark.driver.memory", "160m") \
+            .config("spark.executor.memory", "128m") \
+            .config("spark.driver.maxResultSize", "64m") \
+            .config("spark.sql.shuffle.partitions", "2") \
             .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
             .config("spark.sql.warehouse.dir", warehouse_dir) \
             .getOrCreate()

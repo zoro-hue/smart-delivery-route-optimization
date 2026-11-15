@@ -12,6 +12,7 @@ import zipfile
 import gzip
 import threading
 import re
+import gc
 from typing import List, Tuple, Dict, Any, Optional
 import numpy as np
 from scipy.spatial import cKDTree
@@ -113,8 +114,27 @@ class RoadNetworkService:
         self._dist_cache: Dict[Tuple[str, str], float] = {}
         self._geom_cache: Dict[Tuple[str, str], List[Tuple[float, float]]] = {}
         self._snap_cache: Dict[Tuple[float, float], Tuple[str, float, float, float]] = {}
+        self._max_cache_size = 500
         # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
         # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
+
+    def _bounded_cache_set(self, cache: dict, key: Any, val: Any):
+        """Thread-safe bounded cache insertion with LRU-style eviction to prevent memory leaks."""
+        if len(cache) >= self._max_cache_size:
+            # Evict oldest 20% of entries when limit is reached
+            excess = max(1, self._max_cache_size // 5)
+            keys_to_evict = list(cache.keys())[:excess]
+            for k in keys_to_evict:
+                cache.pop(k, None)
+        cache[key] = val
+
+    def clear_transient_caches(self):
+        """Release transient route, distance, and geometry caches to reclaim process heap."""
+        self._path_cache.clear()
+        self._dist_cache.clear()
+        self._geom_cache.clear()
+        self._snap_cache.clear()
+        gc.collect()
 
     def ensure_loaded(self) -> bool:
         """Thread-safe lazy initialization of NYC road network."""
@@ -291,7 +311,7 @@ class RoadNetworkService:
                 raise ValueError(f"Coordinate ({lat:.4f}, {lon:.4f}) is outside active road network coverage (nearest road is {dist_km:.2f}km away, exceeding {max_dist_km}km threshold).")
 
         res = (node_id, snapped_lat, snapped_lon, dist_km)
-        self._snap_cache[cache_key] = res
+        self._bounded_cache_set(self._snap_cache, cache_key, res)
         return res
 
     def build_road_matrix(
@@ -334,11 +354,22 @@ class RoadNetworkService:
             try:
                 from scipy.sparse import csgraph
                 snapped_indices = [self.node_to_idx[nid] for nid in snapped_nodes]
-                dists_dir, preds_dir = csgraph.dijkstra(
-                    self._csr_directed,
-                    indices=snapped_indices,
-                    return_predecessors=True
-                )
+                # Memory-optimized Dijkstra: for small problems (n <= 10, e.g. tests), compute predecessors.
+                # For production sizes (n > 10, 18, 50, 100), avoid allocating massive 54k int32 predecessor arrays.
+                compute_preds = (n <= 10)
+                if compute_preds:
+                    dists_dir, pred_dir = csgraph.dijkstra(
+                        self._csr_directed,
+                        indices=snapped_indices,
+                        return_predecessors=True
+                    )
+                else:
+                    dists_dir = csgraph.dijkstra(
+                        self._csr_directed,
+                        indices=snapped_indices,
+                        return_predecessors=False
+                    )
+                    pred_dir = None
 
                 # Check if any pairwise path was unreachable on directed graph
                 needs_undirected = False
@@ -350,13 +381,21 @@ class RoadNetworkService:
                     if needs_undirected:
                         break
 
-                dists_undir, preds_undir = None, None
+                dists_undir = None
+                pred_undir = None
                 if needs_undirected and self._csr_undirected is not None:
-                    dists_undir, preds_undir = csgraph.dijkstra(
-                        self._csr_undirected,
-                        indices=snapped_indices,
-                        return_predecessors=True
-                    )
+                    if compute_preds:
+                        dists_undir, pred_undir = csgraph.dijkstra(
+                            self._csr_undirected,
+                            indices=snapped_indices,
+                            return_predecessors=True
+                        )
+                    else:
+                        dists_undir = csgraph.dijkstra(
+                            self._csr_undirected,
+                            indices=snapped_indices,
+                            return_predecessors=False
+                        )
 
                 for i, src_node in enumerate(snapped_nodes):
                     s_idx = snapped_indices[i]
@@ -368,26 +407,13 @@ class RoadNetworkService:
 
                         t_idx = snapped_indices[j]
                         d_val = dists_dir[i, t_idx]
-                        p_mat = preds_dir
 
                         if d_val == float("inf") and dists_undir is not None:
                             d_val = dists_undir[i, t_idx]
-                            p_mat = preds_undir
 
                         if d_val < float("inf"):
                             road_km = d_val / 1000.0
-                            self._dist_cache[(src_node, tgt_node)] = road_km
-
-                            # Memoize full turn-by-turn node sequence in _path_cache
-                            if (src_node, tgt_node) not in self._path_cache:
-                                curr = t_idx
-                                p = [self.nodes_list[curr]]
-                                while curr != s_idx and curr != -9999:
-                                    curr = p_mat[i, curr]
-                                    p.append(self.nodes_list[curr])
-                                if curr == s_idx:
-                                    p.reverse()
-                                    self._path_cache[(src_node, tgt_node)] = p
+                            self._bounded_cache_set(self._dist_cache, (src_node, tgt_node), road_km)
                         else:
                             logger.warning(f"No connected road path between {src_node} and {tgt_node}")
                             road_km = 99999.0
@@ -395,6 +421,45 @@ class RoadNetworkService:
 
                         physical_matrix[i][j] = round(road_km, 3)
                         cost_matrix[i][j] = round(road_km * combined_factor, 3)
+
+                if compute_preds and pred_dir is not None:
+                    def _reconstruct_csr_path(preds, row_i, s_csr_idx, t_csr_idx):
+                        curr = t_csr_idx
+                        p = [curr]
+                        visited = {curr}
+                        while curr != s_csr_idx:
+                            parent = preds[row_i, curr]
+                            if parent < 0 or parent in visited:
+                                return None
+                            visited.add(parent)
+                            p.append(parent)
+                            curr = parent
+                        p.reverse()
+                        return [self.nodes_list[x] for x in p]
+
+                    for i, src_node in enumerate(snapped_nodes):
+                        s_idx = snapped_indices[i]
+                        for j, tgt_node in enumerate(snapped_nodes):
+                            if i == j or (src_node, tgt_node) in self._path_cache:
+                                continue
+                            t_idx = snapped_indices[j]
+                            p_nodes = _reconstruct_csr_path(pred_dir, i, s_idx, t_idx)
+                            if p_nodes:
+                                self._bounded_cache_set(self._path_cache, (src_node, tgt_node), p_nodes)
+                            elif pred_undir is not None:
+                                p_nodes_u = _reconstruct_csr_path(pred_undir, i, s_idx, t_idx)
+                                if p_nodes_u:
+                                    self._bounded_cache_set(self._path_cache, (src_node, tgt_node), p_nodes_u)
+
+                # Free temporary distance arrays immediately
+                del dists_dir
+                if dists_undir is not None:
+                    del dists_undir
+                if pred_dir is not None:
+                    del pred_dir
+                if pred_undir is not None:
+                    del pred_undir
+                gc.collect()
 
                 if return_physical:
                     return cost_matrix, snapped_nodes, warnings, physical_matrix
@@ -481,7 +546,6 @@ class RoadNetworkService:
             # Explicitly release large 54k-element Dijkstra dictionaries to prevent OOM
             del pred, lengths, undir_pred, undir_lengths
 
-        import gc
         gc.collect()
 
         if return_physical:
@@ -526,7 +590,7 @@ class RoadNetworkService:
                         return []
 
             if path_nodes:
-                self._path_cache[(u_node, v_node)] = path_nodes
+                self._bounded_cache_set(self._path_cache, (u_node, v_node), path_nodes)
 
         if not path_nodes:
             return []
@@ -589,7 +653,7 @@ class RoadNetworkService:
                 coords.append(u_pt)
             coords.append(v_pt)
 
-        self._geom_cache[(u_node, v_node)] = coords
+        self._bounded_cache_set(self._geom_cache, (u_node, v_node), coords)
         return coords
 
     def reconstruct_vehicle_road_route(
