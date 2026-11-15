@@ -1,0 +1,362 @@
+[
+  {
+    "run_idx": 1,
+    "job_id": "03a59bae-55b2-4e48-9576-56788d5bf240",
+    "status": "COMPLETED",
+    "init_time_s": 31.52,
+    "total_time_s": 282.69,
+    "rss_before_mb": 552.04,
+    "peak_rss_mb": 563.59,
+    "rss_after_mb": 563.59,
+    "solvers": {
+      "routeiq_cooperative": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "ortools": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "clarke_wright": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "two_opt": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "dijkstra": {
+        "status": "SUCCESS",
+        "distance_km": 95.121,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "astar": {
+        "status": "SUCCESS",
+        "distance_km": 128.77,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "tabu_search": {
+        "status": "SUCCESS",
+        "distance_km": 101.262,
+        "vehicles": 2,
+        "execution_time_s": null
+      },
+      "kernighan_lin": {
+        "status": "SUCCESS",
+        "distance_km": 123.081,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "vnd": {
+        "status": "SUCCESS",
+        "distance_km": 116.157,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "qiga": {
+        "status": "SUCCESS",
+        "distance_km": 254.106,
+        "vehicles": 3,
+        "execution_time_s": null
+      }
+    }
+  },
+  {
+    "run_idx": 2,
+    "job_id": "e9106952-0e13-4df2-a9bc-ad0fa7bf04a7",
+    "status": "PARTIAL",
+    "init_time_s": 27.06,
+    "total_time_s": 125.83,
+    "rss_before_mb": 563.59,
+    "peak_rss_mb": 568.79,
+    "rss_after_mb": 568.79,
+    "solvers": {
+      "routeiq_cooperative": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "ortools": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "clarke_wright": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "two_opt": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "dijkstra": {
+        "status": "SUCCESS",
+        "distance_km": 95.121,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "astar": {
+        "status": "SUCCESS",
+        "distance_km": 128.77,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "tabu_search": {
+        "status": "SUCCESS",
+        "distance_km": 101.262,
+        "vehicles": 2,
+        "execution_time_s": null
+      },
+      "kernighan_lin": {
+        "status": "SUCCESS",
+        "distance_km": 123.081,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "vnd": {
+        "status": "SUCCESS",
+        "distance_km": 116.157,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "qiga": {
+        "status": "SUCCESS",
+        "distance_km": 254.106,
+        "vehicles": 3,
+        "execution_time_s": null
+      }
+    }
+  },
+  {
+    "run_idx": 3,
+    "job_id": "4659411a-b280-44d7-a034-aac3089c7095",
+    "status": "COMPLETED",
+    "init_time_s": 26.57,
+    "total_time_s": 127.99,
+    "rss_before_mb": 568.79,
+    "peak_rss_mb": 569.0,
+    "rss_after_mb": 560.52,
+    "solvers": {
+      "routeiq_cooperative": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "ortools": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "clarke_wright": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "two_opt": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "dijkstra": {
+        "status": "SUCCESS",
+        "distance_km": 95.121,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "astar": {
+        "status": "SUCCESS",
+        "distance_km": 128.77,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "tabu_search": {
+        "status": "SUCCESS",
+        "distance_km": 101.262,
+        "vehicles": 2,
+        "execution_time_s": null
+      },
+      "kernighan_lin": {
+        "status": "SUCCESS",
+        "distance_km": 123.081,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "vnd": {
+        "status": "SUCCESS",
+        "distance_km": 116.157,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "qiga": {
+        "status": "SUCCESS",
+        "distance_km": 254.106,
+        "vehicles": 3,
+        "execution_time_s": null
+      }
+    }
+  },
+  {
+    "run_idx": 4,
+    "job_id": "6b88174f-0391-470d-b9cf-ec3f6a5ed128",
+    "status": "PARTIAL",
+    "init_time_s": 28.96,
+    "total_time_s": 126.24,
+    "rss_before_mb": 560.52,
+    "peak_rss_mb": 560.64,
+    "rss_after_mb": 554.97,
+    "solvers": {
+      "routeiq_cooperative": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "ortools": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "clarke_wright": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "two_opt": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "dijkstra": {
+        "status": "SUCCESS",
+        "distance_km": 95.121,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "astar": {
+        "status": "SUCCESS",
+        "distance_km": 128.77,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "tabu_search": {
+        "status": "SUCCESS",
+        "distance_km": 101.262,
+        "vehicles": 2,
+        "execution_time_s": null
+      },
+      "kernighan_lin": {
+        "status": "SUCCESS",
+        "distance_km": 123.081,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "vnd": {
+        "status": "SUCCESS",
+        "distance_km": 116.157,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "qiga": {
+        "status": "SUCCESS",
+        "distance_km": 254.106,
+        "vehicles": 3,
+        "execution_time_s": null
+      }
+    }
+  },
+  {
+    "run_idx": 5,
+    "job_id": "bd49b734-3422-4022-90fc-2013a67e8623",
+    "status": "COMPLETED",
+    "init_time_s": 26.24,
+    "total_time_s": 162.69,
+    "rss_before_mb": 554.97,
+    "peak_rss_mb": 555.4,
+    "rss_after_mb": 555.41,
+    "solvers": {
+      "routeiq_cooperative": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "ortools": {
+        "status": "SUCCESS",
+        "distance_km": 90.068,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "clarke_wright": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "two_opt": {
+        "status": "SUCCESS",
+        "distance_km": 91.729,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "dijkstra": {
+        "status": "SUCCESS",
+        "distance_km": 95.121,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "astar": {
+        "status": "SUCCESS",
+        "distance_km": 128.77,
+        "vehicles": 1,
+        "execution_time_s": null
+      },
+      "tabu_search": {
+        "status": "SUCCESS",
+        "distance_km": 101.262,
+        "vehicles": 2,
+        "execution_time_s": null
+      },
+      "kernighan_lin": {
+        "status": "SUCCESS",
+        "distance_km": 123.081,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "vnd": {
+        "status": "SUCCESS",
+        "distance_km": 116.157,
+        "vehicles": 3,
+        "execution_time_s": null
+      },
+      "qiga": {
+        "status": "SUCCESS",
+        "distance_km": 254.106,
+        "vehicles": 3,
+        "execution_time_s": null
+      }
+    }
+  }
+]

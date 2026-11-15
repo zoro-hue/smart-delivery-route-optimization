@@ -1010,6 +1010,12 @@ async def _run_background_solvers_for_job(
             logger.warning(f"Could not persist job results to database: {db_err}")
 
         _evict_old_active_jobs()
+        gc.collect()
+        try:
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass
 
 
 # ─── Optimization Job Endpoints ──────────────────────────────────
