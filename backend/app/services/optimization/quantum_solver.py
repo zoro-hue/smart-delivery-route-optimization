@@ -664,7 +664,7 @@ class QuantumVRPSolver:
         log_lines = []
 
         # Bound max_iter for responsive web performance (fast variational evaluation)
-        max_iter = min(max_iter, 2)
+        max_iter = min(max_iter, 1)
 
         # Build QUBO formulation bounded by simulator capacity (<= 8-9 qubits)
         if num_vehicles == 1:
@@ -687,7 +687,7 @@ class QuantumVRPSolver:
         # Run QAOA
         try:
             qaoa_result = self.qaoa.solve_qaoa(
-                qubo, nq, meta, p=p, shots=min(shots, 512),
+                qubo, nq, meta, p=p, shots=min(shots, 128),
                 optimizer_name=optimizer_name, random_seed=random_seed, max_iter=max_iter
             )
         except Exception as q_err:

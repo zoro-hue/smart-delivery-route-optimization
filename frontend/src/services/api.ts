@@ -171,9 +171,20 @@ export const api = {
     return res.data;
   },
 
-  getJobStatus: async (jobId: string, signal?: AbortSignal): Promise<any> => {
-    const res = await http.get(`/optimization/jobs/${jobId}/status`, { signal });
-    return res.data;
+  getJobStatus: async (jobId: string, signal?: AbortSignal, maxRetries = 4): Promise<any> => {
+    let attempt = 0;
+    while (attempt <= maxRetries) {
+      try {
+        const res = await http.get(`/optimization/jobs/${jobId}/status`, { signal, timeout: 25000 });
+        return res.data;
+      } catch (err: any) {
+        attempt++;
+        if (attempt > maxRetries || axios.isCancel(err) || signal?.aborted) {
+          throw err;
+        }
+        await new Promise((r) => setTimeout(r, Math.min(attempt * 800, 2500)));
+      }
+    }
   },
 
   cancelOptimizationJob: async (jobId: string): Promise<any> => {

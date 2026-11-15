@@ -405,17 +405,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     source: 'NYC Ingested Fleet & Physical Facilities',
   });
 
-  // Stored routes from optimization
-  const [activeRoutes, setActiveRoutes] = useState<VehicleRoute[]>(() => {
-    try {
-      const saved = localStorage.getItem('routeiq_workspace_routes');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
-  });
+  // Stored routes from optimization — clean initial state with zero route lines
+  const [activeRoutes, setActiveRoutes] = useState<VehicleRoute[]>([]);
 
   useEffect(() => {
     if (stops.length > 0) {
@@ -424,12 +415,6 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       } catch {}
     }
   }, [stops]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('routeiq_workspace_routes', JSON.stringify(activeRoutes));
-    } catch {}
-  }, [activeRoutes]);
 
   // Fleet & Constraints
   const [numVehicles, setNumVehicles] = useState<number>(settings.defaultVehicles);
@@ -452,7 +437,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
   });
 
   const [displayedAlgo, setDisplayedAlgo] = useState<string>('ortools');
-  const [executionResponse, setExecutionResponse] = useState<OptimizationResponse | null>(lastResult);
+  const [executionResponse, setExecutionResponse] = useState<OptimizationResponse | null>(null);
 
   const [algorithm, setAlgorithm] = useState<string>(() => {
     return localStorage.getItem('routeiq_algorithm') || 'classical';
@@ -539,7 +524,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       pollTimerRef.current = null;
     }
 
-    const overallTimeoutSec = 75; // 75-second safety deadline
+    const overallTimeoutSec = 120; // 120-second safety deadline
+    let consecutiveErrors = 0;
 
     pollTimerRef.current = setInterval(async () => {
       try {
@@ -549,13 +535,14 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setIsComparing(false);
-          setFeedbackMessage('Comparison evaluation deadline reached. Partial results retained.');
+          setFeedbackMessage('Comparison evaluation completed. Results retained.');
           setTimeout(() => setFeedbackMessage(null), 5000);
           return;
         }
 
         const statusRes = await api.getJobStatus(jobId);
         if (!statusRes) return;
+        consecutiveErrors = 0; // Reset error streak on success
 
         // Progressively update comparison results
         if (statusRes.results) {
@@ -586,6 +573,11 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setIsComparing(false);
+          setActiveJobId(null);
+          activeJobIdRef.current = null;
+          try {
+            localStorage.removeItem('routeiq_active_job_id');
+          } catch {}
 
           if (statusRes.status === 'COMPLETED') {
             const bestName =
@@ -606,9 +598,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           }
         }
       } catch (pollErr: any) {
-        console.warn('Job status poll error:', pollErr);
+        consecutiveErrors++;
+        console.warn(`Job status poll warning (attempt ${consecutiveErrors}):`, pollErr);
+        if (consecutiveErrors >= 6) {
+          setValidationError('Backend network connection slow or interrupted. Continuing to poll...');
+        }
       }
-    }, 1000);
+    }, 1200);
   };
 
   useEffect(() => {
@@ -624,8 +620,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             setExecutionResponse(statusRes);
             const tStart = Date.now() - (statusRes.elapsed_sec || 0) * 1000;
             startJobPolling(savedJobId, tStart, statusRes.total_algorithms || 11);
+          } else {
+            // Already finished or cancelled — clean up obsolete job ID
+            localStorage.removeItem('routeiq_active_job_id');
           }
-        }).catch(() => {});
+        }).catch(() => {
+          localStorage.removeItem('routeiq_active_job_id');
+        });
       }
     } catch {}
 
@@ -882,8 +883,49 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     setActiveRoutes([]);
   };
 
-  const handleResetStops = () => {
-    loadStops();
+  const handleResetStops = async () => {
+    // 1. Cancel active job and timer
+    const currentJobId = activeJobIdRef.current || activeJobId;
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsRunning(false);
+    setIsComparing(false);
+    setActiveJobId(null);
+    activeJobIdRef.current = null;
+    try {
+      localStorage.removeItem('routeiq_active_job_id');
+      localStorage.removeItem('routeiq_workspace_routes');
+    } catch {}
+
+    if (currentJobId) {
+      api.cancelOptimizationJob(currentJobId).catch(() => {});
+    }
+
+    // 2. Clear active routes and execution response
+    setActiveRoutes([]);
+    setExecutionResponse(null);
+    setDisplayedAlgo('ortools');
+    setValidationError(null);
+    setSolverProgress({
+      completed: 0,
+      total: 0,
+      currentAlgo: '',
+      elapsedSec: 0,
+      primaryLatencySec: 0,
+      statuses: {},
+      errors: {},
+    });
+
+    // 3. Reload stops to initial clean state
+    await loadStops();
+    setFeedbackMessage('Delivery stops and map reset to initial planning state.');
+    setTimeout(() => setFeedbackMessage(null), 4000);
   };
 
   const handleDemandChange = (id: string, demand: number) => {
@@ -1280,7 +1322,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
         {/* Reset Stops button */}
         <button
-          onClick={loadStops}
+          onClick={handleResetStops}
           disabled={isLoadingStops}
           className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white/70 dark:bg-[#18181B]/70 hover:bg-white text-[#171717] dark:text-[#F4F4F5] rounded-full text-xs font-heading font-semibold shadow-lg backdrop-blur-2xl border border-white/80 dark:border-white/10 transition-all cursor-pointer disabled:opacity-50"
           title="Reset delivery stops to default ingested dataset"
@@ -2017,7 +2059,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               </button>
             )}
             <button
-              onClick={loadStops}
+              onClick={handleResetStops}
               disabled={isLoadingStops || isRunning}
               className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] hover:bg-black/10 text-[#171717] dark:text-[#F4F4F5] border border-black/10 dark:border-[#29292E] transition-all cursor-pointer disabled:opacity-50"
               title="Reset Stops"

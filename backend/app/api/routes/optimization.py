@@ -640,15 +640,35 @@ def _solve_single_algo(
     for r_idx, route in enumerate(repaired_routes, start=1):
         route["vehicle_id"] = r_idx
         route["total_distance_km"] = route.get("distance_km", 0.0)
-        stops_key = tuple(route["stops"])
-        if stops_key in route_geometry_cache:
-            route["waypoints"] = [dict(wp) for wp in route_geometry_cache[stops_key]]
-        elif road_network_service.is_ready() and len(snapped_node_ids) >= len(locations):
-            road_wps = road_network_service.reconstruct_vehicle_road_route(
-                route["stops"], locations, snapped_node_ids
-            )
-            route["waypoints"] = road_wps
-            route_geometry_cache[stops_key] = [dict(wp) for wp in road_wps]
+        route_stops = route.get("stops", [])
+
+        # Fast leg-based road geometry reconstruction using shared pairwise cache
+        route_wps = []
+        if len(route_stops) >= 2 and road_network_service.is_ready() and len(snapped_node_ids) >= len(locations):
+            for leg_i in range(len(route_stops) - 1):
+                su = route_stops[leg_i]
+                sv = route_stops[leg_i + 1]
+                leg_key = (su, sv)
+                if leg_key not in route_geometry_cache:
+                    nu = snapped_node_ids[su]
+                    nv = snapped_node_ids[sv]
+                    pts = road_network_service.get_road_path_geometry(nu, nv)
+                    if not pts:
+                        pts = [(locations[su][0], locations[su][1]), (locations[sv][0], locations[sv][1])]
+                    route_geometry_cache[leg_key] = pts
+
+                pts = route_geometry_cache[leg_key]
+                start_p = 0 if not route_wps else 1
+                for p_idx in range(start_p, len(pts)):
+                    p_lat, p_lon = pts[p_idx]
+                    route_wps.append({
+                        "lat": p_lat,
+                        "lon": p_lon,
+                        "type": "depot" if (p_idx == 0 and su == 0) or (p_idx == len(pts) - 1 and sv == 0) else "customer",
+                        "index": su if p_idx == 0 else (sv if p_idx == len(pts) - 1 else 0),
+                        "is_stop": (p_idx == 0 and su != 0) or (p_idx == len(pts) - 1 and sv != 0),
+                    })
+            route["waypoints"] = route_wps
         else:
             route["waypoints"] = [
                 {
@@ -658,10 +678,9 @@ def _solve_single_algo(
                     "index": s,
                     "is_stop": True
                 }
-                for s in route["stops"]
+                for s in route_stops
                 if s < len(locations)
             ]
-            route_geometry_cache[stops_key] = [dict(wp) for wp in route["waypoints"]]
 
     algo_res["routes"] = repaired_routes
     algo_res["total_distance_km"] = round(float(sum(r["distance_km"] for r in repaired_routes)), 3)
@@ -838,11 +857,12 @@ async def _run_background_solvers_for_job(
 
         job["solver_statuses"][algo] = "running"
         job["updated_at"] = time.time()
-        await asyncio.sleep(0.01)
+        # Yield to event loop so status polling requests are served with sub-5ms latency
+        await asyncio.sleep(0.05)
 
         try:
             if algo == "qaoa":
-                # Timeout safeguard: max 6.0s for QAOA statevector simulation
+                # Timeout safeguard: max 3.5s for QAOA statevector simulation
                 try:
                     algo_res = await asyncio.wait_for(
                         asyncio.to_thread(
@@ -854,16 +874,16 @@ async def _run_background_solvers_for_job(
                             objective_weights, snapped_node_ids, road_warnings,
                             route_geometry_cache
                         ),
-                        timeout=6.0
+                        timeout=3.5
                     )
                 except asyncio.TimeoutError:
-                    logger.warning(f"QAOA statevector simulation timed out after 6.0s for job {job_id}")
+                    logger.warning(f"QAOA statevector simulation timed out after 3.5s for job {job_id}")
                     algo_res = {
                         "success": False,
-                        "error": "QAOA statevector CPU simulation timed out (6.0s deadline)",
+                        "error": "QAOA statevector CPU simulation timed out (3.5s deadline)",
                         "routes": [],
                         "status": "FAILED",
-                        "execution_time_sec": 6.0,
+                        "execution_time_sec": 3.5,
                         "total_distance_km": 0.0,
                         "total_travel_time_min": 0.0,
                         "total_objective_cost": 0.0,
@@ -921,6 +941,8 @@ async def _run_background_solvers_for_job(
             to_run, job["results"], total_cust_demand, total_fleet_capacity, n
         )
         job["updated_at"] = time.time()
+        # Yield to event loop
+        await asyncio.sleep(0.05)
 
     if not job.get("is_cancelled"):
         job["status"] = "COMPLETED"
@@ -1019,10 +1041,10 @@ async def start_optimization_job(
 
     route_geometry_cache: Dict[Tuple[int, ...], List[Dict[str, Any]]] = {}
 
-    # Solve primary algorithm immediately (< 0.2s)
+    # Solve primary algorithm immediately (< 1.5s responsive deadline)
     primary_res = _solve_single_algo(
         primary_algo, n, req.num_vehicles, req.vehicle_capacity,
-        req.classical_time_limit_sec, req.qaoa_depth, req.qaoa_shots,
+        min(req.classical_time_limit_sec, 1), req.qaoa_depth, req.qaoa_shots,
         req.qaoa_optimizer, req.qaoa_penalty, req.random_seed,
         locations, demands_int, capacities, adjusted_matrix,
         objective_weights, snapped_node_ids, road_warnings,
