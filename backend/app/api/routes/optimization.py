@@ -341,8 +341,6 @@ def _resolve_algorithms_to_run(req: OptimizationRequest, n: int) -> Tuple[List[s
             to_run = list(req.selected_algorithms)
         else:
             to_run = [a["id"] for a in AVAILABLE_ALGORITHMS]
-            if n > 9 and "qaoa" in to_run:
-                to_run.remove("qaoa")
     elif mode in ("custom", "single", "individual"):
         if req.selected_algorithms and len(req.selected_algorithms) > 0:
             to_run = list(req.selected_algorithms)
@@ -813,16 +811,45 @@ def _build_comparison_summary(
 def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
     """Format an active in-memory job into a JSON status response."""
     elapsed = round(time.time() - job["created_at"], 2) if "created_at" in job else 0.0
+    solver_statuses = job.get("solver_statuses", {})
+    to_run = job.get("selected_algorithms", [])
+    total = len(to_run) if to_run else job.get("total_algorithms", 0)
+
+    completed_count = sum(1 for s in solver_statuses.values() if s in ("completed", "success", "COMPLETED", "SUCCESS"))
+    failed_count = sum(1 for s in solver_statuses.values() if s in ("failed", "error", "FAILED", "ERROR"))
+    timed_out_count = sum(1 for s in solver_statuses.values() if s in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
+    running_count = sum(1 for s in solver_statuses.values() if s in ("running", "RUNNING"))
+    pending_count = sum(1 for s in solver_statuses.values() if s in ("pending", "PENDING", "queued", "QUEUED"))
+
+    parts = []
+    if completed_count > 0:
+        parts.append(f"{completed_count}/{total} completed")
+    if running_count > 0:
+        parts.append(f"{running_count} running")
+    if pending_count > 0:
+        parts.append(f"{pending_count} queued")
+    if timed_out_count > 0:
+        parts.append(f"{timed_out_count} timed out")
+    if failed_count > 0:
+        parts.append(f"{failed_count} failed")
+    progress_label = " · ".join(parts) if parts else f"0/{total} queued"
+
     return {
         "job_id": job["job_id"],
         "experiment_id": job["experiment_id"],
         "status": job["status"],
         "selection_mode": job.get("selection_mode", "compare"),
-        "selected_algorithms": job.get("selected_algorithms", []),
+        "selected_algorithms": to_run,
         "primary_algorithm": job.get("primary_algorithm", "ortools"),
-        "completed_algorithms": job.get("completed_algorithms", 0),
-        "total_algorithms": job.get("total_algorithms", 0),
-        "solver_statuses": job.get("solver_statuses", {}),
+        "completed_algorithms": len(job.get("results", {})),
+        "total_algorithms": total,
+        "completed_count": completed_count,
+        "failed_count": failed_count,
+        "timed_out_count": timed_out_count,
+        "running_count": running_count,
+        "pending_count": pending_count,
+        "progress_label": progress_label,
+        "solver_statuses": solver_statuses,
         "solver_errors": job.get("solver_errors", {}),
         "results": job.get("results", {}),
         "comparison_summary": job.get("comparison_summary", {}),
@@ -918,19 +945,47 @@ async def _run_background_solvers_for_job(
                             "compute_type": "QAOA with Qiskit Aer/statevector CPU simulation",
                         }
                 else:
-                    algo_res = await asyncio.to_thread(
-                        _solve_single_algo,
-                        algo, n, num_vehicles, vehicle_capacity,
-                        classical_time_limit_sec, qaoa_depth, qaoa_shots,
-                        qaoa_optimizer, qaoa_penalty, random_seed,
-                        locations, demands_int, capacities, adjusted_matrix,
-                        objective_weights, snapped_node_ids, road_warnings,
-                        route_geometry_cache
-                    )
+                    try:
+                        algo_res = await asyncio.wait_for(
+                            asyncio.to_thread(
+                                _solve_single_algo,
+                                algo, n, num_vehicles, vehicle_capacity,
+                                classical_time_limit_sec, qaoa_depth, qaoa_shots,
+                                qaoa_optimizer, qaoa_penalty, random_seed,
+                                locations, demands_int, capacities, adjusted_matrix,
+                                objective_weights, snapped_node_ids, road_warnings,
+                                route_geometry_cache
+                            ),
+                            timeout=25.0
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Solver {algo} timed out after 25s for job {job_id}")
+                        algo_res = {
+                            "success": False,
+                            "error": f"Solver execution timed out (25.0s deadline)",
+                            "routes": [],
+                            "status": "TIMED_OUT",
+                            "execution_time_sec": 25.0,
+                            "total_distance_km": 0.0,
+                            "total_travel_time_min": 0.0,
+                            "total_objective_cost": 0.0,
+                            "capacity_violations": 0,
+                            "unserved_customers": n - 1,
+                            "served_customers": 0,
+                            "is_feasible": False,
+                            "algorithm": algo,
+                            "algorithm_name": algo.upper(),
+                        }
 
                 job["results"][algo] = algo_res
-                job["solver_statuses"][algo] = "completed" if algo_res.get("is_feasible", False) else (algo_res.get("status") or "completed")
-                job["completed_algorithms"] += 1
+                if algo_res.get("status") == "TIMED_OUT":
+                    job["solver_statuses"][algo] = "timeout"
+                    job["solver_errors"][algo] = algo_res.get("error")
+                elif algo_res.get("is_feasible", False):
+                    job["solver_statuses"][algo] = "completed"
+                else:
+                    job["solver_statuses"][algo] = (algo_res.get("status") or "failed").lower()
+                job["completed_algorithms"] = len(job["results"])
 
             except Exception as exc:
                 logger.error(f"Solver {algo} raised exception in background job {job_id}: {exc}")
@@ -952,29 +1007,71 @@ async def _run_background_solvers_for_job(
                 }
                 job["solver_statuses"][algo] = "failed"
                 job["solver_errors"][algo] = str(exc)
-                job["completed_algorithms"] += 1
+                job["completed_algorithms"] = len(job["results"])
             finally:
                 gc.collect()
                 curr_rss = _get_process_memory_mb()
-                if curr_rss > 380.0:
-                    logger.info(f"Memory threshold exceeded ({curr_rss} MB > 380 MB). Evicting transient road caches.")
+                if curr_rss > 350.0:
+                    logger.info(f"Memory threshold exceeded ({curr_rss} MB > 350 MB). Evicting transient road caches.")
                     road_network_service.clear_transient_caches()
                     gc.collect()
+                    try:
+                        import ctypes
+                        ctypes.CDLL("libc.so.6").malloc_trim(0)
+                    except Exception:
+                        pass
 
             # Update comparison summary incrementally after each finished algorithm
             job["comparison_summary"] = _build_comparison_summary(
                 to_run, job["results"], total_cust_demand, total_fleet_capacity, n
             )
             job["updated_at"] = time.time()
+
+            # Incrementally persist result to DB so data survives any interruption
+            try:
+                from app.db.session import async_session_factory
+                async with async_session_factory() as session:
+                    exp_stmt = select(Experiment).where(Experiment.id == experiment_id)
+                    exp_res = await session.execute(exp_stmt)
+                    exp = exp_res.scalar_one_or_none()
+                    if exp:
+                        a_res = job["results"].get(algo, {})
+                        er = ExperimentResult(
+                            experiment_id=exp.id,
+                            algorithm=algo,
+                            total_distance_km=a_res.get("total_distance_km", 0),
+                            total_travel_time_min=a_res.get("total_travel_time_min", 0),
+                            total_objective_cost=a_res.get("total_objective_cost", 0),
+                            execution_time_sec=a_res.get("execution_time_sec", 0),
+                            is_feasible=a_res.get("is_feasible", False),
+                            capacity_violations=a_res.get("capacity_violations", 0),
+                            unserved_customers=a_res.get("unserved_customers", 0),
+                            routes=a_res.get("routes", []),
+                            solver_log=a_res.get("solver_log", ""),
+                            warnings=a_res.get("warnings", []),
+                        )
+                        session.add(er)
+                        await session.commit()
+            except Exception as inc_err:
+                logger.debug(f"Incremental DB persist note: {inc_err}")
+
             # Yield to event loop
             await asyncio.sleep(0.05)
 
         if not job.get("is_cancelled"):
-            job["status"] = "COMPLETED"
+            statuses = list(job.get("solver_statuses", {}).values())
+            all_terminal = len(job["results"]) >= len(to_run)
+            any_success = any(s in ("completed", "success", "COMPLETED", "SUCCESS") for s in statuses)
+
+            if all_terminal:
+                job["status"] = "COMPLETED" if any_success else "FAILED"
+            else:
+                job["status"] = "PARTIAL"
+
             job["completed_at"] = time.time()
             job["updated_at"] = time.time()
 
-        # Persist in DB
+        # Update final Experiment status in DB
         try:
             from app.db.session import async_session_factory
             async with async_session_factory() as session:
@@ -983,31 +1080,9 @@ async def _run_background_solvers_for_job(
                 exp = exp_res.scalar_one_or_none()
                 if exp:
                     exp.status = job["status"]
-                    await session.flush()
-                    for a_name, a_res in job["results"].items():
-                        if a_name == "classical" and "ortools" in job["results"]:
-                            continue
-                        try:
-                            er = ExperimentResult(
-                                experiment_id=exp.id,
-                                algorithm=a_name,
-                                total_distance_km=a_res.get("total_distance_km", 0),
-                                total_travel_time_min=a_res.get("total_travel_time_min", 0),
-                                total_objective_cost=a_res.get("total_objective_cost", 0),
-                                execution_time_sec=a_res.get("execution_time_sec", 0),
-                                is_feasible=a_res.get("is_feasible", False),
-                                capacity_violations=a_res.get("capacity_violations", 0),
-                                unserved_customers=a_res.get("unserved_customers", 0),
-                                routes=a_res.get("routes", []),
-                                solver_log=a_res.get("solver_log", ""),
-                                warnings=a_res.get("warnings", []),
-                            )
-                            session.add(er)
-                        except Exception:
-                            pass
                     await session.commit()
         except Exception as db_err:
-            logger.warning(f"Could not persist job results to database: {db_err}")
+            logger.warning(f"Could not update final job status in database: {db_err}")
 
         _evict_old_active_jobs()
         gc.collect()
@@ -1205,6 +1280,23 @@ async def get_optimization_job_status(
     statuses = {a: "completed" for a in results.keys()}
 
     exp_status = (exp.status or "COMPLETED").upper()
+    total = len(to_run)
+    completed_count = sum(1 for s in statuses.values() if s in ("completed", "success", "COMPLETED", "SUCCESS"))
+    failed_count = sum(1 for s in statuses.values() if s in ("failed", "error", "FAILED", "ERROR"))
+    timed_out_count = sum(1 for s in statuses.values() if s in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
+    running_count = 0
+    pending_count = max(0, total - len(results))
+
+    parts = []
+    if completed_count > 0:
+        parts.append(f"{completed_count}/{total} completed")
+    if timed_out_count > 0:
+        parts.append(f"{timed_out_count} timed out")
+    if failed_count > 0:
+        parts.append(f"{failed_count} failed")
+    if pending_count > 0 and exp_status in ("PARTIAL", "RUNNING"):
+        parts.append(f"{pending_count} queued")
+    progress_label = " · ".join(parts) if parts else exp_status
 
     return {
         "job_id": job_id,
@@ -1214,7 +1306,13 @@ async def get_optimization_job_status(
         "selected_algorithms": to_run,
         "primary_algorithm": to_run[0] if to_run else "ortools",
         "completed_algorithms": len(results),
-        "total_algorithms": len(to_run),
+        "total_algorithms": total,
+        "completed_count": completed_count,
+        "failed_count": failed_count,
+        "timed_out_count": timed_out_count,
+        "running_count": running_count,
+        "pending_count": pending_count,
+        "progress_label": progress_label,
         "solver_statuses": statuses,
         "solver_errors": {},
         "results": results,

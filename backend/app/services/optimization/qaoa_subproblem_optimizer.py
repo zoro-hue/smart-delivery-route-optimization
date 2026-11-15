@@ -20,11 +20,7 @@ from typing import Dict, Any, List, Tuple, Optional
 import numpy as np
 from scipy.optimize import minimize, linear_sum_assignment
 
-import qiskit
-from qiskit import QuantumCircuit
-from qiskit.circuit import Parameter
-from qiskit.circuit.library import XXPlusYYGate
-from qiskit_aer import AerSimulator
+# Qiskit imports deferred inside QAOASubproblemOptimizer for lazy import-time memory efficiency
 
 
 class MacroAssignmentQUBOFormulator:
@@ -245,6 +241,7 @@ class QAOASubproblemOptimizer:
         self.p = p
         self.shots = shots
         self.max_qubits = max_qubits
+        from qiskit_aer import AerSimulator
         self.simulator = AerSimulator()
 
     def build_qaoa_circuit(
@@ -254,11 +251,14 @@ class QAOASubproblemOptimizer:
         p: int,
         use_xy_mixer: bool = False,
         xy_blocks: Optional[List[Tuple[int, int]]] = None
-    ) -> Tuple[QuantumCircuit, List[Parameter], List[Parameter]]:
+    ) -> Tuple[Any, List[Any], List[Any]]:
         """
         Builds parameter-bound QAOA quantum circuit:
         |psi(gamma, beta)> = prod_{l=1}^p e^{-i beta_l H_M} e^{-i gamma_l H_C} |psi_0>
         """
+        from qiskit import QuantumCircuit
+        from qiskit.circuit import Parameter
+        from qiskit.circuit.library import XXPlusYYGate
         qc = QuantumCircuit(num_qubits)
         gammas = [Parameter(f"gamma_{l}") for l in range(p)]
         betas = [Parameter(f"beta_{l}") for l in range(p)]

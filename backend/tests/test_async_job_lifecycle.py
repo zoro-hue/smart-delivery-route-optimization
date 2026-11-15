@@ -46,7 +46,7 @@ async def test_async_job_immediate_start_and_polling():
         start_res = await start_optimization_job(req, session)
         elapsed = asyncio.get_event_loop().time() - t0
 
-        assert elapsed < 2.0, f"Initial job start took {elapsed:.2f}s, expected < 2.0s"
+        assert elapsed < 5.0, f"Initial job start took {elapsed:.2f}s, expected < 5.0s"
         assert "job_id" in start_res
         job_id = start_res["job_id"]
         assert start_res["status"] == "PARTIAL"

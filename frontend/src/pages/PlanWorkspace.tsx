@@ -505,6 +505,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     currentAlgo: string;
     elapsedSec: number;
     primaryLatencySec: number;
+    progressLabel?: string;
+    failed?: number;
+    timedOut?: number;
     statuses: Record<string, 'pending' | 'running' | 'completed' | 'failed' | 'timeout'>;
     errors: Record<string, string>;
   }>({
@@ -513,6 +516,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     currentAlgo: '',
     elapsedSec: 0,
     primaryLatencySec: 0,
+    progressLabel: '',
+    failed: 0,
+    timedOut: 0,
     statuses: {},
     errors: {},
   });
@@ -524,7 +530,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       pollTimerRef.current = null;
     }
 
-    const overallTimeoutSec = 120; // 120-second safety deadline
+    const overallTimeoutSec = 180; // 180-second safety deadline for comparison
     let consecutiveErrors = 0;
 
     pollTimerRef.current = setInterval(async () => {
@@ -535,6 +541,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setIsComparing(false);
+          setIsRunning(false);
           setFeedbackMessage('Comparison evaluation completed. Results retained.');
           setTimeout(() => setFeedbackMessage(null), 5000);
           return;
@@ -550,12 +557,21 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           onOptimizationComplete(statusRes);
         }
 
-        const completed = statusRes.completed_algorithms || 1;
+        const completed = statusRes.completed_algorithms || Object.keys(statusRes.results || {}).length || 1;
         const total = statusRes.total_algorithms || totalAlgos;
 
+        // Count solver statuses
+        const statuses = statusRes.solver_statuses || {};
+        const allStatusVals = Object.values(statuses);
+        const isAllSolversTerminal =
+          allStatusVals.length > 0 &&
+          allStatusVals.every((s: any) =>
+            ['completed', 'failed', 'timeout', 'skipped', 'cancelled'].includes(String(s).toLowerCase())
+          );
+
         // Find which solver is currently running
-        const runningAlgo = Object.keys(statusRes.solver_statuses || {}).find(
-          (k) => statusRes.solver_statuses[k] === 'running'
+        const runningAlgo = Object.keys(statuses).find(
+          (k) => statuses[k] === 'running'
         );
 
         setSolverProgress((prev) => ({
@@ -566,45 +582,62 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           elapsedSec: elapsed,
           statuses: statusRes.solver_statuses || prev.statuses,
           errors: statusRes.solver_errors || prev.errors,
+          progressLabel: statusRes.progress_label || `${completed}/${total} completed`,
+          failed: statusRes.failed_count || 0,
+          timedOut: statusRes.timed_out_count || 0,
         }));
 
-        // Terminal state check
-        if (
+        // Terminal state check: COMPLETED, FAILED, CANCELLED, INTERRUPTED, or all solvers reached terminal state
+        const isTerminal =
           statusRes.status === 'COMPLETED' ||
           statusRes.status === 'FAILED' ||
           statusRes.status === 'CANCELLED' ||
-          statusRes.status === 'INTERRUPTED'
-        ) {
+          statusRes.status === 'INTERRUPTED' ||
+          isAllSolversTerminal ||
+          (completed >= total && total > 0);
+
+        if (isTerminal) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setIsComparing(false);
+          setIsRunning(false);
           setActiveJobId(null);
           activeJobIdRef.current = null;
           try {
             localStorage.removeItem('routeiq_active_job_id');
           } catch {}
 
-          if (statusRes.status === 'COMPLETED') {
+          const effectiveStatus = isAllSolversTerminal ? (statusRes.status || 'COMPLETED') : statusRes.status;
+
+          if (effectiveStatus === 'COMPLETED' || completed >= total) {
             const bestName =
               statusRes.comparison_summary?.best_algorithm_name ||
               statusRes.best_feasible_algorithm ||
               'ROUTE/IQ';
             const bestDist = statusRes.comparison_summary?.best_feasible_distance_km || 0;
+            const failNotice = (statusRes.failed_count || 0) + (statusRes.timed_out_count || 0) > 0
+              ? ` (${statusRes.failed_count || 0} failed / timed out)`
+              : '';
             setFeedbackMessage(
-              `All ${total} algorithms evaluated! Best: ${bestName} (${bestDist.toFixed(1)} km).`
+              `All ${total} algorithms evaluated! Best: ${bestName} (${bestDist.toFixed(1)} km)${failNotice}.`
             );
             setTimeout(() => setFeedbackMessage(null), 6000);
-          } else if (statusRes.status === 'CANCELLED') {
+          } else if (effectiveStatus === 'CANCELLED') {
             setFeedbackMessage('Optimization stopped by user.');
             setTimeout(() => setFeedbackMessage(null), 4000);
-          } else if (statusRes.status === 'INTERRUPTED') {
+          } else if (effectiveStatus === 'INTERRUPTED') {
             setFeedbackMessage(
               'Optimization was interrupted by a server restart. Displaying available results.'
             );
             setTimeout(() => setFeedbackMessage(null), 8000);
-          } else if (statusRes.status === 'FAILED') {
+          } else if (effectiveStatus === 'FAILED') {
             setValidationError(`Optimization job failed: ${statusRes.error || 'Solver failure'}`);
             setTimeout(() => setValidationError(null), 8000);
+          } else if (effectiveStatus === 'PARTIAL') {
+            setFeedbackMessage(
+              `Partial comparison results available (${completed}/${total} algorithms evaluated).`
+            );
+            setTimeout(() => setFeedbackMessage(null), 6000);
           }
         }
       } catch (pollErr: any) {
@@ -1013,9 +1046,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    const allCandidateAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
-      (id) => id !== 'qaoa' || activeStops.length <= 8
-    );
+    const allCandidateAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id);
 
     const algosToRun =
       selectionMode === 'recommended'
@@ -1282,13 +1313,42 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         {/* Contextual Primary Action: Run Optimization / Compare */}
         <button
           onClick={handleRunOptimization}
-          disabled={isRunning || activeStops.length < 1}
+          disabled={isRunning || isComparing || activeStops.length < 1}
           className="flex items-center gap-2 px-5 py-2.5 bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF2A] dark:hover:bg-[#a4f01d] text-[#B7FF2A] dark:text-[#080808] rounded-full text-xs font-heading font-bold shadow-xl transition-all cursor-pointer disabled:opacity-40 border border-[#B7FF2A]/20"
         >
           {isRunning ? (
             <>
               <RotateCw className="h-3.5 w-3.5 animate-spin text-[#B7FF2A] dark:text-[#080808]" />
               <span>Computing Solution...</span>
+            </>
+          ) : isComparing ? (
+            <>
+              <RotateCw className="h-3.5 w-3.5 animate-spin text-[#B7FF2A] dark:text-[#080808]" />
+              <span>Comparing algorithms ({solverProgress.completed}/{solverProgress.total})...</span>
+            </>
+          ) : executionResponse?.status === 'COMPLETED' ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
+              <span>
+                {(solverProgress.failed || 0) > 0 || (solverProgress.timedOut || 0) > 0
+                  ? `Completed with failures: ${solverProgress.completed}/${solverProgress.total}`
+                  : `Completed: ${solverProgress.total}/${solverProgress.total}`}
+              </span>
+            </>
+          ) : executionResponse?.status === 'PARTIAL' ? (
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />
+              <span>Partial results: {solverProgress.completed}/{solverProgress.total}</span>
+            </>
+          ) : executionResponse?.status === 'CANCELLED' ? (
+            <>
+              <X className="h-3.5 w-3.5 text-red-500" />
+              <span>Cancelled</span>
+            </>
+          ) : executionResponse?.status === 'FAILED' ? (
+            <>
+              <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+              <span>Failed</span>
             </>
           ) : (
             <>
@@ -1320,7 +1380,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 dark:bg-[#18181B]/90 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-lg text-[11px] font-heading font-bold animate-fadeIn">
             <RotateCw className="h-3 w-3 animate-spin text-[#B7FF2A] dark:text-[#B7FF2A]" />
             <span className="text-[#080808] dark:text-[#F5F5F7]">
-              Evaluating {solverProgress.currentAlgo} ({solverProgress.completed}/{solverProgress.total})
+              {solverProgress.progressLabel || `Evaluating ${solverProgress.currentAlgo} (${solverProgress.completed}/${solverProgress.total})`}
             </span>
             <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
               {solverProgress.elapsedSec}s
@@ -2063,7 +2123,21 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               ) : isComparing ? (
                 <>
                   <RotateCw className="h-3.5 w-3.5 animate-spin text-[#B7FF2A] dark:text-[#080808]" />
-                  <span>Benchmarking ({solverProgress.completed}/{solverProgress.total})...</span>
+                  <span>Comparing ({solverProgress.completed}/{solverProgress.total})...</span>
+                </>
+              ) : executionResponse?.status === 'COMPLETED' ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
+                  <span>
+                    {(solverProgress.failed || 0) > 0 || (solverProgress.timedOut || 0) > 0
+                      ? `Completed with failures: ${solverProgress.completed}/${solverProgress.total}`
+                      : `Completed: ${solverProgress.total}/${solverProgress.total}`}
+                  </span>
+                </>
+              ) : executionResponse?.status === 'PARTIAL' ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Partial results: {solverProgress.completed}/${solverProgress.total}</span>
                 </>
               ) : (
                 <>

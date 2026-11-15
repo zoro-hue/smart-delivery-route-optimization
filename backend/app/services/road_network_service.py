@@ -257,11 +257,20 @@ class RoadNetworkService:
 
         # Compile CSR sparse matrices for sub-second C-accelerated Dijkstra
         try:
-            from scipy.sparse import csgraph
-            self._csr_directed = nx.to_scipy_sparse_array(self.G, weight="length", format="csr", nodelist=self.nodes_list)
-            self._csr_undirected = nx.to_scipy_sparse_array(self.G_undir, weight="length", format="csr", nodelist=self.nodes_list)
-            self._has_csr = True
-            logger.info("Compiled CSR directed and undirected adjacency matrices for sub-second Dijkstra.")
+            from scipy.sparse import csgraph, csr_matrix
+            compact_npz_path = os.path.join(settings.PROCESSED_DATA_DIR, "road_graph_compact.npz")
+            if os.path.exists(compact_npz_path):
+                npz = np.load(compact_npz_path, allow_pickle=True)
+                n_nodes = len(self.nodes_list)
+                self._csr_directed = csr_matrix((npz["dir_data"], npz["dir_indices"], npz["dir_indptr"]), shape=(n_nodes, n_nodes))
+                self._csr_undirected = csr_matrix((npz["undir_data"], npz["undir_indices"], npz["undir_indptr"]), shape=(n_nodes, n_nodes))
+                self._has_csr = True
+                logger.info("Loaded pre-compiled CSR matrices from compact NPZ for sub-second Dijkstra.")
+            else:
+                self._csr_directed = nx.to_scipy_sparse_array(self.G, weight="length", format="csr", nodelist=self.nodes_list)
+                self._csr_undirected = nx.to_scipy_sparse_array(self.G_undir, weight="length", format="csr", nodelist=self.nodes_list)
+                self._has_csr = True
+                logger.info("Compiled CSR directed and undirected adjacency matrices for sub-second Dijkstra.")
         except Exception as csr_err:
             logger.warning(f"Could not compile CSR matrices: {csr_err}")
             self._has_csr = False
