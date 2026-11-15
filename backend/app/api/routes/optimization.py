@@ -1011,8 +1011,8 @@ async def _run_background_solvers_for_job(
             finally:
                 gc.collect()
                 curr_rss = _get_process_memory_mb()
-                if curr_rss > 350.0:
-                    logger.info(f"Memory threshold exceeded ({curr_rss} MB > 350 MB). Evicting transient road caches.")
+                if curr_rss > 485.0:
+                    logger.info(f"Memory threshold exceeded ({curr_rss} MB > 485 MB). Evicting transient road caches.")
                     road_network_service.clear_transient_caches()
                     gc.collect()
                     try:

@@ -80,6 +80,14 @@ async def lifespan(app: FastAPI):
     except Exception as rn_err:
         logger.warning(f"Road network pre-warm non-fatal error: {rn_err}")
 
+    import gc
+    gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
     yield
 
     logger.info("Shutting down Smart Delivery Route Optimization Engine...")

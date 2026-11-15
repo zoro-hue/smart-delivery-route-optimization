@@ -289,6 +289,8 @@ class RoadNetworkService:
         except Exception:
             pass
 
+
+
     def is_ready(self) -> bool:
         if not self._is_loaded:
             self.ensure_loaded()
