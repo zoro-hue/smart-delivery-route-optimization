@@ -1,7 +1,7 @@
 """
 ROUTE/IQ Cooperative Optimization Engine Solver Service.
 Integrates:
-- Pillar 1: Apache Spark 4.2.0 Workload Decomposition & Spatial Partitioning
+- Pillar 1: Apache Spark Workload Decomposition & Spatial Partitioning
 - Pillar 2: Variational Quantum Candidate Generation (Fast QAOA) & Classical Metaheuristics
 - Adaptive Strategy Controller (Multi-Armed Bandit)
 - Classical Route Refinement (Algorithmic Variable Neighborhood Descent - VND)
@@ -12,6 +12,7 @@ Phases AB, AC, and AD for production deployment in ROUTE/IQ.
 """
 
 import os
+import sys
 import time
 import math
 import copy
@@ -19,6 +20,14 @@ import logging
 from typing import Dict, Any, List, Tuple, Optional
 import numpy as np
 import pandas as pd
+
+# Ensure project root is in sys.path for phase_v and phase_ab imports
+_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
+_backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 from app.services.optimization.classical_solver import classical_solver
 from app.services.optimization.route_validator import repair_fleet_coverage, validate_fleet_coverage
@@ -54,13 +63,13 @@ class CooperativeVRPSolver:
     ) -> Dict[str, Any]:
         """
         Solves CVRP cooperatively using Hybrid Big Data + Classical + Quantum Pipeline:
-        1. Generates an initial feasible fleet incumbent using OR-Tools CVRP matching full search budget.
-        2. Evaluates competitive multi-solver initialization (OR-Tools, Tabu, and VND).
-        3. Decomposes boundary customers between adjacent routes via Spark spatial partitioning.
-        4. Queries Adaptive Controller to dispatch candidate generators (QAOA with Qiskit Aer simulation or Tabu/KL).
-        5. Refines route reconstructions via intra-route 2-opt and inter-route Algorithmic VND (Relocate & Swap).
-        6. Enforces Proposition 1 Non-Degradation Guardrail: Cost(Final) <= Cost(OR-Tools Incumbent).
-        7. Returns complete validated routes and telemetry.
+        1. Spark spatial preprocessing and order ingestion validation.
+        2. High-quality initial feasible fleet incumbent using OR-Tools CVRP.
+        3. Fast multi-solver cooperative pool initialization (Tabu and VND).
+        4. Spatial route boundary decomposition via Spark polar/wedge partitioning.
+        5. Adaptive Controller candidate generation (QAOA Qiskit Aer simulation or Tabu/KL).
+        6. Inter-route and intra-route Algorithmic VND refinement.
+        7. Centralized Proposition 1 Non-Degradation Guardrail: Cost(Final) <= Cost(Incumbent).
         """
         t0 = time.perf_counter()
         n = distance_matrix.shape[0]
@@ -73,7 +82,29 @@ class CooperativeVRPSolver:
         effective_limit = float(time_limit_sec) if time_limit_sec is not None else 0.25
         input_cust_ids = [i for i in range(n) if i != depot]
 
-        # ── Step 1: High-Quality OR-Tools Incumbent Generation ──────────
+        # ── Pillar 1: Spark Preprocessing & Ingestion Validation ────────
+        t0_spark = time.perf_counter()
+        spark_mode = "Single_Machine_Vectorized"
+        clean_df = None
+        if locations and len(locations) == n:
+            try:
+                df_raw = pd.DataFrame({
+                    "stop_id": [f"stop_{i}" for i in range(n)],
+                    "latitude": [float(loc[0]) for loc in locations],
+                    "longitude": [float(loc[1]) for loc in locations],
+                    "demand": [float(d) for d in demands]
+                })
+                if self.spark_organizer:
+                    clean_df, _ = self.spark_organizer.ingest_and_validate(df_raw)
+                    spark_mode = self.spark_organizer.execution_mode
+                else:
+                    clean_df = df_raw.dropna().copy()
+            except Exception as e:
+                logger.debug(f"Spark ingestion notice: {e}")
+        t_spark_ms = (time.perf_counter() - t0_spark) * 1000.0
+
+        # ── Step 1: High-Quality Classical Incumbent Generation ──────────
+        t0_inc = time.perf_counter()
         logger.info(f"Cooperative Solver: Generating initial incumbent for {n} nodes, {num_vehicles} vehicles...")
         incumbent_res = classical_solver.solve_ortools(
             distance_matrix=distance_matrix,
@@ -114,11 +145,14 @@ class CooperativeVRPSolver:
         best_routes = copy.deepcopy(incumbent_routes)
         best_distance = ortools_distance
         ortools_incumbent_routes = copy.deepcopy(incumbent_routes)
+        t_incumbent_ms = (time.perf_counter() - t0_inc) * 1000.0
 
         # ── Step 2: Multi-Solver Cooperative Initialization Pool ─────────
-        # Test whether fast classical metaheuristics discover an alternate basin of attraction
+        # Uses bounded iterations for responsive initialization on fractional-CPU containers
+        t0_pool = time.perf_counter()
+        init_tabu_iters = min(12, n)
         cand_tabu = classical_solver.solve_tabu_search(
-            distance_matrix, num_vehicles, depot, demands, vehicle_capacities, max_iterations=80
+            distance_matrix, num_vehicles, depot, demands, vehicle_capacities, max_iterations=init_tabu_iters
         )
         if cand_tabu.get("success") and cand_tabu.get("routes"):
             rep_tabu, val_t = repair_fleet_coverage(
@@ -144,10 +178,20 @@ class CooperativeVRPSolver:
                     best_routes = copy.deepcopy(rep_vnd)
 
         routes = copy.deepcopy(best_routes)
+        t_pool_ms = (time.perf_counter() - t0_pool) * 1000.0
+
+        # Telemetry accumulators
+        t_spatial_ms = 0.0
+        t_boundary_ms = 0.0
+        t_qaoa_circuit_ms = 0.0
+        t_qaoa_sim_ms = 0.0
+        t_qaoa_sampling_ms = 0.0
+        t_repair_ms = 0.0
         subproblem_telemetry = []
 
-        # ── Step 3: Spark Spatial Boundary Decomposition & Quantum QAOA Candidate Exploration ──
+        # ── Step 3: Spark Spatial Boundary Decomposition & Candidate Exploration ──
         if len(routes) >= 2 and n >= 4:
+            t0_spatial = time.perf_counter()
             logger.info("Cooperative Solver: Identifying spatial route boundaries for cooperative optimization...")
 
             # Derive spatial centroids for each route
@@ -172,9 +216,11 @@ class CooperativeVRPSolver:
                     spatial_dist = math.hypot(ci[0] - cj[0], ci[1] - cj[1])
                     pair_candidates.append((spatial_dist, i, j))
             pair_candidates.sort(key=lambda x: x[0])
+            t_spatial_ms = (time.perf_counter() - t0_spatial) * 1000.0
 
             # Optimize boundary pairs
             for _, idx_a, idx_b in pair_candidates[:min(4, len(pair_candidates))]:
+                t0_boundary = time.perf_counter()
                 route_a = routes[idx_a]
                 route_b = routes[idx_b]
                 stops_a = list(route_a.get("customer_stops", []))
@@ -225,6 +271,8 @@ class CooperativeVRPSolver:
                 if sub_cap_a < 0 or sub_cap_b < 0:
                     continue
 
+                t_boundary_ms += (time.perf_counter() - t0_boundary) * 1000.0
+
                 try:
                     opt_result = self.engine.optimize_subproblem(
                         dist_matrix=sub_dist,
@@ -237,6 +285,11 @@ class CooperativeVRPSolver:
                         seed=seed + idx_a * 10 + idx_b,
                     )
 
+                    t_qaoa_circuit_ms += opt_result.get("circuit_build_time_ms", 0.0)
+                    t_qaoa_sim_ms += opt_result.get("simulation_time_ms", 0.0)
+                    t_qaoa_sampling_ms += opt_result.get("sampling_time_ms", 0.0)
+                    t_repair_ms += opt_result.get("repair_time_ms", 0.0)
+
                     subproblem_telemetry.append({
                         "route_pair": (idx_a, idx_b),
                         "subproblem_size": sub_k,
@@ -248,7 +301,7 @@ class CooperativeVRPSolver:
                         "latency_ms": opt_result.get("total_latency_ms"),
                     })
 
-                    # If Proposition 1 guardrail accepted candidate, reconstruct full routes
+                    # If candidate accepted by local guardrail, evaluate on full route pair
                     if opt_result.get("guardrail_accepted"):
                         tour_a_sub = opt_result.get("final_tour_a", [])
                         tour_b_sub = opt_result.get("final_tour_b", [])
@@ -261,7 +314,6 @@ class CooperativeVRPSolver:
 
                         # Verify capacity
                         if sum(demands[c] for c in cand_set_a) <= cap_a and sum(demands[c] for c in cand_set_b) <= cap_b:
-                            # Re-sequence with 2-opt
                             opt_tour_a = AlgorithmicVND.run_2opt(cand_set_a, distance_matrix, depot)
                             opt_tour_b = AlgorithmicVND.run_2opt(cand_set_b, distance_matrix, depot)
 
@@ -285,6 +337,7 @@ class CooperativeVRPSolver:
                     logger.warning(f"Cooperative subproblem optimization error for routes ({idx_a}, {idx_b}): {e}")
 
         # ── Step 4: Algorithmic Inter-Route Relocate & Swap (VND) ────────
+        t0_vnd = time.perf_counter()
         for i in range(len(routes)):
             for j in range(len(routes)):
                 if i == j:
@@ -322,7 +375,10 @@ class CooperativeVRPSolver:
                 r["distance_km"] = round(AlgorithmicVND.compute_tour_length(opt_st, distance_matrix, depot), 3)
                 r["load"] = sum(demands[c] for c in opt_st)
 
+        t_vnd_ms = (time.perf_counter() - t0_vnd) * 1000.0
+
         # ── Step 6: Centralized Proposition 1 Non-Degradation Guardrail ───
+        t0_guard = time.perf_counter()
         final_total_dist = float(sum(r["distance_km"] for r in routes))
 
         # Strictly enforce: Cost(Final) <= Cost(OR-Tools Incumbent)
@@ -347,13 +403,45 @@ class CooperativeVRPSolver:
             routes = copy.deepcopy(ortools_incumbent_routes)
             final_total_dist = ortools_distance
 
+        t_guardrail_ms = (time.perf_counter() - t0_guard) * 1000.0
+
+        # ── Step 7: Route Reconstruction & Telemetry Compilation ─────────
+        t0_recon = time.perf_counter()
+        for v_idx, r in enumerate(routes, 1):
+            r["vehicle_id"] = v_idx
+            r["total_distance_km"] = r.get("distance_km", 0.0)
+            if "travel_time_min" not in r:
+                r["travel_time_min"] = round(r["distance_km"] / 40.0 * 60.0, 1)
+
         final_total_time = float(sum(r.get("travel_time_min", r.get("distance_km", 0.0) / 40.0 * 60.0) for r in routes))
         final_obj_cost = final_total_dist
+        t_reconstruct_ms = (time.perf_counter() - t0_recon) * 1000.0
+
         exec_time = time.perf_counter() - t0
 
-        # Telemetry packaging
-        primary_strategy = subproblem_telemetry[0]["strategy"] if subproblem_telemetry else "VND_Refinement"
-        spark_mode = self.spark_organizer.execution_mode if self.spark_organizer else "Single_Machine_Pandas"
+        primary_strategy = subproblem_telemetry[0]["strategy"] if subproblem_telemetry else "Adaptive_VND_Refinement"
+
+        profiling_breakdown = {
+            "spark_preprocessing_ms": round(t_spark_ms, 2),
+            "classical_incumbent_ms": round(t_incumbent_ms, 2),
+            "initialization_pool_ms": round(t_pool_ms, 2),
+            "spatial_decomposition_ms": round(t_spatial_ms, 2),
+            "boundary_extraction_ms": round(t_boundary_ms, 2),
+            "qaoa_circuit_construction_ms": round(t_qaoa_circuit_ms, 2),
+            "qaoa_simulation_and_sampling_ms": round(t_qaoa_sim_ms + t_qaoa_sampling_ms, 2),
+            "candidate_feasibility_repair_ms": round(t_repair_ms, 2),
+            "vnd_local_search_ms": round(t_vnd_ms, 2),
+            "proposition1_guardrail_ms": round(t_guardrail_ms, 2),
+            "route_reconstruction_ms": round(t_reconstruct_ms, 2),
+            "total_cooperative_time_ms": round(exec_time * 1000.0, 2),
+        }
+
+        timings_summary = {
+            "spark_preprocessing_sec": round(t_spark_ms / 1000.0, 4),
+            "qaoa_quantum_simulation_sec": round((t_qaoa_circuit_ms + t_qaoa_sim_ms + t_qaoa_sampling_ms) / 1000.0, 4),
+            "classical_optimization_sec": round((t_incumbent_ms + t_pool_ms + t_vnd_ms) / 1000.0, 4),
+            "total_execution_sec": round(float(exec_time), 4),
+        }
 
         return {
             "success": True,
@@ -383,6 +471,8 @@ class CooperativeVRPSolver:
                 "subproblem_details": subproblem_telemetry,
                 "primary_strategy": primary_strategy,
                 "proposition1_guaranteed": True,
+                "profiling_breakdown": profiling_breakdown,
+                "timings": timings_summary,
             },
         }
 

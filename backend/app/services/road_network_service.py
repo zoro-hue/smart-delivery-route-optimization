@@ -114,6 +114,7 @@ class RoadNetworkService:
         self._dist_cache: Dict[Tuple[str, str], float] = {}
         self._geom_cache: Dict[Tuple[str, str], List[Tuple[float, float]]] = {}
         self._snap_cache: Dict[Tuple[float, float], Tuple[str, float, float, float]] = {}
+        self._matrix_cache: Dict[Any, Any] = {}
         self._max_cache_size = 500
         # NOTE: Graph loading is lazy via ensure_loaded() on first route request.
         # This prevents 350MB+ allocation and XML compilation on app import/healthcheck.
@@ -134,6 +135,7 @@ class RoadNetworkService:
         self._dist_cache.clear()
         self._geom_cache.clear()
         self._snap_cache.clear()
+        self._matrix_cache.clear()
         gc.collect()
 
     def ensure_loaded(self) -> bool:
@@ -338,6 +340,12 @@ class RoadNetworkService:
         """
         if not self.is_ready():
             raise RuntimeError("RoadNetworkService is not ready.")
+
+        # Instantaneous retrieval from bounded matrix cache for warm-start repeated queries
+        loc_key = tuple((round(float(loc[0]), 5), round(float(loc[1]), 5)) for loc in locations)
+        matrix_key = (loc_key, round(float(traffic_factor), 3), round(float(weather_factor), 3), bool(return_physical))
+        if matrix_key in self._matrix_cache:
+            return self._matrix_cache[matrix_key]
 
         n = len(locations)
         warnings = []
@@ -560,8 +568,11 @@ class RoadNetworkService:
         gc.collect()
 
         if return_physical:
-            return cost_matrix, snapped_nodes, warnings, physical_matrix
-        return cost_matrix, snapped_nodes, warnings
+            res_val = (cost_matrix, snapped_nodes, warnings, physical_matrix)
+        else:
+            res_val = (cost_matrix, snapped_nodes, warnings)
+        self._bounded_cache_set(self._matrix_cache, matrix_key, res_val)
+        return res_val
 
     def get_road_path_geometry(
         self,

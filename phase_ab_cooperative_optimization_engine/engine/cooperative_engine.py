@@ -152,6 +152,10 @@ class CooperativeOptimizationEngine:
             "candidates_generated": gen_res.num_generated,
             "unique_candidates": gen_res.num_unique,
             "generation_time_ms": gen_res.total_time_ms,
+            "circuit_build_time_ms": getattr(gen_res, "circuit_build_time_ms", 0.0),
+            "simulation_time_ms": getattr(gen_res, "simulation_time_ms", 0.0),
+            "sampling_time_ms": getattr(gen_res, "sampling_time_ms", 0.0),
+            "repair_time_ms": getattr(gen_res, "repair_time_ms", 0.0),
             "total_latency_ms": round(total_time_ms, 2),
             "final_tour_a": guard_res["final_tour_a"],
             "final_tour_b": guard_res["final_tour_b"]

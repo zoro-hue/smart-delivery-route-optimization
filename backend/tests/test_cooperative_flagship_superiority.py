@@ -7,6 +7,7 @@ Validates:
 4. Competitive multi-solver initialization and Algorithmic VND neighborhood improvement.
 """
 import pytest
+import os
 import math
 import numpy as np
 import pandas as pd
@@ -18,7 +19,8 @@ from app.services.optimization.cooperative_solver import cooperative_solver
 
 @pytest.fixture(scope="module")
 def real_nyc_dataset():
-    df = pd.read_csv("backend/data/processed/customers_processed.csv")
+    path = "backend/data/processed/customers_processed.csv" if os.path.exists("backend/data/processed/customers_processed.csv") else "data/processed/customers_processed.csv"
+    df = pd.read_csv(path)
     return df
 
 

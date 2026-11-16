@@ -40,6 +40,8 @@ class CandidateGenerationResult:
     repair_time_ms: float
     total_time_ms: float
     all_unique_candidates: List[np.ndarray]
+    circuit_build_time_ms: float = 0.0
+    simulation_time_ms: float = 0.0
 
 
 class BaseCandidateGenerator(ABC):
@@ -379,15 +381,23 @@ class QAOACandidateGenerator(BaseCandidateGenerator):
         else:
             for i in range(N):
                 qc.rx(2.0 * beta, i)
+        t_build_ms = (time.perf_counter() - t0_build) * 1000.0
 
         # 2. Statevector execution (Simulated Classical CPU)
+        t0_sim = time.perf_counter()
         sv = Statevector.from_instruction(qc)
         probs = sv.probabilities()
+        t_sim_ms = (time.perf_counter() - t0_sim) * 1000.0
 
-        # 3. Sampling
+        # 3. High-fidelity Vectorized Sampling: top eigenstates + stochastic exploration
+        t0_sample = time.perf_counter()
+        top_k = min(32, len(probs))
+        top_indices = np.argsort(probs)[-top_k:][::-1]
+
         rng = np.random.RandomState(seed)
-        shots = budget_evals
-        sampled_indices = rng.choice(len(probs), size=shots, p=probs)
+        num_stoch = min(48, budget_evals)
+        stoch_indices = rng.choice(len(probs), size=num_stoch, p=probs)
+        unique_eval_indices = np.unique(np.concatenate([top_indices, stoch_indices]))
 
         unique_map = {}
         best_p = None
@@ -396,7 +406,7 @@ class QAOACandidateGenerator(BaseCandidateGenerator):
         repair_time_acc = 0.0
         total_demand = sum(demands)
 
-        for idx in sampled_indices:
+        for idx in unique_eval_indices:
             bitstring = format(idx, f"0{N}b")[::-1]
             p = np.array([int(b) for b in bitstring])
 
@@ -420,7 +430,7 @@ class QAOACandidateGenerator(BaseCandidateGenerator):
                 best_p = p
 
         total_time_ms = (time.perf_counter() - t0) * 1000.0
-        sampling_time_ms = total_time_ms - repair_time_acc
+        sampling_time_ms = (time.perf_counter() - t0_sample) * 1000.0 - repair_time_acc
 
         return CandidateGenerationResult(
             generator_id="QAOA_Quantum_Sampler",
@@ -428,12 +438,14 @@ class QAOACandidateGenerator(BaseCandidateGenerator):
             backend_device="Classical_CPU_Statevector_Simulation",
             best_partition=best_p,
             best_cost=round(best_c, 4),
-            num_generated=shots,
+            num_generated=len(unique_eval_indices),
             num_unique=len(unique_map),
             num_feasible=feas_count,
-            sampling_time_ms=round(sampling_time_ms, 2),
+            sampling_time_ms=round(max(0.0, sampling_time_ms), 2),
             repair_time_ms=round(repair_time_acc, 2),
             total_time_ms=round(total_time_ms, 2),
-            all_unique_candidates=[np.array(k) for k in unique_map.keys()]
+            all_unique_candidates=[np.array(k) for k in unique_map.keys()],
+            circuit_build_time_ms=round(t_build_ms, 2),
+            simulation_time_ms=round(t_sim_ms, 2),
         )
 
