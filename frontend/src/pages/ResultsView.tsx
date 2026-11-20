@@ -347,47 +347,61 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         </div>
       </div>
 
-      {/* ─── BEST FEASIBLE SOLUTION CALLOUT (Requirement 4) ──────────── */}
+      {/* ─── BEST FEASIBLE SOLUTION CALLOUT (Requirement 4 & 5) ──────────── */}
       {bestAlgoItem && (
-        <div className="p-4 rounded-2xl bg-white dark:bg-[#111113] border border-[#22C55E]/40 dark:border-[#22C55E]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
-          <div className="flex items-start sm:items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-[#22C55E]/20 text-[#22C55E] flex items-center justify-center shrink-0">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#111113] border-2 border-[#22C55E]/40 dark:border-[#22C55E]/30 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="h-10 w-10 rounded-2xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center shrink-0 border border-[#22C55E]/30">
               <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-[#080808] dark:text-[#F5F5F7]">
-                  Best Feasible Solution: {bestAlgoItem.name}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm sm:text-base text-[#080808] dark:text-[#F5F5F7]">
+                  Best Feasible Solution (Recommended): {bestAlgoItem.name}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
-                  Recommended Feasible Pick
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase tracking-wide">
+                  Recommended Pick
                 </span>
               </div>
-              <p className="text-xs text-[#555555] dark:text-[#A1A1AA] mt-0.5">
-                {result.comparison_summary?.best_reason || 'Verified 100% capacity and delivery coverage with minimal distance.'} (Distance: <strong>{bestAlgoItem.total_distance_km.toFixed(2)} km</strong>, Est. Duration: <strong>{Math.round(bestAlgoItem.total_travel_time_min)} min</strong>, Violations: <strong>0</strong>)
+              <p className="text-xs text-[#555555] dark:text-[#A1A1AA] mt-1">
+                {result.comparison_summary?.best_reason || 'Verified 100% capacity and delivery coverage with minimal distance.'}{' '}
+                (Road Distance: <strong>{bestAlgoItem.total_distance_km.toFixed(2)} km</strong> · Est. Driving Duration: <strong>{Math.round(bestAlgoItem.total_travel_time_min)} min</strong> · Implied Speed: <strong>{(bestAlgoItem.implied_speed_kmh || (bestAlgoItem.total_distance_km / (bestAlgoItem.total_travel_time_min / 60))).toFixed(1)} km/h</strong> · Violations: <strong>0</strong>)
               </p>
             </div>
           </div>
 
-          {activeAlgo !== bestAlgoItem.id && (
-            <button
-              onClick={() => setActiveAlgo(bestAlgoItem.id)}
-              className="px-4 py-1.5 rounded-xl bg-[#080808] text-[#B7FF00] dark:bg-[#18181B] dark:hover:bg-[#202024] dark:border dark:border-[#29292E] text-xs font-bold hover:bg-[#171717] transition-all cursor-pointer shrink-0"
-            >
-              Inspect Route
-            </button>
-          )}
+          <button
+            onClick={() => handleSelectAlgorithm(bestAlgoItem.id)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm ${
+              activeAlgo === bestAlgoItem.id
+                ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/40 cursor-default'
+                : 'bg-[#080808] text-[#B7FF00] hover:bg-[#171717] dark:bg-[#B7FF2A] dark:text-[#080808] dark:hover:bg-[#a4f01d]'
+            }`}
+          >
+            <span>{activeAlgo === bestAlgoItem.id ? '✓ Inspected (Currently Displayed)' : 'Inspect Recommended Route'}</span>
+          </button>
         </div>
       )}
 
-      {/* ─── ALGORITHM SELECTION PILLS ─────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-[#777777] dark:text-[#A1A1AA]">
-            Active Solver Route View
-          </span>
+      {/* ─── ALGORITHM SELECTION PILLS & ACTIVE INSPECTOR HEADER ───────────────── */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7]">
+              Active Route Inspection: {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
+            </span>
+            {activeAlgo === bestAlgoId ? (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
+                Viewing Recommended Best
+              </span>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">
+                Comparative Inspection (Recommended Best is {bestAlgoItem?.name || 'ROUTE/IQ Cooperative'})
+              </span>
+            )}
+          </div>
           <span className="text-[11px] text-[#777777] dark:text-[#71717A]">
-            Click any algorithm to inspect its route map and driver schedules
+            Click any algorithm chip or scorecard row to inspect its genuine road route
           </span>
         </div>
 
@@ -425,68 +439,104 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       </div>
 
       {/* ─── ACTIVE METRICS FOR SELECTED ALGORITHM ─────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 py-3 border-y border-black/10 dark:border-[#29292E]">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-            Selected Algorithm
-          </span>
-          <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate" title={currentResult?.algorithm_name}>
-            {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
-          </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical uppercase">
-            {currentResult?.compute_type || currentResult?.category || 'Classical CPU'}
-          </span>
-        </div>
+      {(() => {
+        const distKm = currentResult?.total_distance_km || 0;
+        const drivingMin = currentResult?.driving_duration_min || currentResult?.total_travel_time_min || 0;
+        const serviceMin = currentResult?.service_duration_min || 0;
+        const totalDurationMin = currentResult?.total_duration_min || (drivingMin + serviceMin);
+        const impliedSpeedKmh = currentResult?.implied_speed_kmh || (drivingMin > 0 ? (distKm / (drivingMin / 60)) : 40.0);
 
-        <div className="border-l border-black/10 dark:border-[#29292E] pl-4 sm:pl-6">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-            Total Distance
-          </span>
-          <div className="text-lg sm:text-xl font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
-            {currentResult?.total_distance_km.toFixed(1)} km
-          </div>
-        </div>
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 py-3 border-y border-black/10 dark:border-[#29292E]">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Inspected Algorithm
+              </span>
+              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate" title={currentResult?.algorithm_name}>
+                {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical uppercase block truncate">
+                {currentResult?.compute_type || currentResult?.category || 'Classical CPU'}
+              </span>
+            </div>
 
-        <div className="border-l border-black/10 dark:border-[#29292E] pl-4 sm:pl-6">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-            Estimated Duration
-          </span>
-          <div className="text-lg sm:text-xl font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
-            {Math.round(currentResult?.total_travel_time_min || 0)} min
-          </div>
-        </div>
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Total Road Distance
+              </span>
+              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+                {distKm.toFixed(2)} km
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                Directed road graph
+              </span>
+            </div>
 
-        <div className="border-l border-black/10 dark:border-[#29292E] pl-4 sm:pl-6">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-            Vehicles Assigned
-          </span>
-          <div className="text-lg sm:text-xl font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
-            {(currentResult?.routes ?? []).length || settings.defaultVehicles} Drivers
-          </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
-            {result.problem?.num_vehicles
-              ? `${(currentResult?.routes ?? []).length} of ${result.problem.num_vehicles} fleet active${
-                  (result.problem.num_vehicles - (currentResult?.routes ?? []).length) > 0
-                    ? ` (${result.problem.num_vehicles - (currentResult?.routes ?? []).length} surplus)`
-                    : ''
-                }`
-              : 'Active fleet routes'}
-          </span>
-        </div>
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Est. Driving Duration
+              </span>
+              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+                {Math.round(drivingMin)} min
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
+                {serviceMin > 0 ? `+${Math.round(serviceMin)}m svc (${Math.round(totalDurationMin)}m tot)` : 'Pure driving transit time'}
+              </span>
+            </div>
 
-        <div className="border-l border-black/10 dark:border-[#29292E] pl-4 sm:pl-6">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-            Feasibility Status
-          </span>
-          <div className="text-lg sm:text-xl font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5 flex items-center gap-1.5">
-            <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
-            <CheckCircle2 className={`h-4 w-4 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Implied Avg Speed
+              </span>
+              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+                {impliedSpeedKmh.toFixed(1)} km/h
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
+                @ 40 km/h NYC baseline
+              </span>
+            </div>
+
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Fleet Assigned
+              </span>
+              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+                {(currentResult?.routes ?? []).length || settings.defaultVehicles} Vehicles
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                {currentResult?.served_customers !== undefined ? `${currentResult.served_customers} stops served` : 'Active fleet routes'}
+              </span>
+            </div>
+
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                Feasibility Status
+              </span>
+              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5 flex items-center gap-1.5">
+                <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
+                <CheckCircle2 className={`h-4 w-4 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
+                {currentResult?.capacity_violations ? `${currentResult.capacity_violations} violations` : '0 violations'} · {currentResult?.execution_time_sec?.toFixed(3)}s
+              </span>
+            </div>
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
-            Runtime: {currentResult?.execution_time_sec?.toFixed(3)}s
-            {currentResult?.resource_metrics?.cpu_utilization_percent !== undefined &&
-              ` · ${currentResult.resource_metrics.cpu_utilization_percent.toFixed(0)}% CPU · ${currentResult.resource_metrics.memory_used_mb}MB`}
-          </span>
+        );
+      })()}
+
+      {/* ─── METHODOLOGY & SPEED AUDIT DISCLOSURE CARD ───────────────────── */}
+      <div className="px-4 py-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#555555] dark:text-[#A1A1AA]">
+        <div className="space-y-0.5">
+          <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-semibold text-[11px] uppercase tracking-wider">
+            Calculation Methodology & Assumptions
+          </strong>
+          <p className="text-[11px] leading-relaxed">
+            <strong>Distance:</strong> Summed from exact directed OpenStreetMap road network edges between sequential snapped stops.
+            {' · '}
+            <strong>Estimated Duration:</strong> Derived using an assumed NYC statutory baseline urban speed of <strong>40.0 km/h</strong> (25 mph citywide legal limit), adjusted by traffic/weather impedance factors. Pure transit driving duration is distinguished from delivery stop dwell service time.
+            {' · '}
+            <strong>Implied Speed:</strong> Calculated as <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 font-technical text-[10px]">Speed = Distance / (Duration / 60)</code>.
+          </p>
         </div>
       </div>
 
@@ -796,7 +846,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                   <th className="py-3 px-4">Algorithm & Category</th>
                   <th className="py-3 px-4">Feasibility</th>
                   <th className="py-3 px-4">Total Distance</th>
-                  <th className="py-3 px-4">Duration</th>
+                  <th className="py-3 px-4">Est. Driving Duration</th>
+                  <th className="py-3 px-4">Implied Avg Speed</th>
                   <th className="py-3 px-4">Vehicles / Coverage</th>
                   <th className="py-3 px-4">Violations</th>
                   <th className="py-3 px-4">CPU / RAM</th>
@@ -874,6 +925,13 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
                       </td>
 
+                      {/* Implied Average Speed */}
+                      <td className="py-3 px-4 font-technical font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                        {typeof item.total_distance_km === 'number' && item.total_distance_km > 0 && item.total_travel_time_min
+                          ? `${(item.implied_speed_kmh || (item.total_distance_km / (item.total_travel_time_min / 60))).toFixed(1)} km/h`
+                          : '—'}
+                      </td>
+
                       {/* Vehicles & Coverage */}
                       <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
                         {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
@@ -931,14 +989,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       {/* View Action */}
                       <td className="py-3 px-4 text-right">
                         <button
-                          onClick={() => setActiveAlgo(item.id)}
+                          onClick={() => handleSelectAlgorithm(item.id)}
                           className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                             isCurrent
                               ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40'
                               : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
                           }`}
                         >
-                          {isCurrent ? 'Viewing' : 'View Map'}
+                          {isCurrent ? '✓ Inspecting' : 'Inspect Route'}
                         </button>
                       </td>
                     </tr>

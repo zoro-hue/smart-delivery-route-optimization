@@ -191,13 +191,18 @@ def repair_fleet_coverage(
     vehicle_capacities: List[float],
     num_vehicles: int,
     depot: int = 0,
+    physical_matrix: Optional[np.ndarray] = None,
+    base_speed_kmh: float = 40.0,
+    traffic_factor: float = 1.0,
+    weather_factor: float = 1.0,
+    service_time_per_stop_min: float = 0.0,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Deterministically repairs missing delivery stops to guarantee 100% customer coverage.
     1. Identifies missing customer nodes.
     2. Identifies cheapest capacity-feasible insertion position across all routes.
     3. If capacity permits, inserts cleanly; if total capacity is tight, selects cheapest position.
-    4. Recalculates all route geometries, loads, and fleet metrics.
+    4. Recalculates all route geometries, physical distances, driving/service times, and fleet metrics.
     5. Returns repaired routes and full validation report.
     """
     repaired_routes = copy.deepcopy(routes)
@@ -320,6 +325,10 @@ def repair_fleet_coverage(
                 logger.warning(f"Stop {u} cannot be feasibly reached on road network. Remains unserved.")
 
     # Recalculate metrics for all routes
+    phys_mat = physical_matrix if physical_matrix is not None else distance_matrix
+    combined_env_factor = max(0.1, float(traffic_factor) * float(weather_factor))
+    effective_driving_speed = max(5.0, float(base_speed_kmh) / combined_env_factor)
+
     for r_idx, r in enumerate(repaired_routes, start=1):
         st = r["stops"]
         # Ensure depot start and end
@@ -332,9 +341,21 @@ def repair_fleet_coverage(
         r["customer_stops"] = c_stops
         r["vehicle_id"] = r_idx
 
-        # Calculate accurate distance
-        d_km = sum(float(distance_matrix[st[k], st[k + 1]]) for k in range(len(st) - 1))
+        # Calculate accurate physical distance from physical road network edges
+        d_km = sum(float(phys_mat[st[k], st[k + 1]]) for k in range(len(st) - 1))
         r["distance_km"] = round(d_km, 3)
+
+        # Calculate driving duration, service duration, and operational duration
+        driving_min = (d_km / effective_driving_speed) * 60.0
+        service_min = len(c_stops) * float(service_time_per_stop_min)
+        total_duration_min = driving_min + service_min
+
+        r["driving_time_min"] = round(driving_min, 2)
+        r["service_time_min"] = round(service_min, 2)
+        r["total_travel_time_min"] = round(driving_min, 2)
+        r["total_duration_min"] = round(total_duration_min, 2)
+        r["implied_speed_kmh"] = round(effective_driving_speed, 1)
+        r["operational_speed_kmh"] = round(float(d_km / (total_duration_min / 60.0)), 1) if total_duration_min > 0 else round(effective_driving_speed, 1)
 
         # Calculate load and capacity
         v_cap = vehicle_capacities[r_idx - 1] if r_idx - 1 < len(vehicle_capacities) else 100.0
@@ -351,7 +372,7 @@ def repair_fleet_coverage(
         r["vehicle_id"] = i
 
     validation_report = validate_fleet_coverage(
-        final_routes, input_customer_ids, demands, vehicle_capacities, depot, distance_matrix=distance_matrix
+        final_routes, input_customer_ids, demands, vehicle_capacities, depot, distance_matrix=phys_mat
     )
 
     return final_routes, validation_report

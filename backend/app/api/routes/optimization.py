@@ -196,6 +196,7 @@ class OptimizationRequest(BaseModel):
     # Scenario
     traffic_scenario: str = "normal"  # normal, moderate, high_congestion, severe
     weather_scenario: str = "clear"  # clear, cloudy, rain, heavy_rain, storm
+    service_time_per_stop_min: float = Field(0.0, ge=0.0, le=120.0)  # Stop delivery dwell time in minutes
 
     # Classical settings
     classical_time_limit_sec: int = Field(30, ge=1, le=300)
@@ -383,6 +384,10 @@ def _solve_single_algo(
     snapped_node_ids: List[int],
     road_warnings: List[str],
     route_geometry_cache: Dict[Tuple[int, ...], List[Dict[str, Any]]],
+    physical_matrix: Optional[np.ndarray] = None,
+    traffic_factor: float = 1.0,
+    weather_factor: float = 1.0,
+    service_time_per_stop_min: float = 0.0,
 ) -> Dict[str, Any]:
     """Execute a single solver with resource profiling, coverage repair, and waypoint reconstruction."""
     logger.info(f"Executing algorithm '{algo}' on {n} nodes, {num_vehicles} vehicles")
@@ -652,6 +657,11 @@ def _solve_single_algo(
         capacities,
         num_vehicles,
         depot=0,
+        physical_matrix=physical_matrix,
+        base_speed_kmh=40.0,
+        traffic_factor=traffic_factor,
+        weather_factor=weather_factor,
+        service_time_per_stop_min=service_time_per_stop_min,
     )
 
     for r_idx, route in enumerate(repaired_routes, start=1):
@@ -705,10 +715,33 @@ def _solve_single_algo(
                 if s < len(locations)
             ]
 
+    total_dist = round(float(sum(r["distance_km"] for r in repaired_routes)), 3)
+    total_driving_min = round(float(sum(r.get("driving_time_min", (r["distance_km"] / 40.0) * 60.0) for r in repaired_routes)), 2)
+    total_service_min = round(float(sum(r.get("service_time_min", 0.0) for r in repaired_routes)), 2)
+    total_duration_min = round(total_driving_min + total_service_min, 2)
+    combined_env = max(0.1, float(traffic_factor) * float(weather_factor))
+    effective_speed = round(float(40.0 / combined_env), 1)
+    implied_speed = round(float(total_dist / (total_driving_min / 60.0)), 1) if total_driving_min > 0 else effective_speed
+    operational_speed = round(float(total_dist / (total_duration_min / 60.0)), 1) if total_duration_min > 0 else implied_speed
+
     algo_res["routes"] = repaired_routes
-    algo_res["total_distance_km"] = round(float(sum(r["distance_km"] for r in repaired_routes)), 3)
-    algo_res["total_objective_cost"] = algo_res["total_distance_km"]
-    algo_res["total_travel_time_min"] = round(float((algo_res["total_objective_cost"] / 40.0) * 60), 2)
+    algo_res["total_distance_km"] = total_dist
+    algo_res["total_objective_cost"] = total_dist
+    algo_res["total_travel_time_min"] = total_driving_min
+    algo_res["driving_duration_min"] = total_driving_min
+    algo_res["service_duration_min"] = total_service_min
+    algo_res["total_duration_min"] = total_duration_min
+    algo_res["implied_speed_kmh"] = implied_speed
+    algo_res["operational_speed_kmh"] = operational_speed
+    algo_res["speed_model"] = {
+        "base_speed_kmh": 40.0,
+        "traffic_factor": round(float(traffic_factor), 2),
+        "weather_factor": round(float(weather_factor), 2),
+        "effective_speed_kmh": effective_speed,
+        "service_time_per_stop_min": round(float(service_time_per_stop_min), 2),
+        "model_description": "NYC urban road transit model (25 mph statutory speed limit = 40.0 km/h baseline, adjusted for scenario traffic)",
+        "includes_service_time": service_time_per_stop_min > 0,
+    }
     algo_res["resource_metrics"] = res_metrics
     algo_res["validation_report"] = val_report
     algo_res["execution_time_sec"] = round(res_metrics["runtime_ms"] / 1000.0, 3)
@@ -751,6 +784,12 @@ def _build_comparison_summary(
             "execution_time_sec": algo_data.get("execution_time_sec", 0.0),
             "total_distance_km": algo_data.get("total_distance_km", 0.0),
             "total_travel_time_min": algo_data.get("total_travel_time_min", 0.0),
+            "driving_duration_min": algo_data.get("driving_duration_min", algo_data.get("total_travel_time_min", 0.0)),
+            "service_duration_min": algo_data.get("service_duration_min", 0.0),
+            "total_duration_min": algo_data.get("total_duration_min", algo_data.get("total_travel_time_min", 0.0)),
+            "implied_speed_kmh": algo_data.get("implied_speed_kmh", 40.0),
+            "operational_speed_kmh": algo_data.get("operational_speed_kmh", 40.0),
+            "speed_model": algo_data.get("speed_model", {}),
             "total_objective_cost": algo_data.get("total_objective_cost", 0.0),
             "is_feasible": algo_data.get("is_feasible", False),
             "capacity_violations": algo_data.get("capacity_violations", 0),
@@ -900,6 +939,10 @@ async def _run_background_solvers_for_job(
     total_cust_demand: int,
     total_fleet_capacity: int,
     route_geometry_cache: Dict[Tuple[int, ...], List[Dict[str, Any]]],
+    physical_matrix: Optional[np.ndarray] = None,
+    traffic_factor: float = 1.0,
+    weather_factor: float = 1.0,
+    service_time_per_stop_min: float = 0.0,
 ):
     """Progressive background solver worker executing remaining comparison algorithms."""
     async with _job_semaphore:
@@ -935,7 +978,11 @@ async def _run_background_solvers_for_job(
                                 qaoa_optimizer, qaoa_penalty, random_seed,
                                 locations, demands_int, capacities, adjusted_matrix,
                                 objective_weights, snapped_node_ids, road_warnings,
-                                route_geometry_cache
+                                route_geometry_cache,
+                                physical_matrix,
+                                traffic_factor,
+                                weather_factor,
+                                service_time_per_stop_min
                             ),
                             timeout=35.0
                         )
@@ -970,7 +1017,11 @@ async def _run_background_solvers_for_job(
                                 qaoa_optimizer, qaoa_penalty, random_seed,
                                 locations, demands_int, capacities, adjusted_matrix,
                                 objective_weights, snapped_node_ids, road_warnings,
-                                route_geometry_cache
+                                route_geometry_cache,
+                                physical_matrix,
+                                traffic_factor,
+                                weather_factor,
+                                service_time_per_stop_min
                             ),
                             timeout=35.0
                         )
@@ -1175,7 +1226,11 @@ async def start_optimization_job(
         req.qaoa_optimizer, req.qaoa_penalty, req.random_seed,
         locations, demands_int, capacities, adjusted_matrix,
         objective_weights, snapped_node_ids, road_warnings,
-        route_geometry_cache
+        route_geometry_cache,
+        physical_matrix,
+        traffic_factor,
+        weather_factor,
+        req.service_time_per_stop_min,
     )
 
     results = {primary_algo: primary_res}
@@ -1236,7 +1291,11 @@ async def start_optimization_job(
                 locations, demands_int, capacities, adjusted_matrix,
                 objective_weights, snapped_node_ids, road_warnings,
                 total_cust_demand, total_fleet_capacity,
-                route_geometry_cache
+                route_geometry_cache,
+                physical_matrix,
+                traffic_factor,
+                weather_factor,
+                req.service_time_per_stop_min,
             )
         )
 
@@ -1488,7 +1547,11 @@ async def run_optimization(
                     req.qaoa_optimizer, req.qaoa_penalty, req.random_seed,
                     locations, demands_int, capacities, adjusted_matrix,
                     objective_weights, snapped_node_ids, road_warnings,
-                    route_geometry_cache
+                    route_geometry_cache,
+                    physical_matrix,
+                    traffic_factor,
+                    weather_factor,
+                    req.service_time_per_stop_min,
                 )
             except Exception as exc:
                 logger.error(f"Solver for {a} raised: {exc}")
@@ -2088,6 +2151,15 @@ def _result_to_dict(r: ExperimentResult) -> dict:
         r.algorithm,
         (r.algorithm.upper(), "classical", "Classical", "Classical CPU")
     )
+    dist = r.total_distance_km or 0.0
+    tt_min = r.total_travel_time_min or 0.0
+    driving_min = tt_min
+    routes = r.routes or []
+    srv_min = round(float(sum(rt.get("service_time_min", 0.0) for rt in routes)), 2)
+    tot_duration = round(driving_min + srv_min, 2)
+    imp_speed = round(float(dist / (driving_min / 60.0)), 1) if driving_min > 0 else 40.0
+    op_speed = round(float(dist / (tot_duration / 60.0)), 1) if tot_duration > 0 else imp_speed
+
     return {
         "id": r.id,
         "algorithm": r.algorithm,
@@ -2098,12 +2170,22 @@ def _result_to_dict(r: ExperimentResult) -> dict:
         "status": "COMPLETED" if r.is_feasible else ("FAILED" if (r.total_distance_km or 0) == 0 else "PENALIZED"),
         "total_distance_km": r.total_distance_km,
         "total_travel_time_min": r.total_travel_time_min,
+        "driving_duration_min": driving_min,
+        "service_duration_min": srv_min,
+        "total_duration_min": tot_duration,
+        "implied_speed_kmh": imp_speed,
+        "operational_speed_kmh": op_speed,
+        "speed_model": {
+            "base_speed_kmh": 40.0,
+            "effective_speed_kmh": imp_speed,
+            "model_description": "NYC urban road transit model (25 mph statutory speed limit = 40.0 km/h baseline, adjusted for scenario traffic)",
+        },
         "total_objective_cost": r.total_objective_cost,
         "execution_time_sec": r.execution_time_sec,
         "is_feasible": r.is_feasible,
         "capacity_violations": r.capacity_violations,
         "unserved_customers": r.unserved_customers,
-        "routes": r.routes or [],
+        "routes": routes,
         "qubit_count": r.qubit_count,
         "circuit_depth": r.circuit_depth,
         "qaoa_layers": r.qaoa_layers,

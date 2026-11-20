@@ -40,6 +40,11 @@ export interface VehicleRoute {
   stops: number[];
   customer_stops: number[];
   distance_km: number;
+  driving_time_min?: number;
+  service_time_min?: number;
+  total_duration_min?: number;
+  implied_speed_kmh?: number;
+  operational_speed_kmh?: number;
   load?: number;
   capacity?: number;
   utilization_pct?: number;
@@ -66,6 +71,20 @@ export interface SolverResult {
   routes: VehicleRoute[];
   total_distance_km: number;
   total_travel_time_min: number;
+  driving_duration_min?: number;
+  service_duration_min?: number;
+  total_duration_min?: number;
+  implied_speed_kmh?: number;
+  operational_speed_kmh?: number;
+  speed_model?: {
+    base_speed_kmh?: number;
+    traffic_factor?: number;
+    weather_factor?: number;
+    effective_speed_kmh?: number;
+    service_time_per_stop_min?: number;
+    model_description?: string;
+    includes_service_time?: boolean;
+  };
   total_objective_cost: number;
   is_feasible: boolean;
   capacity_violations: number;
@@ -124,6 +143,20 @@ export interface ComparisonItem {
   execution_time_sec: number;
   total_distance_km: number;
   total_travel_time_min: number;
+  driving_duration_min?: number;
+  service_duration_min?: number;
+  total_duration_min?: number;
+  implied_speed_kmh?: number;
+  operational_speed_kmh?: number;
+  speed_model?: {
+    base_speed_kmh?: number;
+    traffic_factor?: number;
+    weather_factor?: number;
+    effective_speed_kmh?: number;
+    service_time_per_stop_min?: number;
+    model_description?: string;
+    includes_service_time?: boolean;
+  };
   total_objective_cost: number;
   is_feasible: boolean;
   capacity_violations: number;
