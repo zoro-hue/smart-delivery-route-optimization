@@ -1023,16 +1023,16 @@ async def _run_background_solvers_for_job(
                                 weather_factor,
                                 service_time_per_stop_min
                             ),
-                            timeout=35.0
+                            timeout=45.0
                         )
                     except asyncio.TimeoutError:
-                        logger.warning(f"Solver {algo} timed out after 35s for job {job_id}")
+                        logger.warning(f"Solver {algo} timed out after 45s for job {job_id}")
                         algo_res = {
                             "success": False,
-                            "error": f"Solver execution timed out (35.0s deadline)",
+                            "error": f"Solver execution timed out (45.0s deadline)",
                             "routes": [],
                             "status": "TIMED_OUT",
-                            "execution_time_sec": 35.0,
+                            "execution_time_sec": 45.0,
                             "total_distance_km": 0.0,
                             "total_travel_time_min": 0.0,
                             "total_objective_cost": 0.0,

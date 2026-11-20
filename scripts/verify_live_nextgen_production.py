@@ -94,31 +94,6 @@ for poll_idx in range(40):
                 print(f"\nBest Solution: {best.get('algorithm_name')} ({best.get('total_distance_km')} km)")
                 with open("live_production_comparison_result.json", "w") as f:
                     json.dump(data, f, indent=2)
-                break
+                sys.exit(0)
     except Exception as e:
         print(f"[{poll_idx+1:2d}] Polling error: {e}")
-
-# Poll until complete
-for poll_idx in range(40):
-    time.sleep(3)
-    try:
-        url = f"{base_url}/api/optimization/jobs/{job_id}/status"
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            status = data.get("status")
-            comp_algos = data.get("completed_algorithms", [])
-            print(f"[{poll_idx+1}] Status: {status}, completed: {len(comp_algos)}/{len(payload['selected_algorithms'])}")
-            if status in ("COMPLETED", "FAILED"):
-                print("Job finished!")
-                results = data.get("results", {})
-                for algo_id, r in results.items():
-                    dist = r.get("total_distance_km")
-                    t_sec = r.get("execution_time_sec")
-                    st = r.get("status")
-                    print(f"  - {algo_id:22}: {dist} km ({t_sec:.2f}s) [{st}]")
-                summary = data.get("comparison_summary", {})
-                best = summary.get("best_solution", {})
-                print(f"\nBest Solution: {best.get('algorithm_name')} ({best.get('total_distance_km')} km)")
-                break
-    except Exception as e:
-        print(f"[{poll_idx+1}] Polling error: {e}")
