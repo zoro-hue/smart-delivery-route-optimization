@@ -566,7 +566,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         const isAllSolversTerminal =
           allStatusVals.length > 0 &&
           allStatusVals.every((s: any) =>
-            ['completed', 'failed', 'timeout', 'skipped', 'cancelled'].includes(String(s).toLowerCase())
+            ['completed', 'failed', 'timeout', 'skipped', 'cancelled', 'penalized', 'feasible'].includes(String(s).toLowerCase())
           );
 
         // Find which solver is currently running

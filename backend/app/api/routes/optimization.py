@@ -815,7 +815,13 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
     to_run = job.get("selected_algorithms", [])
     total = len(to_run) if to_run else job.get("total_algorithms", 0)
 
-    completed_count = sum(1 for a in to_run if solver_statuses.get(a) in ("completed", "success", "COMPLETED", "SUCCESS"))
+    completed_count = sum(
+        1 for a in to_run
+        if solver_statuses.get(a) in (
+            "completed", "success", "COMPLETED", "SUCCESS",
+            "penalized", "PENALIZED", "feasible", "FEASIBLE"
+        )
+    )
     failed_count = sum(1 for a in to_run if solver_statuses.get(a) in ("failed", "error", "FAILED", "ERROR"))
     timed_out_count = sum(1 for a in to_run if solver_statuses.get(a) in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
     running_count = sum(1 for a in to_run if solver_statuses.get(a) in ("running", "RUNNING"))
@@ -911,7 +917,7 @@ async def _run_background_solvers_for_job(
 
             try:
                 if algo == "qaoa":
-                    # Timeout safeguard: max 3.5s for QAOA statevector simulation
+                    # Timeout safeguard: max 12.0s for QAOA statevector simulation
                     try:
                         algo_res = await asyncio.wait_for(
                             asyncio.to_thread(
@@ -923,16 +929,16 @@ async def _run_background_solvers_for_job(
                                 objective_weights, snapped_node_ids, road_warnings,
                                 route_geometry_cache
                             ),
-                            timeout=3.5
+                            timeout=12.0
                         )
                     except asyncio.TimeoutError:
-                        logger.warning(f"QAOA statevector simulation timed out after 3.5s for job {job_id}")
+                        logger.warning(f"QAOA statevector simulation timed out after 12.0s for job {job_id}")
                         algo_res = {
                             "success": False,
-                            "error": "QAOA statevector CPU simulation timed out (3.5s deadline)",
+                            "error": "QAOA statevector CPU simulation timed out (12.0s deadline)",
                             "routes": [],
-                            "status": "FAILED",
-                            "execution_time_sec": 3.5,
+                            "status": "TIMED_OUT",
+                            "execution_time_sec": 12.0,
                             "total_distance_km": 0.0,
                             "total_travel_time_min": 0.0,
                             "total_objective_cost": 0.0,
@@ -1286,7 +1292,10 @@ async def get_optimization_job_status(
 
     exp_status = (exp.status or "COMPLETED").upper()
     total = len(to_run)
-    completed_count = sum(1 for s in statuses.values() if s in ("completed", "success", "COMPLETED", "SUCCESS"))
+    completed_count = sum(
+        1 for s in statuses.values()
+        if s in ("completed", "success", "COMPLETED", "SUCCESS", "penalized", "PENALIZED", "feasible", "FEASIBLE")
+    )
     failed_count = sum(1 for s in statuses.values() if s in ("failed", "error", "FAILED", "ERROR"))
     timed_out_count = sum(1 for s in statuses.values() if s in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
     running_count = 0
