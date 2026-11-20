@@ -917,7 +917,7 @@ async def _run_background_solvers_for_job(
 
             try:
                 if algo == "qaoa":
-                    # Timeout safeguard: max 12.0s for QAOA statevector simulation
+                    # Timeout safeguard: max 25.0s for QAOA statevector simulation
                     try:
                         algo_res = await asyncio.wait_for(
                             asyncio.to_thread(
@@ -929,16 +929,16 @@ async def _run_background_solvers_for_job(
                                 objective_weights, snapped_node_ids, road_warnings,
                                 route_geometry_cache
                             ),
-                            timeout=12.0
+                            timeout=25.0
                         )
                     except asyncio.TimeoutError:
-                        logger.warning(f"QAOA statevector simulation timed out after 12.0s for job {job_id}")
+                        logger.warning(f"QAOA statevector simulation timed out after 25.0s for job {job_id}")
                         algo_res = {
                             "success": False,
-                            "error": "QAOA statevector CPU simulation timed out (12.0s deadline)",
+                            "error": "QAOA statevector CPU simulation timed out (25.0s deadline)",
                             "routes": [],
                             "status": "TIMED_OUT",
-                            "execution_time_sec": 12.0,
+                            "execution_time_sec": 25.0,
                             "total_distance_km": 0.0,
                             "total_travel_time_min": 0.0,
                             "total_objective_cost": 0.0,

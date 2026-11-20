@@ -1,6 +1,11 @@
 import os
+import sys
 import time
 import json
+
+# Unbuffered stdout for immediate live logging
+sys.stdout.reconfigure(line_buffering=True)
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
