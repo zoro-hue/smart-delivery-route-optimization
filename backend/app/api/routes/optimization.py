@@ -1254,22 +1254,25 @@ async def start_optimization_job(
     }
 
 
+async def _get_optional_db():
+    return None
+
+
 @router.get("/optimization/jobs/{job_id}/status")
 async def get_optimization_job_status(
     job_id: str,
-    *args,
-    **kwargs
+    db: Optional[AsyncSession] = Depends(_get_optional_db),
 ):
     """Retrieve real-time status, incremental solver results, and progress metrics for an optimization job."""
-    db = args[0] if args else kwargs.get("db", None)
+    real_db = db if isinstance(db, AsyncSession) else None
     if job_id == "latest":
         if _active_jobs:
             latest_id = max(_active_jobs.keys(), key=lambda k: _active_jobs[k].get("created_at", 0))
             job = _active_jobs[latest_id]
             return _format_job_status_response(job)
-        if db is not None:
+        if real_db is not None:
             stmt = select(Experiment).order_by(Experiment.timestamp.desc()).limit(1)
-            res = await db.execute(stmt)
+            res = await real_db.execute(stmt)
             latest_exp = res.scalar_one_or_none()
             if latest_exp:
                 job_id = latest_exp.id
@@ -1291,15 +1294,15 @@ async def get_optimization_job_status(
         return _format_job_status_response(job)
 
     # Check database only if not in memory (e.g. process restart)
-    if db is not None:
+    if real_db is not None:
         exp_stmt = select(Experiment).where(Experiment.id == job_id)
-        exp_res = await db.execute(exp_stmt)
+        exp_res = await real_db.execute(exp_stmt)
         exp = exp_res.scalar_one_or_none()
         if not exp:
             raise HTTPException(404, f"Optimization job '{job_id}' not found.")
 
         res_stmt = select(ExperimentResult).where(ExperimentResult.experiment_id == job_id)
-        res_rows = (await db.execute(res_stmt)).scalars().all()
+        res_rows = (await real_db.execute(res_stmt)).scalars().all()
         results = {r.algorithm: _result_to_dict(r) for r in res_rows}
         to_run = exp.algorithm.split(",") if exp.algorithm else list(results.keys())
     else:
