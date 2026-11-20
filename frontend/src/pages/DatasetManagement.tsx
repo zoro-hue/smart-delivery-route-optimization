@@ -17,12 +17,19 @@ import {
   MapPin,
   Truck,
   Users,
+  ShieldCheck,
+  Clock,
+  Database,
+  Radio,
 } from 'lucide-react';
-import { Dataset } from '../types';
+import { Dataset, DatasetSyncStatus } from '../types';
 import { api } from '../services/api';
 
 interface DatasetManagementProps {
   datasets: Dataset[];
+  syncStatus?: DatasetSyncStatus;
+  lastSyncedAt?: string | null;
+  backendConfirmedIds?: string[];
   onRefresh: () => void;
   onScanDatasets: () => void;
   isScanning: boolean;
@@ -33,6 +40,9 @@ interface DatasetManagementProps {
 
 export const DatasetManagement: React.FC<DatasetManagementProps> = ({
   datasets,
+  syncStatus = 'CONNECTED',
+  lastSyncedAt = null,
+  backendConfirmedIds = [],
   onRefresh,
   onScanDatasets,
   isScanning,
@@ -53,13 +63,9 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
   const [actionNotification, setActionNotification] = useState<{
     message: string;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info';
   } | null>(null);
-  const [mappingModal, setMappingModal] = useState<{
-    dataset: Dataset;
-    schemaCols: string[];
-  } | null>(null);
-  const [selectedMapping, setSelectedMapping] = useState<Record<string, string>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const datasetCategories = [
     { id: 'customer', label: '1. Customer & Delivery' },
@@ -69,6 +75,27 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
     { id: 'road', label: '5. Road / Distance Network' },
     { id: 'weather', label: '6. Weather Observations' },
   ];
+
+  // Helper to determine if a dataset is confirmed by the active backend registry
+  const isBackendConfirmed = (dataset: Dataset): boolean => {
+    if (backendConfirmedIds && backendConfirmedIds.length > 0) {
+      return backendConfirmedIds.includes(dataset.id);
+    }
+    return dataset.sync_source === 'backend' || (!dataset.is_cached && syncStatus === 'CONNECTED');
+  };
+
+  const confirmedCount = datasets.filter(isBackendConfirmed).length;
+  const cachedCount = datasets.length - confirmedCount;
+
+  const formatSyncTime = (isoString: string | null): string => {
+    if (!isoString) return 'Not yet synced';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch {
+      return isoString;
+    }
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +109,14 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
       if (datasetName) formData.append('name', datasetName);
 
       const res = await api.uploadDataset(formData);
-      // Automatically trigger extract, validate, and process
       const datasetId = res.id;
+
+      setActionNotification({
+        message: `Dataset uploaded (${(uploadFile.size / 1024).toFixed(1)} KB). Extracting and normalizing...`,
+        type: 'info',
+      });
+
+      // Stepwise non-blocking extraction, validation, and processing
       try {
         await api.extractDataset(datasetId);
       } catch (e: any) {
@@ -103,13 +136,13 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
       setUploadFile(null);
       setDatasetName('');
       setActionNotification({
-        message: 'Dataset uploaded and processed successfully.',
+        message: 'Dataset uploaded, extracted, and normalized successfully.',
         type: 'success',
       });
       setTimeout(() => setActionNotification(null), 4000);
     } catch (err: any) {
       setActionNotification({
-        message: `Upload/processing error: ${err.response?.data?.detail || err.message}`,
+        message: `Upload error: ${err.response?.data?.detail || err.message}`,
         type: 'error',
       });
       setTimeout(() => setActionNotification(null), 5000);
@@ -176,8 +209,6 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
     }
   };
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
   const handleDelete = async (id: string) => {
     if (deletingId) return;
     setDeletingId(id);
@@ -234,7 +265,7 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
             Datasets
           </h1>
           <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 max-w-xl">
-            Ingest, extract, validate, map columns, and normalize the 6 logistics datasets safely.
+            Ingest, extract, validate, map columns, and normalize the 6 logistics datasets safely with non-blocking execution.
           </p>
         </div>
 
@@ -250,11 +281,123 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
           </button>
           <button
             onClick={onRefresh}
-            className="p-2.5 bg-white dark:bg-[#18181B] border border-black/10 dark:border-[#29292E] hover:bg-[#F4F4F2] dark:hover:bg-[#202024] rounded-xl text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer shadow-xs"
-            title="Refresh Datasets Table and Schema"
+            disabled={isLoading || isRefreshing}
+            className="p-2.5 bg-white dark:bg-[#18181B] border border-black/10 dark:border-[#29292E] hover:bg-[#F4F4F2] dark:hover:bg-[#202024] rounded-xl text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            title="Synchronize Datasets with Backend Registry"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${isLoading || isRefreshing ? 'animate-spin text-[#B7FF00]' : ''}`} />
           </button>
+        </div>
+      </div>
+
+      {/* Synchronization Status Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Sync State Pill */}
+        <div className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-xl p-3.5 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div
+              className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
+                syncStatus === 'CONNECTED'
+                  ? 'bg-[#B7FF00]/15 text-[#080808] dark:text-[#B7FF00]'
+                  : syncStatus === 'SYNCING' || syncStatus === 'CONNECTING'
+                  ? 'bg-blue-500/15 text-blue-500'
+                  : syncStatus === 'DEGRADED'
+                  ? 'bg-amber-500/15 text-amber-500'
+                  : 'bg-red-500/15 text-red-500'
+              }`}
+            >
+              {syncStatus === 'CONNECTED' ? (
+                <ShieldCheck className="h-4 w-4" />
+              ) : syncStatus === 'SYNCING' || syncStatus === 'CONNECTING' ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : syncStatus === 'DEGRADED' ? (
+                <AlertTriangle className="h-4 w-4" />
+              ) : (
+                <Radio className="h-4 w-4" />
+              )}
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-[#777777] dark:text-[#71717A] uppercase tracking-wider">
+                Registry Synchronization
+              </div>
+              <div className="text-xs font-bold text-[#080808] dark:text-[#F5F5F7] flex items-center gap-1.5 mt-0.5">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    syncStatus === 'CONNECTED'
+                      ? 'bg-[#B7FF00]'
+                      : syncStatus === 'SYNCING' || syncStatus === 'CONNECTING'
+                      ? 'bg-blue-500 animate-pulse'
+                      : syncStatus === 'DEGRADED'
+                      ? 'bg-amber-500'
+                      : 'bg-red-500'
+                  }`}
+                />
+                <span>
+                  {syncStatus === 'CONNECTED'
+                    ? 'CONNECTED (Live Backend)'
+                    : syncStatus === 'SYNCING'
+                    ? 'SYNCING (Validating Registry...)'
+                    : syncStatus === 'CONNECTING'
+                    ? 'CONNECTING (Establishing Link...)'
+                    : syncStatus === 'DEGRADED'
+                    ? 'DEGRADED (High Latency)'
+                    : syncStatus === 'DISCONNECTED'
+                    ? 'DISCONNECTED (Offline Cache)'
+                    : 'ERROR (Sync Notice)'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={isLoading || isRefreshing}
+            className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-black/5 dark:bg-[#18181B] hover:bg-[#B7FF00] hover:text-black dark:hover:bg-[#B7FF00] dark:hover:text-black transition-all cursor-pointer disabled:opacity-40"
+          >
+            {isRefreshing ? 'Syncing...' : 'Sync'}
+          </button>
+        </div>
+
+        {/* Live vs Cached Metrics */}
+        <div className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-xl p-3.5 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] flex items-center justify-center shrink-0">
+              <Database className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-[#777777] dark:text-[#71717A] uppercase tracking-wider">
+                Dataset Provenance
+              </div>
+              <div className="text-xs font-bold text-[#080808] dark:text-[#F5F5F7] flex items-center gap-2 mt-0.5">
+                <span className="text-[#080808] dark:text-[#B7FF00] font-mono">{confirmedCount} Backend Live</span>
+                {cachedCount > 0 && (
+                  <span className="text-amber-500 font-mono">· {cachedCount} Cached</span>
+                )}
+              </div>
+            </div>
+          </div>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA]">
+            {datasets.length} Total
+          </span>
+        </div>
+
+        {/* Last Synchronization Timestamp */}
+        <div className="bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] rounded-xl p-3.5 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] flex items-center justify-center shrink-0">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-[#777777] dark:text-[#71717A] uppercase tracking-wider">
+                Last Verified Sync
+              </div>
+              <div className="text-xs font-mono font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                {formatSyncTime(lastSyncedAt)}
+              </div>
+            </div>
+          </div>
+          <span className="text-[10px] uppercase font-bold text-[#777777] dark:text-[#71717A]">
+            Auto-Heartbeat
+          </span>
         </div>
       </div>
 
@@ -264,6 +407,8 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
           className={`p-3.5 rounded-xl text-xs font-semibold flex items-center justify-between transition-all ${
             actionNotification.type === 'success'
               ? 'bg-[#B7FF00]/15 border border-[#B7FF00]/30 text-[#080808] dark:text-[#B7FF00]'
+              : actionNotification.type === 'info'
+              ? 'bg-blue-500/15 border border-blue-500/30 text-blue-500'
               : 'bg-red-500/15 border border-red-500/30 text-red-500'
           }`}
         >
@@ -274,6 +419,28 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
             className="text-xs font-bold opacity-70 hover:opacity-100 cursor-pointer ml-3 px-2 py-0.5 rounded"
           >
             &times;
+          </button>
+        </div>
+      )}
+
+      {/* Non-intrusive banner if sync error occurs while datasets are present */}
+      {error && datasets.length > 0 && (
+        <div className="p-4 bg-amber-500/10 dark:bg-amber-950/20 border border-amber-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5 text-xs text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <div>
+              <span className="font-bold">Backend Sync Notice:</span> {error} — Currently presenting{' '}
+              <span className="font-mono font-bold">{datasets.length}</span> verified cached datasets from local browser storage.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={isLoading || isRefreshing}
+            className="px-4 py-1.5 rounded-full bg-[#080808] dark:bg-white text-white dark:text-black text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90 disabled:opacity-50 shrink-0 self-start sm:self-auto"
+          >
+            <RefreshCw className={`h-3 w-3 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isLoading || isRefreshing ? 'Retrying Synchronization...' : 'Retry Synchronization'}</span>
           </button>
         </div>
       )}
@@ -317,7 +484,7 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-[#777777] dark:text-[#A1A1AA] mb-1.5">
-              Select File (ZIP, XLSX, CSV)
+              Select File (ZIP, XLSX, CSV, JSON)
             </label>
             <input
               type="file"
@@ -349,27 +516,6 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
             Safe sandbox extraction & schema detection
           </span>
         </div>
-
-        {/* Non-intrusive banner if sync error occurs while datasets are present */}
-        {error && datasets.length > 0 && (
-          <div className="p-4 bg-red-500/10 dark:bg-red-950/30 border-b border-red-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 text-xs text-red-600 dark:text-red-400">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <div>
-                <span className="font-bold">Backend Sync Notice:</span> {error} (Displaying cached datasets)
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={isLoading || isRefreshing}
-              className="px-4 py-1.5 rounded-full bg-[#080808] dark:bg-white text-white dark:text-black text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90 disabled:opacity-50 shrink-0 self-start sm:self-auto"
-            >
-              <RefreshCw className={`h-3 w-3 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
-              <span>{isLoading || isRefreshing ? 'Retrying Connection...' : 'Retry Connection'}</span>
-            </button>
-          </div>
-        )}
 
         {datasets.length === 0 ? (
           isLoading || isRefreshing ? (
@@ -417,6 +563,7 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
                 <tr>
                   <th className="py-3 px-4">Type</th>
                   <th className="py-3 px-4">Dataset Name / File</th>
+                  <th className="py-3 px-4">Registry State</th>
                   <th className="py-3 px-4">Records</th>
                   <th className="py-3 px-4">Missing %</th>
                   <th className="py-3 px-4">Extraction</th>
@@ -426,126 +573,142 @@ export const DatasetManagement: React.FC<DatasetManagementProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5 dark:divide-[#29292E]/60 font-normal">
-                {datasets.map((d) => (
-                  <tr
-                    key={d.id}
-                    className={`transition-colors ${
-                      activePreview?.id === d.id
-                        ? 'bg-[#B7FF00]/10 dark:bg-[#B7FF00]/15 border-l-4 border-l-[#B7FF00]'
-                        : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
-                    }`}
-                  >
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-7 w-7 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#A1A1AA] flex items-center justify-center shrink-0">
-                          {getTypeIcon(d.dataset_type)}
+                {datasets.map((d) => {
+                  const confirmed = isBackendConfirmed(d);
+                  return (
+                    <tr
+                      key={d.id}
+                      className={`transition-colors ${
+                        activePreview?.id === d.id
+                          ? 'bg-[#B7FF00]/10 dark:bg-[#B7FF00]/15 border-l-4 border-l-[#B7FF00]'
+                          : 'hover:bg-black/[0.02] dark:hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-7 w-7 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#A1A1AA] flex items-center justify-center shrink-0">
+                            {getTypeIcon(d.dataset_type)}
+                          </div>
+                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7] capitalize">
+                            {d.dataset_type}
+                          </span>
                         </div>
-                        <span className="font-bold text-[#080808] dark:text-[#F5F5F7] capitalize">
-                          {d.dataset_type}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-[#080808] dark:text-[#F5F5F7]">{d.name}</div>
-                      <div className="text-[11px] text-[#777777] dark:text-[#71717A] truncate max-w-xs font-mono mt-0.5">
-                        {d.original_filename} ({(d.file_size_bytes / 1024).toFixed(1)} KB)
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-semibold text-[#080808] dark:text-[#F5F5F7] font-mono">
-                      {d.record_count ? d.record_count.toLocaleString() : 'N/A'}
-                    </td>
-                    <td className="py-3.5 px-4 text-[#777777] dark:text-[#A1A1AA] font-mono">
-                      0%
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-bold ${
-                          d.extraction_status === 'extracted'
-                            ? 'bg-[#B7FF00] text-black'
-                            : d.extraction_status === 'failed'
-                            ? 'bg-red-500/20 text-red-400'
-                            : 'bg-black/5 dark:bg-[#202024] text-[#777777] dark:text-[#A1A1AA]'
-                        }`}
-                      >
-                        {d.extraction_status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-bold ${
-                          d.validation_status === 'valid'
-                            ? 'bg-[#B7FF00] text-black'
-                            : d.validation_status === 'invalid'
-                            ? 'bg-amber-500/20 text-amber-400'
-                            : 'bg-black/5 dark:bg-[#202024] text-[#777777] dark:text-[#A1A1AA]'
-                        }`}
-                      >
-                        {d.validation_status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-bold ${
-                          d.processing_status === 'completed'
-                            ? 'bg-[#B7FF00] text-black'
-                            : d.processing_status === 'failed'
-                            ? 'bg-red-500/20 text-red-400'
-                            : 'bg-black/5 dark:bg-[#202024] text-[#777777] dark:text-[#A1A1AA]'
-                        }`}
-                      >
-                        {d.processing_status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePreview(d);
-                        }}
-                        disabled={previewLoadingId === d.id}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                          activePreview?.id === d.id
-                            ? 'bg-[#B7FF00] text-black shadow-xs'
-                            : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white'
-                        }`}
-                        title={activePreview?.id === d.id ? 'Close Preview' : 'Preview Records'}
-                      >
-                        {previewLoadingId === d.id ? (
-                          <RefreshCw className="h-4 w-4 animate-spin text-[#080808] dark:text-[#F5F5F7]" />
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-[#080808] dark:text-[#F5F5F7]">{d.name}</div>
+                        <div className="text-[11px] text-[#777777] dark:text-[#71717A] truncate max-w-xs font-mono mt-0.5">
+                          {d.original_filename} ({(d.file_size_bytes / 1024).toFixed(1)} KB)
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {confirmed ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#B7FF00]/20 text-[#080808] dark:text-[#B7FF00] border border-[#B7FF00]/40">
+                            <ShieldCheck className="h-3 w-3" />
+                            <span>Backend Live</span>
+                          </span>
                         ) : (
-                          <Eye className="h-4 w-4" />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            <Clock className="h-3 w-3" />
+                            <span>Locally Cached</span>
+                          </span>
                         )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReprocess(d.id);
-                        }}
-                        disabled={reprocessingId === d.id}
-                        className={`p-1.5 hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 ${
-                          reprocessingId === d.id ? 'text-[#B7FF00]' : ''
-                        }`}
-                        title="Reprocess & Validate Dataset"
-                      >
-                        <RefreshCw className={`h-4 w-4 ${reprocessingId === d.id ? 'animate-spin' : ''}`} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(d.id);
-                        }}
-                        disabled={deletingId === d.id}
-                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-[#777777] hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-all cursor-pointer disabled:opacity-50"
-                        title="Delete dataset"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-[#080808] dark:text-[#F5F5F7] font-mono">
+                        {d.record_count ? d.record_count.toLocaleString() : 'N/A'}
+                      </td>
+                      <td className="py-3.5 px-4 text-[#777777] dark:text-[#A1A1AA] font-mono">
+                        0%
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-bold ${
+                            d.extraction_status === 'extracted'
+                              ? 'bg-[#B7FF00] text-black'
+                              : d.extraction_status === 'failed'
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-black/5 dark:bg-[#202024] text-[#777777] dark:text-[#A1A1AA]'
+                          }`}
+                        >
+                          {d.extraction_status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-bold ${
+                            d.validation_status === 'valid'
+                              ? 'bg-[#B7FF00] text-black'
+                              : d.validation_status === 'invalid'
+                              ? 'bg-amber-500/20 text-amber-400'
+                              : 'bg-black/5 dark:bg-[#202024] text-[#777777] dark:text-[#A1A1AA]'
+                          }`}
+                        >
+                          {d.validation_status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-block px-3 py-0.5 rounded-full text-[11px] font-bold ${
+                            d.processing_status === 'completed'
+                              ? 'bg-[#B7FF00] text-black'
+                              : d.processing_status === 'failed'
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-black/5 dark:bg-[#202024] text-[#777777] dark:text-[#A1A1AA]'
+                          }`}
+                        >
+                          {d.processing_status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreview(d);
+                          }}
+                          disabled={previewLoadingId === d.id}
+                          className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                            activePreview?.id === d.id
+                              ? 'bg-[#B7FF00] text-black shadow-xs'
+                              : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white'
+                          }`}
+                          title={activePreview?.id === d.id ? 'Close Preview' : 'Preview Records'}
+                        >
+                          {previewLoadingId === d.id ? (
+                            <RefreshCw className="h-4 w-4 animate-spin text-[#080808] dark:text-[#F5F5F7]" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReprocess(d.id);
+                          }}
+                          disabled={reprocessingId === d.id}
+                          className={`p-1.5 hover:bg-black/5 dark:hover:bg-white/10 text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 ${
+                            reprocessingId === d.id ? 'text-[#B7FF00]' : ''
+                          }`}
+                          title="Reprocess & Validate Dataset"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${reprocessingId === d.id ? 'animate-spin' : ''}`} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(d.id);
+                          }}
+                          disabled={deletingId === d.id}
+                          className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 text-[#777777] hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                          title="Delete dataset"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

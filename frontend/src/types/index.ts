@@ -26,7 +26,12 @@ export interface Dataset {
   mapping_status: string;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   data_hash: string;
+  is_cached?: boolean;
+  sync_source?: 'backend' | 'cache';
+  last_synced_at?: string;
 }
+
+export type DatasetSyncStatus = 'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'DEGRADED' | 'DISCONNECTED' | 'ERROR';
 
 export interface RouteWaypoint {
   lat: number;

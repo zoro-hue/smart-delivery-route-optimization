@@ -8,7 +8,7 @@ import { ExperimentHistory } from './pages/ExperimentHistory';
 import { SystemSettings } from './pages/SystemSettings';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
-import { Dataset, AnalyticsSummary, OptimizationResponse } from './types';
+import { Dataset, AnalyticsSummary, OptimizationResponse, DatasetSyncStatus } from './types';
 
 export type ConnectionStatus = 'CONNECTING' | 'CONNECTED' | 'DEGRADED' | 'DISCONNECTED';
 
@@ -37,6 +37,24 @@ export const App: React.FC = () => {
   });
   const [isDatasetsLoading, setIsDatasetsLoading] = useState<boolean>(true);
   const [datasetsError, setDatasetsError] = useState<string | null>(null);
+  const [datasetSyncStatus, setDatasetSyncStatus] = useState<DatasetSyncStatus>('CONNECTING');
+  const [lastDatasetSyncTime, setLastDatasetSyncTime] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('routeiq_last_synced_at') || null;
+    } catch {
+      return null;
+    }
+  });
+  const [backendConfirmedIds, setBackendConfirmedIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('routeiq_confirmed_dataset_ids');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const activeSyncControllerRef = useRef<AbortController | null>(null);
+
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [backendHealth, setBackendHealth] = useState<any>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('CONNECTING');
@@ -85,23 +103,59 @@ export const App: React.FC = () => {
     setIsRefreshing(true);
     setIsDatasetsLoading(true);
     setDatasetsError(null);
+    setDatasetSyncStatus('SYNCING');
+
+    // Cancel any in-flight sync request to prevent overlapping stale responses
+    if (activeSyncControllerRef.current) {
+      try {
+        activeSyncControllerRef.current.abort();
+      } catch {}
+    }
+    const controller = new AbortController();
+    activeSyncControllerRef.current = controller;
+
     try {
       const [ds, an, hl] = await Promise.allSettled([
-        api.getDatasets(),
+        api.getDatasets(controller.signal),
         api.getAnalyticsSummary(),
         api.checkHealth(),
       ]);
 
       if (ds.status === 'fulfilled') {
-        setDatasets(ds.value);
+        const confirmedIds = ds.value.map((d) => d.id);
+        const taggedDatasets = ds.value.map((d) => ({
+          ...d,
+          is_cached: false,
+          sync_source: 'backend' as const,
+          last_synced_at: new Date().toISOString(),
+        }));
+        setDatasets(taggedDatasets);
+        setBackendConfirmedIds(confirmedIds);
         setDatasetsError(null);
+        const nowIso = new Date().toISOString();
+        setLastDatasetSyncTime(nowIso);
+        setDatasetSyncStatus(connectionStatus === 'DEGRADED' ? 'DEGRADED' : 'CONNECTED');
         try {
-          localStorage.setItem('routeiq_cached_datasets', JSON.stringify(ds.value));
+          localStorage.setItem('routeiq_cached_datasets', JSON.stringify(taggedDatasets));
+          localStorage.setItem('routeiq_confirmed_dataset_ids', JSON.stringify(confirmedIds));
+          localStorage.setItem('routeiq_last_synced_at', nowIso);
         } catch {}
       } else {
-        const msg = ds.reason?.response?.data?.detail || ds.reason?.message || 'Failed to load datasets';
-        setDatasetsError(msg);
-        console.error('Data refresh datasets error:', ds.reason);
+        const isAbort = ds.reason?.name === 'CanceledError' || ds.reason?.message === 'canceled';
+        if (!isAbort) {
+          const msg = ds.reason?.response?.data?.detail || ds.reason?.message || 'Failed to sync with backend datasets';
+          setDatasetsError(msg);
+          setDatasetSyncStatus(connectionStatus === 'DISCONNECTED' ? 'DISCONNECTED' : 'ERROR');
+          // Mark existing datasets as cached so user is clearly informed
+          setDatasets((prev) =>
+            prev.map((d) => ({
+              ...d,
+              is_cached: true,
+              sync_source: 'cache' as const,
+            }))
+          );
+          console.error('Data refresh datasets error:', ds.reason);
+        }
       }
 
       if (an.status === 'fulfilled') setAnalytics(an.value);
@@ -243,6 +297,9 @@ export const App: React.FC = () => {
           <ErrorBoundary fallbackTitle="Dataset Management Workspace">
             <DatasetManagement
               datasets={datasets}
+              syncStatus={datasetSyncStatus}
+              lastSyncedAt={lastDatasetSyncTime}
+              backendConfirmedIds={backendConfirmedIds}
               onRefresh={refreshData}
               onScanDatasets={handleScanWorkspace}
               isScanning={isScanning}
