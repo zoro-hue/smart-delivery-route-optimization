@@ -14,6 +14,9 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 
 interface NavbarProps {
+  connectionStatus?: 'CONNECTING' | 'CONNECTED' | 'DEGRADED' | 'DISCONNECTED';
+  connectionLatencyMs?: number | null;
+  onRetryConnection?: () => void;
   isBackendHealthy: boolean;
   activeTab: string;
   onSelectTab: (tab: string) => void;
@@ -26,6 +29,9 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
+  connectionStatus = 'CONNECTING',
+  connectionLatencyMs,
+  onRetryConnection,
   isBackendHealthy,
   activeTab,
   onSelectTab,
@@ -124,29 +130,59 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* ─── 3. FAR RIGHT: COMPACT QISKIT 2.4.1 STATUS & THEME TOGGLE ──────── */}
       <div className="flex items-center gap-2.5 shrink-0 z-10 pointer-events-auto">
-        {/* Compact Engine Status Indicator Pill */}
-        <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/75 dark:bg-[#18181B]/85 backdrop-blur-[24px] backdrop-saturate-[180%] border border-black/10 dark:border-[#29292E] text-xs font-heading font-medium text-[#171717] dark:text-[#F5F5F7] shadow-sm cursor-help"
+        {/* Connection & Engine Status Indicator Pill with interactive retry */}
+        <button
+          type="button"
+          onClick={onRetryConnection}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/75 dark:bg-[#18181B]/85 backdrop-blur-[24px] backdrop-saturate-[180%] border text-xs font-heading font-medium transition-all duration-200 cursor-pointer shadow-sm ${
+            connectionStatus === 'CONNECTED'
+              ? 'border-black/10 dark:border-[#29292E] text-[#171717] dark:text-[#F5F5F7] hover:border-black/20'
+              : connectionStatus === 'DEGRADED'
+              ? 'border-yellow-500/40 text-yellow-700 dark:text-yellow-400 bg-yellow-500/5'
+              : connectionStatus === 'DISCONNECTED'
+              ? 'border-red-500/40 text-red-700 dark:text-red-400 bg-red-500/5 hover:bg-red-500/10'
+              : 'border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5'
+          }`}
           title={
-            isBackendHealthy
-              ? 'Qiskit 2.4.1 Statevector Simulation Active. Classical simulation runs on CPU and does not require IBM QPU cloud connectivity.'
+            connectionStatus === 'CONNECTED'
+              ? 'ROUTE/IQ Backend Connected · Qiskit 2.4.1 Statevector Simulation Active (CPU Sim) · Click to re-verify'
+              : connectionStatus === 'DEGRADED'
+              ? `Backend responding with high latency (${connectionLatencyMs || 0}ms). Click to retry.`
+              : connectionStatus === 'DISCONNECTED'
+              ? 'Backend unreachable or waking up from Render cold start. Click to retry connection.'
               : 'Connecting to ROUTE/IQ backend server...'
           }
         >
           <span
             className={`h-2 w-2 rounded-full shrink-0 ${
-              isBackendHealthy
+              connectionStatus === 'CONNECTED'
                 ? 'bg-[#22C55E] shadow-[0_0_8px_#22C55E]'
-                : 'bg-[#F59E0B] animate-pulse'
+                : connectionStatus === 'DEGRADED'
+                ? 'bg-[#EAB308] shadow-[0_0_8px_#EAB308]'
+                : connectionStatus === 'DISCONNECTED'
+                ? 'bg-[#EF4444] shadow-[0_0_8px_#EF4444]'
+                : 'bg-[#F59E0B] animate-pulse shadow-[0_0_8px_#F59E0B]'
             }`}
           />
           <span className="hidden sm:inline">
-            {isBackendHealthy ? 'Qiskit 2.4.1 (CPU Sim)' : 'Connecting...'}
+            {connectionStatus === 'CONNECTED'
+              ? 'Qiskit 2.4.1 (CPU Sim)'
+              : connectionStatus === 'DEGRADED'
+              ? `Degraded (${connectionLatencyMs || 0}ms)`
+              : connectionStatus === 'DISCONNECTED'
+              ? 'Disconnected · Retry'
+              : 'Connecting...'}
           </span>
           <span className="sm:hidden">
-            {isBackendHealthy ? 'Qiskit CPU' : 'Connecting'}
+            {connectionStatus === 'CONNECTED'
+              ? 'CPU Sim'
+              : connectionStatus === 'DEGRADED'
+              ? 'Degraded'
+              : connectionStatus === 'DISCONNECTED'
+              ? 'Retry'
+              : 'Connecting'}
           </span>
-        </div>
+        </button>
 
         {/* Light / Dark Mode Toggle Button */}
         <button

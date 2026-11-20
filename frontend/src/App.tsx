@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from './components/layout/Navbar';
 import { OverviewDashboard } from './pages/OverviewDashboard';
 import { PlanWorkspace } from './pages/PlanWorkspace';
@@ -9,6 +9,8 @@ import { SystemSettings } from './pages/SystemSettings';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { api } from './services/api';
 import { Dataset, AnalyticsSummary, OptimizationResponse } from './types';
+
+export type ConnectionStatus = 'CONNECTING' | 'CONNECTED' | 'DEGRADED' | 'DISCONNECTED';
 
 export const App: React.FC = () => {
   // Navigation tabs: overview (home) | plan | datasets | results | experiments | settings
@@ -37,6 +39,10 @@ export const App: React.FC = () => {
   const [datasetsError, setDatasetsError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [backendHealth, setBackendHealth] = useState<any>(null);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('CONNECTING');
+  const [connectionLatencyMs, setConnectionLatencyMs] = useState<number | null>(null);
+  const reconnectAttemptRef = useRef<number>(0);
+  const reconnectTimerRef = useRef<any>(null);
   const [lastResult, setLastResult] = useState<OptimizationResponse | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -48,6 +54,32 @@ export const App: React.FC = () => {
       } catch {}
     }
   }, [lastResult]);
+
+  const checkConnection = useCallback(async (isManual = false) => {
+    if (isManual) {
+      setConnectionStatus('CONNECTING');
+    }
+    const t0 = performance.now();
+    try {
+      const hl = await api.checkHealth();
+      const latency = Math.round(performance.now() - t0);
+      setConnectionLatencyMs(latency);
+      setBackendHealth(hl);
+      reconnectAttemptRef.current = 0;
+      if (latency > 3500) {
+        setConnectionStatus('DEGRADED');
+      } else {
+        setConnectionStatus('CONNECTED');
+      }
+      return true;
+    } catch (err: any) {
+      console.warn('[ROUTE/IQ Connection] Health check failed:', err?.message || err);
+      setConnectionLatencyMs(null);
+      setBackendHealth(null);
+      setConnectionStatus('DISCONNECTED');
+      return false;
+    }
+  }, []);
 
   const refreshData = async () => {
     setIsRefreshing(true);
@@ -73,7 +105,12 @@ export const App: React.FC = () => {
       }
 
       if (an.status === 'fulfilled') setAnalytics(an.value);
-      if (hl.status === 'fulfilled') setBackendHealth(hl.value);
+      if (hl.status === 'fulfilled') {
+        setBackendHealth(hl.value);
+        setConnectionStatus('CONNECTED');
+      } else {
+        setConnectionStatus('DISCONNECTED');
+      }
     } catch (e) {
       console.error('Data refresh error:', e);
     } finally {
@@ -81,6 +118,51 @@ export const App: React.FC = () => {
       setTimeout(() => setIsRefreshing(false), 400);
     }
   };
+
+  const handleRetryConnection = useCallback(async () => {
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    reconnectAttemptRef.current = 0;
+    const ok = await checkConnection(true);
+    if (ok) {
+      refreshData();
+    }
+  }, [checkConnection]);
+
+  // Automated background recovery & periodic heartbeat
+  useEffect(() => {
+    let isMounted = true;
+
+    const scheduleNextProbe = (status: ConnectionStatus) => {
+      if (!isMounted) return;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+
+      let delayMs = 45000; // Heartbeat when connected
+      if (status === 'DISCONNECTED') {
+        // Exponential backoff: 5s, 10s, 20s, max 30s
+        const attempt = reconnectAttemptRef.current;
+        delayMs = Math.min(5000 * Math.pow(2, Math.min(attempt, 2)), 30000);
+        reconnectAttemptRef.current += 1;
+      } else if (status === 'DEGRADED') {
+        delayMs = 15000;
+      }
+
+      reconnectTimerRef.current = setTimeout(async () => {
+        if (!isMounted) return;
+        const ok = await checkConnection(false);
+        scheduleNextProbe(ok ? 'CONNECTED' : 'DISCONNECTED');
+      }, delayMs);
+    };
+
+    // Initial check
+    checkConnection(false).then((ok) => {
+      scheduleNextProbe(ok ? 'CONNECTED' : 'DISCONNECTED');
+    });
+
+    return () => {
+      isMounted = false;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    };
+  }, [checkConnection]);
 
   useEffect(() => {
     refreshData();
@@ -108,6 +190,9 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#F4F4F2] dark:bg-[#000000] text-[#171717] dark:text-[#F5F5F7] flex flex-col font-sans transition-colors duration-200">
       {/* Unified Top Navigation Header with Centered Glassmorphic Nav */}
       <Navbar
+        connectionStatus={connectionStatus}
+        connectionLatencyMs={connectionLatencyMs}
+        onRetryConnection={handleRetryConnection}
         isBackendHealthy={!!backendHealth}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}

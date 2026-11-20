@@ -815,11 +815,13 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
     to_run = job.get("selected_algorithms", [])
     total = len(to_run) if to_run else job.get("total_algorithms", 0)
 
-    completed_count = sum(1 for s in solver_statuses.values() if s in ("completed", "success", "COMPLETED", "SUCCESS"))
-    failed_count = sum(1 for s in solver_statuses.values() if s in ("failed", "error", "FAILED", "ERROR"))
-    timed_out_count = sum(1 for s in solver_statuses.values() if s in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
-    running_count = sum(1 for s in solver_statuses.values() if s in ("running", "RUNNING"))
-    pending_count = sum(1 for s in solver_statuses.values() if s in ("pending", "PENDING", "queued", "QUEUED"))
+    completed_count = sum(1 for a in to_run if solver_statuses.get(a) in ("completed", "success", "COMPLETED", "SUCCESS"))
+    failed_count = sum(1 for a in to_run if solver_statuses.get(a) in ("failed", "error", "FAILED", "ERROR"))
+    timed_out_count = sum(1 for a in to_run if solver_statuses.get(a) in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
+    running_count = sum(1 for a in to_run if solver_statuses.get(a) in ("running", "RUNNING"))
+    pending_count = sum(1 for a in to_run if solver_statuses.get(a) in ("pending", "PENDING", "queued", "QUEUED"))
+
+    completed_algorithms = sum(1 for a in to_run if a in job.get("results", {}))
 
     parts = []
     if completed_count > 0:
@@ -841,7 +843,7 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
         "selection_mode": job.get("selection_mode", "compare"),
         "selected_algorithms": to_run,
         "primary_algorithm": job.get("primary_algorithm", "ortools"),
-        "completed_algorithms": len(job.get("results", {})),
+        "completed_algorithms": completed_algorithms,
         "total_algorithms": total,
         "completed_count": completed_count,
         "failed_count": failed_count,
@@ -985,7 +987,7 @@ async def _run_background_solvers_for_job(
                     job["solver_statuses"][algo] = "completed"
                 else:
                     job["solver_statuses"][algo] = (algo_res.get("status") or "failed").lower()
-                job["completed_algorithms"] = len(job["results"])
+                job["completed_algorithms"] = sum(1 for a in to_run if a in job["results"])
 
             except Exception as exc:
                 logger.error(f"Solver {algo} raised exception in background job {job_id}: {exc}")
@@ -1007,7 +1009,7 @@ async def _run_background_solvers_for_job(
                 }
                 job["solver_statuses"][algo] = "failed"
                 job["solver_errors"][algo] = str(exc)
-                job["completed_algorithms"] = len(job["results"])
+                job["completed_algorithms"] = sum(1 for a in to_run if a in job["results"])
             finally:
                 gc.collect()
                 curr_rss = _get_process_memory_mb()
@@ -1059,8 +1061,8 @@ async def _run_background_solvers_for_job(
             await asyncio.sleep(0.05)
 
         if not job.get("is_cancelled"):
-            statuses = list(job.get("solver_statuses", {}).values())
-            all_terminal = len(job["results"]) >= len(to_run)
+            all_terminal = all(a in job.get("results", {}) for a in to_run)
+            statuses = [job.get("solver_statuses", {}).get(a) for a in to_run]
             any_success = any(s in ("completed", "success", "COMPLETED", "SUCCESS") for s in statuses)
 
             if all_terminal:
@@ -1114,7 +1116,10 @@ async def start_optimization_job(
     ) = _prepare_optimization_problem(req)
 
     to_run, mode = _resolve_algorithms_to_run(req, n)
-    primary_algo = to_run[0] if to_run else "ortools"
+    if mode == "compare" and "ortools" in to_run:
+        primary_algo = "ortools"
+    else:
+        primary_algo = to_run[0] if to_run else "ortools"
 
     job_id = str(uuid.uuid4())
     now_utc = datetime.now(timezone.utc)
@@ -1305,7 +1310,7 @@ async def get_optimization_job_status(
         "selection_mode": "compare",
         "selected_algorithms": to_run,
         "primary_algorithm": to_run[0] if to_run else "ortools",
-        "completed_algorithms": len(results),
+        "completed_algorithms": sum(1 for a in to_run if a in results),
         "total_algorithms": total,
         "completed_count": completed_count,
         "failed_count": failed_count,

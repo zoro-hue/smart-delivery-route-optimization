@@ -588,13 +588,16 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         }));
 
         // Terminal state check: COMPLETED, FAILED, CANCELLED, INTERRUPTED, or all solvers reached terminal state
-        const isTerminal =
+        const isBackendTerminal =
           statusRes.status === 'COMPLETED' ||
           statusRes.status === 'FAILED' ||
           statusRes.status === 'CANCELLED' ||
-          statusRes.status === 'INTERRUPTED' ||
+          statusRes.status === 'INTERRUPTED';
+
+        const isTerminal =
+          isBackendTerminal ||
           isAllSolversTerminal ||
-          (completed >= total && total > 0);
+          (completed >= total && total > 0 && statusRes.status !== 'PARTIAL' && statusRes.status !== 'RUNNING');
 
         if (isTerminal) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -607,7 +610,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             localStorage.removeItem('routeiq_active_job_id');
           } catch {}
 
-          const effectiveStatus = isAllSolversTerminal ? (statusRes.status || 'COMPLETED') : statusRes.status;
+          const effectiveStatus = (isAllSolversTerminal || (completed >= total && total > 0))
+            ? (statusRes.status === 'PARTIAL' ? 'COMPLETED' : statusRes.status || 'COMPLETED')
+            : statusRes.status;
 
           if (effectiveStatus === 'COMPLETED' || completed >= total) {
             const bestName =
@@ -1713,9 +1718,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   onClick={() => {
                     setSelectionMode('compare');
                     localStorage.setItem('routeiq_selection_mode', 'compare');
-                    const compSet = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
-                      (id) => id !== 'qaoa' || activeStops.length <= 8
-                    );
+                    const compSet = WORKSPACE_ALGORITHMS.map((a) => a.id);
                     setSelectedAlgorithms(compSet);
                   }}
                   className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
@@ -1754,9 +1757,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          const allAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id).filter(
-                            (id) => id !== 'qaoa' || activeStops.length <= 8
-                          );
+                          const allAlgos = WORKSPACE_ALGORITHMS.map((a) => a.id);
                           setSelectedAlgorithms(allAlgos);
                         }}
                         className="text-[10px] font-bold text-[#080808] dark:text-[#B7FF00] bg-black/10 dark:bg-[#202024] px-2 py-0.5 rounded hover:bg-black/20 cursor-pointer"
