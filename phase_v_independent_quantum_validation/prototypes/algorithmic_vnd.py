@@ -137,6 +137,98 @@ class AlgorithmicVND:
         return best_a, best_b, False
 
     @classmethod
+    def run_two_opt_star(
+        cls,
+        tour_a: List[int],
+        tour_b: List[int],
+        demands: np.ndarray,
+        cap_a: float,
+        cap_b: float,
+        dist_matrix: np.ndarray,
+        depot_idx: int = 0
+    ) -> Tuple[List[int], List[int], bool]:
+        """Inter-route 2-opt* tail-swap: exchanges route tails to eliminate cross-overs."""
+        best_dist = cls.compute_tour_length(tour_a, dist_matrix, depot_idx) + cls.compute_tour_length(tour_b, dist_matrix, depot_idx)
+        len_a = len(tour_a)
+        len_b = len(tour_b)
+
+        for i in range(len_a + 1):
+            for j in range(len_b + 1):
+                # Forward tail swap
+                cand_a1 = tour_a[:i] + tour_b[j:]
+                cand_b1 = tour_b[:j] + tour_a[i:]
+                load_a1 = sum(demands[k - 1] for k in cand_a1 if k > 0)
+                load_b1 = sum(demands[k - 1] for k in cand_b1 if k > 0)
+                if load_a1 <= cap_a and load_b1 <= cap_b:
+                    d1 = cls.compute_tour_length(cand_a1, dist_matrix, depot_idx) + cls.compute_tour_length(cand_b1, dist_matrix, depot_idx)
+                    if d1 < best_dist - 1e-4:
+                        return cand_a1, cand_b1, True
+
+                # Cross-reverse tail swap
+                cand_a2 = tour_a[:i] + tour_b[:j][::-1]
+                cand_b2 = tour_a[i:][::-1] + tour_b[j:]
+                load_a2 = sum(demands[k - 1] for k in cand_a2 if k > 0)
+                load_b2 = sum(demands[k - 1] for k in cand_b2 if k > 0)
+                if load_a2 <= cap_a and load_b2 <= cap_b:
+                    d2 = cls.compute_tour_length(cand_a2, dist_matrix, depot_idx) + cls.compute_tour_length(cand_b2, dist_matrix, depot_idx)
+                    if d2 < best_dist - 1e-4:
+                        return cand_a2, cand_b2, True
+
+        return tour_a, tour_b, False
+
+    @classmethod
+    def run_or_opt(
+        cls,
+        tour_a: List[int],
+        tour_b: List[int],
+        demands: np.ndarray,
+        cap_a: float,
+        cap_b: float,
+        dist_matrix: np.ndarray,
+        depot_idx: int = 0
+    ) -> Tuple[List[int], List[int], bool]:
+        """Inter-route Or-opt: shifts contiguous sequences of 2 or 3 stops between routes."""
+        best_dist = cls.compute_tour_length(tour_a, dist_matrix, depot_idx) + cls.compute_tour_length(tour_b, dist_matrix, depot_idx)
+
+        # Shift sequence from A to B
+        for seg_len in (2, 3):
+            for i in range(len(tour_a) - seg_len + 1):
+                seg = tour_a[i:i + seg_len]
+                seg_dem = sum(demands[k - 1] for k in seg if k > 0)
+                rem_a = tour_a[:i] + tour_a[i + seg_len:]
+                load_b = sum(demands[k - 1] for k in tour_b if k > 0)
+                if load_b + seg_dem <= cap_b:
+                    for pos in range(len(tour_b) + 1):
+                        cand_b = tour_b[:pos] + seg + tour_b[pos:]
+                        d = cls.compute_tour_length(rem_a, dist_matrix, depot_idx) + cls.compute_tour_length(cand_b, dist_matrix, depot_idx)
+                        if d < best_dist - 1e-4:
+                            return rem_a, cand_b, True
+                        cand_b_rev = tour_b[:pos] + seg[::-1] + tour_b[pos:]
+                        d_rev = cls.compute_tour_length(rem_a, dist_matrix, depot_idx) + cls.compute_tour_length(cand_b_rev, dist_matrix, depot_idx)
+                        if d_rev < best_dist - 1e-4:
+                            return rem_a, cand_b_rev, True
+
+        # Shift sequence from B to A
+        for seg_len in (2, 3):
+            for j in range(len(tour_b) - seg_len + 1):
+                seg = tour_b[j:j + seg_len]
+                seg_dem = sum(demands[k - 1] for k in seg if k > 0)
+                rem_b = tour_b[:j] + tour_b[j + seg_len:]
+                load_a = sum(demands[k - 1] for k in tour_a if k > 0)
+                if load_a + seg_dem <= cap_a:
+                    for pos in range(len(tour_a) + 1):
+                        cand_a = tour_a[:pos] + seg + tour_a[pos:]
+                        d = cls.compute_tour_length(cand_a, dist_matrix, depot_idx) + cls.compute_tour_length(rem_b, dist_matrix, depot_idx)
+                        if d < best_dist - 1e-4:
+                            return cand_a, rem_b, True
+                        cand_a_rev = tour_a[:pos] + seg[::-1] + tour_a[pos:]
+                        d_rev = cls.compute_tour_length(cand_a_rev, dist_matrix, depot_idx) + cls.compute_tour_length(rem_b, dist_matrix, depot_idx)
+                        if d_rev < best_dist - 1e-4:
+                            return cand_a_rev, rem_b, True
+
+        return tour_a, tour_b, False
+
+    @classmethod
     def optimize_fleet_routes(
         cls,
         tour_a: List[int],
@@ -148,7 +240,7 @@ class AlgorithmicVND:
         depot_idx: int = 0,
         max_iter: int = 50
     ) -> Dict[str, Any]:
-        """Executes full Variable Neighborhood Descent (2-opt -> Relocate -> Swap) until local optimality."""
+        """Executes full Variable Neighborhood Descent (2-opt -> Relocate -> Swap -> 2-opt* -> Or-opt) until local optimality."""
         cur_a = cls.run_2opt(tour_a, dist_matrix, depot_idx)
         cur_b = cls.run_2opt(tour_b, dist_matrix, depot_idx)
 
@@ -169,6 +261,22 @@ class AlgorithmicVND:
             # Neighborhood 2: Swap
             cand_a, cand_b, swap_imp = cls.run_swap(cur_a, cur_b, demands, cap_a, cap_b, dist_matrix, depot_idx)
             if swap_imp:
+                cur_a = cls.run_2opt(cand_a, dist_matrix, depot_idx)
+                cur_b = cls.run_2opt(cand_b, dist_matrix, depot_idx)
+                improved = True
+                continue
+
+            # Neighborhood 3: 2-opt* (Tail-swap)
+            cand_a, cand_b, star_imp = cls.run_two_opt_star(cur_a, cur_b, demands, cap_a, cap_b, dist_matrix, depot_idx)
+            if star_imp:
+                cur_a = cls.run_2opt(cand_a, dist_matrix, depot_idx)
+                cur_b = cls.run_2opt(cand_b, dist_matrix, depot_idx)
+                improved = True
+                continue
+
+            # Neighborhood 4: Or-opt (Sequence relocation)
+            cand_a, cand_b, or_imp = cls.run_or_opt(cur_a, cur_b, demands, cap_a, cap_b, dist_matrix, depot_idx)
+            if or_imp:
                 cur_a = cls.run_2opt(cand_a, dist_matrix, depot_idx)
                 cur_b = cls.run_2opt(cand_b, dist_matrix, depot_idx)
                 improved = True

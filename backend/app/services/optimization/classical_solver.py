@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from loguru import logger
+from app.services.optimization.neighborhood_search import AdvancedNeighborhoodSearch
 
 
 def _try_import_ortools():
@@ -1175,22 +1176,8 @@ class ClassicalVRPSolver:
         final_routes = []
         total_distance = 0.0
         for vid, r_cust in enumerate(best_partition):
-            st = [depot] + r_cust + [depot]
-            # Simple 2-opt
-            improved = True
-            while improved:
-                improved = False
-                for i in range(1, len(st) - 2):
-                    for j in range(i + 1, len(st) - 1):
-                        d_old = distance_matrix[st[i-1]][st[i]] + distance_matrix[st[j]][st[j+1]]
-                        d_new = distance_matrix[st[i-1]][st[j]] + distance_matrix[st[i]][st[j+1]]
-                        if d_new < d_old - 1e-4:
-                            st[i:j+1] = reversed(st[i:j+1])
-                            improved = True
-                            break
-                    if improved:
-                        break
-
+            opt_cust = AdvancedNeighborhoodSearch.run_2opt(r_cust, distance_matrix, depot)
+            st = [depot] + opt_cust + [depot]
             d_route = self._route_distance(st, distance_matrix)
             total_distance += d_route
             load = sum(demands[s] for s in st if s != depot)
@@ -1346,21 +1333,8 @@ class ClassicalVRPSolver:
         final_routes = []
         total_distance = 0.0
         for vid, r_cust in enumerate(routes_cust):
-            st = [depot] + r_cust + [depot]
-            improved = True
-            while improved:
-                improved = False
-                for i in range(1, len(st) - 2):
-                    for j in range(i + 1, len(st) - 1):
-                        d_old = distance_matrix[st[i-1]][st[i]] + distance_matrix[st[j]][st[j+1]]
-                        d_new = distance_matrix[st[i-1]][st[j]] + distance_matrix[st[i]][st[j+1]]
-                        if d_new < d_old - 1e-4:
-                            st[i:j+1] = reversed(st[i:j+1])
-                            improved = True
-                            break
-                    if improved:
-                        break
-
+            opt_cust = AdvancedNeighborhoodSearch.run_2opt(r_cust, distance_matrix, depot)
+            st = [depot] + opt_cust + [depot]
             d_route = self._route_distance(st, distance_matrix)
             total_distance += d_route
             load = sum(demands[s] for s in st if s != depot)
@@ -1441,28 +1415,26 @@ class ClassicalVRPSolver:
 
         k = 1
         improvements_by_n = {1: 0, 2: 0, 3: 0}
+        total_vnd_steps = 0
+        max_vnd_steps = 250
 
-        while k <= 3:
+        while k <= 3 and total_vnd_steps < max_vnd_steps:
             improved = False
+            total_vnd_steps += 1
 
             if k == 1:
                 # N1: Intra-route 2-opt
                 for vid in range(num_vehicles):
-                    st = [depot] + routes_cust[vid] + [depot]
-                    for i in range(1, len(st) - 2):
-                        for j in range(i + 1, len(st) - 1):
-                            d_old = distance_matrix[st[i-1]][st[i]] + distance_matrix[st[j]][st[j+1]]
-                            d_new = distance_matrix[st[i-1]][st[j]] + distance_matrix[st[i]][st[j+1]]
-                            if d_new < d_old - 1e-4:
-                                st[i:j+1] = reversed(st[i:j+1])
-                                routes_cust[vid] = [s for s in st if s != depot]
-                                improved = True
-                                improvements_by_n[1] += 1
-                                break
-                        if improved:
+                    cur_cust = routes_cust[vid]
+                    if len(cur_cust) >= 3:
+                        opt_cust = AdvancedNeighborhoodSearch.run_2opt(cur_cust, distance_matrix, depot)
+                        if opt_cust != cur_cust:
+                            routes_cust[vid] = opt_cust
+                            improved = True
+                            improvements_by_n[1] += 1
                             break
-                    if improved:
-                        break
+                if improved:
+                    break
 
             elif k == 2:
                 # N2: Inter-route Relocate

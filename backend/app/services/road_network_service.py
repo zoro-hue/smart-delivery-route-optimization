@@ -333,6 +333,7 @@ class RoadNetworkService:
         traffic_factor: float = 1.0,
         weather_factor: float = 1.0,
         return_physical: bool = False,
+        compute_predecessors: bool = True,
     ):
         """
         Build an NxN road-network travel distance matrix between locations using Dijkstra.
@@ -375,7 +376,7 @@ class RoadNetworkService:
                 snapped_indices = [self.node_to_idx[nid] for nid in snapped_nodes]
                 # Memory-optimized Dijkstra: for instances up to 30 stops (e.g. 18-stop benchmarks), compute predecessors.
                 # 30 * 54k int32 is only ~6.5 MB, which fits easily and populates _path_cache for instant geometry reconstruction.
-                compute_preds = (n <= 30)
+                compute_preds = compute_predecessors and (n <= 30)
                 if compute_preds:
                     dists_dir, pred_dir = csgraph.dijkstra(
                         self._csr_directed,

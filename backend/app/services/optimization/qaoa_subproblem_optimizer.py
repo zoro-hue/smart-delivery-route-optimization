@@ -241,8 +241,24 @@ class QAOASubproblemOptimizer:
         self.p = p
         self.shots = shots
         self.max_qubits = max_qubits
-        from qiskit_aer import AerSimulator
-        self.simulator = AerSimulator()
+        try:
+            from qiskit_aer import AerSimulator
+            self.simulator = AerSimulator()
+        except Exception:
+            self.simulator = None
+
+    def _sample_circuit(self, bound_qc, shots: int) -> Dict[str, int]:
+        """Runs circuit on AerSimulator or fallback Statevector."""
+        if self.simulator is not None:
+            from qiskit import transpile
+            transpiled = transpile(bound_qc, self.simulator)
+            job = self.simulator.run(transpiled, shots=shots)
+            return job.result().get_counts()
+        else:
+            from qiskit.quantum_info import Statevector
+            qc_no_meas = bound_qc.remove_final_measurements(inplace=False)
+            sv = Statevector.from_instruction(qc_no_meas)
+            return sv.sample_counts(shots)
 
     def build_qaoa_circuit(
         self,
@@ -352,10 +368,7 @@ class QAOASubproblemOptimizer:
 
             t_c0 = time.perf_counter()
             bound_qc = qc.assign_parameters(param_dict)
-            from qiskit import transpile
-            transpiled = transpile(bound_qc, self.simulator)
-            job = self.simulator.run(transpiled, shots=self.shots)
-            counts = job.result().get_counts()
+            counts = self._sample_circuit(bound_qc, self.shots)
             t_circ_total += (time.perf_counter() - t_c0) * 1000.0
 
             # Compute expectation value <H>
@@ -384,9 +397,7 @@ class QAOASubproblemOptimizer:
             param_dict[gammas[l]] = opt_res.x[l]
             param_dict[betas[l]] = opt_res.x[self.p + l]
         bound_qc = qc.assign_parameters(param_dict)
-        from qiskit import transpile
-        transpiled_final = transpile(bound_qc, self.simulator)
-        final_counts = self.simulator.run(transpiled_final, shots=self.shots * 2).result().get_counts()
+        final_counts = self._sample_circuit(bound_qc, self.shots * 2)
 
         # Find best sampled bitstring
         best_bstr = max(final_counts.items(), key=lambda item: item[1])[0]
@@ -487,10 +498,7 @@ class QAOASubproblemOptimizer:
 
             t_c0 = time.perf_counter()
             bound_qc = qc.assign_parameters(param_dict)
-            from qiskit import transpile
-            transpiled = transpile(bound_qc, self.simulator)
-            job = self.simulator.run(transpiled, shots=self.shots)
-            counts = job.result().get_counts()
+            counts = self._sample_circuit(bound_qc, self.shots)
             t_circ_total += (time.perf_counter() - t_c0) * 1000.0
 
             energy = 0.0
@@ -516,9 +524,7 @@ class QAOASubproblemOptimizer:
             param_dict[gammas[l]] = opt_res.x[l]
             param_dict[betas[l]] = opt_res.x[self.p + l]
         bound_qc = qc.assign_parameters(param_dict)
-        from qiskit import transpile
-        transpiled_final = transpile(bound_qc, self.simulator)
-        final_counts = self.simulator.run(transpiled_final, shots=self.shots * 2).result().get_counts()
+        final_counts = self._sample_circuit(bound_qc, self.shots * 2)
 
         # Find best bitstring
         best_bstr = max(final_counts.items(), key=lambda item: item[1])[0]

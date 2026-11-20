@@ -77,6 +77,7 @@ def test_cooperative_satisfies_proposition1_unconditionally(real_nyc_dataset, nu
         time_limit_sec=0.25,
         locations=locations,
         seed=seed,
+        incumbent_solution=res_ort,
     )
     coop_dist = res_coop.get("total_distance_km")
 
