@@ -352,6 +352,7 @@ class CooperativeVRPSolver:
                         c_a=np.array([ca_pt[0], ca_pt[1]]),
                         c_b=np.array([cb_pt[0], cb_pt[1]]),
                         strategy_override=strategy_override,
+                        budget_evals=32,
                         seed=seed + idx_a * 10 + idx_b,
                     )
 

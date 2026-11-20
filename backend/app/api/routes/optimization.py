@@ -1181,7 +1181,9 @@ async def start_optimization_job(
     ) = _prepare_optimization_problem(req)
 
     to_run, mode = _resolve_algorithms_to_run(req, n)
-    if mode == "compare" and "ortools" in to_run:
+    if "routeiq_cooperative" in to_run:
+        primary_algo = "routeiq_cooperative"
+    elif mode == "compare" and "ortools" in to_run:
         primary_algo = "ortools"
     else:
         primary_algo = to_run[0] if to_run else "ortools"
