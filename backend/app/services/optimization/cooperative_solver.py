@@ -14,6 +14,7 @@ Phases AB, AC, and AD for production deployment in ROUTE/IQ.
 
 import os
 import sys
+import uuid
 import time
 import math
 import copy
@@ -82,6 +83,7 @@ class CooperativeVRPSolver:
         8. Centralized Proposition 1 Non-Degradation Guardrail: Cost(Final) <= Cost(Incumbent).
         """
         t0 = time.perf_counter()
+        solver_execution_id = str(uuid.uuid4())
         n = distance_matrix.shape[0]
 
         if demands is None:
@@ -462,11 +464,14 @@ class CooperativeVRPSolver:
         is_supremacy_winner = False
         improvement_km = 0.0
         improvement_pct = 0.0
+        solution_origin = "INHERITED_INCUMBENT_BASELINE"
 
-        # Strictly enforce: Cost(Final) <= Cost(OR-Tools Incumbent)
+        # Check candidate validity & cost relative to OR-Tools incumbent
+        # Strictly enforce: Cost(Final) <= Cost(OR-Tools Incumbent) + 1e-4
         if cand_val["is_valid"] and cand_total_dist < ortools_distance - 1e-3:
             # Genuine supremacy improvement over OR-Tools
             is_supremacy_winner = True
+            solution_origin = "SUPREMACY_IMPROVED"
             routes = final_candidate_routes
             final_total_dist = cand_total_dist
             improvement_km = round(ortools_distance - final_total_dist, 3)
@@ -475,8 +480,33 @@ class CooperativeVRPSolver:
                 f"Proposition 1 Supremacy: Cooperative Engine outperformed OR-Tools! "
                 f"{ortools_distance:.3f} km -> {final_total_dist:.3f} km (-{improvement_km:.3f} km, -{improvement_pct:.2f}%)"
             )
+        elif cand_val["is_valid"] and cand_total_dist <= ortools_distance + 1e-4:
+            # Reached identical or effectively equal cost independently
+            # Verify if route stop sequences are identical or an alternative optimum
+            cand_stops = [tuple(r.get("stops", [])) for r in final_candidate_routes]
+            ortools_stops = [tuple(r.get("stops", [])) for r in ortools_incumbent_routes]
+
+            # Compare sets of route sequences (direction/index invariant)
+            cand_set = {frozenset([s, tuple(reversed(s))]) for s in cand_stops}
+            ortools_set = {frozenset([s, tuple(reversed(s))]) for s in ortools_stops}
+
+            if sorted(cand_stops) == sorted(ortools_stops) or cand_set == ortools_set:
+                solution_origin = "INDEPENDENT_IDENTICAL_CONVERGENCE"
+            else:
+                solution_origin = "INDEPENDENT_ALTERNATIVE_OPTIMUM"
+
+            # Preserve Cooperative Engine's independently discovered routes
+            routes = final_candidate_routes
+            final_total_dist = cand_total_dist
+            improvement_km = round(max(0.0, ortools_distance - final_total_dist), 3)
+            improvement_pct = round((improvement_km / ortools_distance) * 100.0, 2) if ortools_distance > 0 else 0.0
+            logger.info(
+                f"Proposition 1 Independent Discovery ({solution_origin}): "
+                f"Cooperative Engine retained independent routes at {final_total_dist:.3f} km (OR-Tools: {ortools_distance:.3f} km)"
+            )
         else:
-            # Incumbent was already optimal or tie
+            # Incumbent was strictly superior or candidate invalid; adopt incumbent baseline
+            solution_origin = "INHERITED_INCUMBENT_BASELINE"
             logger.info(
                 f"Proposition 1 Guardrail: Adopting OR-Tools incumbent baseline ({ortools_distance:.3f} km)"
             )
@@ -493,15 +523,17 @@ class CooperativeVRPSolver:
             depot,
         )
 
-        # Enforce Proposition 1 non-degradation against any floating point rounding
-        if not is_supremacy_winner or float(sum(r.get("distance_km", 0.0) for r in routes)) >= ortools_distance - 1e-4:
+        repaired_dist = float(sum(r.get("distance_km", 0.0) for r in routes))
+        if repaired_dist > ortools_distance + 1e-4:
+            # Enforce non-degradation: never return a solution worse than OR-Tools incumbent
             routes = copy.deepcopy(ortools_incumbent_routes)
             final_total_dist = ortools_distance
             is_supremacy_winner = False
+            solution_origin = "INHERITED_INCUMBENT_BASELINE"
             improvement_km = 0.0
             improvement_pct = 0.0
         else:
-            final_total_dist = float(sum(r.get("distance_km", 0.0) for r in routes))
+            final_total_dist = repaired_dist
         t_guardrail_ms = (time.perf_counter() - t0_guard) * 1000.0
 
         # ── Step 7: Route Reconstruction & Telemetry Compilation ─────────
@@ -559,6 +591,8 @@ class CooperativeVRPSolver:
             "success": True,
             "algorithm": "routeiq_cooperative",
             "algorithm_name": "ROUTE/IQ Cooperative Engine",
+            "execution_id": solver_execution_id,
+            "solution_origin": solution_origin,
             "category": "cooperative",
             "category_label": "Hybrid Big Data + Quantum",
             "compute_type": "Hybrid (Spark + QAOA + Adaptive Deep VND + ALNS)",
@@ -575,6 +609,8 @@ class CooperativeVRPSolver:
             "validation_report": final_val,
             "warnings": [f"Missing stops repaired: {final_val['missing_delivery_ids']}"] if final_val['missing_delivery_ids'] else [],
             "cooperative_telemetry": {
+                "execution_id": solver_execution_id,
+                "solution_origin": solution_origin,
                 "spark_mode": spark_mode,
                 "initial_incumbent_distance_km": round(ortools_distance, 3),
                 "final_distance_km": round(float(final_total_dist), 3),

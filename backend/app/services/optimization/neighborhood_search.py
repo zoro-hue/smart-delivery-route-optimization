@@ -748,6 +748,7 @@ class AdvancedNeighborhoodSearch:
         depot: int = 0,
         locations: Optional[List[Tuple[float, float]]] = None,
         max_iterations: int = 35,
+        diverse_pool: Optional[List[List[List[int]]]] = None,
         seed: int = 42,
     ) -> List[List[int]]:
         """
@@ -779,8 +780,14 @@ class AdvancedNeighborhoodSearch:
         destroy_attempts = {op: 1 for op in destroy_ops}
         repair_attempts = {op: 1 for op in repair_ops}
 
-        # Elite Population Pool (Size 4)
+        # Elite Population Pool (Size 4) seeded with incumbent and diverse candidates
         elite_pool = [copy.deepcopy(best_routes)]
+        if diverse_pool:
+            for dp in diverse_pool:
+                if not any(cls._routes_equal(dp, ep) for ep in elite_pool):
+                    elite_pool.append(copy.deepcopy(dp))
+                if len(elite_pool) >= 4:
+                    break
         stagnation_counter = 0
 
         # Rewards
