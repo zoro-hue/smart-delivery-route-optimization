@@ -107,6 +107,8 @@ export interface SolverResult {
   warnings?: string[];
   validation?: SolverValidation;
   convergence_info?: Record<string, any>;
+  execution_id?: string;
+  solution_origin?: string;
   resource_metrics?: {
     runtime_ms?: number;
     cpu_time_ms?: number;
@@ -183,12 +185,38 @@ export interface ComparisonItem {
   error?: string;
 }
 
+export interface RouteIdentityDiagnostics {
+  execution_id_coop: string;
+  execution_id_ortools: string;
+  is_separate_memory_objects: boolean;
+  distance_coop_km: number;
+  distance_ortools_km: number;
+  distance_delta_km: number;
+  distance_delta_pct: number;
+  directed_edge_overlap_pct: number;
+  undirected_edge_overlap_pct: number;
+  vehicle_allocation_similarity_pct: number;
+  shared_directed_edges_count: number;
+  total_coop_directed_edges: number;
+  total_ortools_directed_edges: number;
+  relationship_code:
+    | 'SUPREMACY_IMPROVED'
+    | 'INDEPENDENT_ALTERNATIVE_OPTIMUM'
+    | 'INDEPENDENT_IDENTICAL_CONVERGENCE'
+    | 'PROVEN_OPTIMAL_INCUMBENT_RETAINED';
+  relationship_label: string;
+  explanation: string;
+  is_identical_route: boolean;
+  is_same_distance: boolean;
+}
+
 export interface ComparisonSummary {
   best_algorithm: string;
   best_algorithm_name: string;
   best_reason: string;
   best_feasible_distance_km: number;
   items: ComparisonItem[];
+  route_identity_diagnostics?: RouteIdentityDiagnostics;
 }
 
 export interface OptimizationResponse {

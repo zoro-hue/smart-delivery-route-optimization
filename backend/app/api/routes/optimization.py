@@ -27,6 +27,7 @@ from app.services.optimization.classical_solver import classical_solver
 from app.services.optimization.quantum_solver import quantum_solver, _check_qiskit_available
 from app.services.optimization.qiga_solver import qiga_solver
 from app.services.optimization.cooperative_solver import cooperative_solver
+from app.services.optimization.route_identity import compute_route_identity_diagnostics
 from app.services.geo_validation import check_water_body, validate_nyc_coordinate
 from app.services.road_network_service import road_network_service
 from app.services.optimization.route_validator import (
@@ -752,6 +753,9 @@ def _solve_single_algo(
     algo_res["is_feasible"] = val_report["is_valid"]
     algo_res["status"] = "SUCCESS" if val_report["is_valid"] else val_report.get("status", "FAILED")
 
+    if "execution_id" not in algo_res:
+        algo_res["execution_id"] = str(uuid.uuid4())
+
     if road_warnings:
         algo_res["warnings"] = list(set(algo_res.get("warnings", []) + road_warnings))
 
@@ -844,13 +848,24 @@ def _build_comparison_summary(
     else:
         best_reason = "No solutions evaluated"
 
-    return {
+    summary_data = {
         "best_algorithm": best_item["id"] if best_item else "ortools",
         "best_algorithm_name": best_item["name"] if best_item else "OR-Tools",
         "best_reason": best_reason,
         "best_feasible_distance_km": best_item["total_distance_km"] if best_item else 0.0,
         "items": comparison_items,
     }
+
+    if "routeiq_cooperative" in results and "ortools" in results:
+        try:
+            summary_data["route_identity_diagnostics"] = compute_route_identity_diagnostics(
+                results["routeiq_cooperative"],
+                results["ortools"]
+            )
+        except Exception as diag_err:
+            logger.warning(f"Failed to compute route identity diagnostics: {diag_err}")
+
+    return summary_data
 
 
 def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
