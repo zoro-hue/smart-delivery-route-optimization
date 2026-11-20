@@ -179,7 +179,7 @@ class CooperativeVRPSolver:
                 depot=depot,
                 demands=demands,
                 capacities=[float(c) for c in vehicle_capacities],
-                gammas=[0.8, 1.0, 1.2, 1.4],
+                gammas=[0.6, 0.8, 1.0, 1.2, 1.4, 1.6],
             )
             pool_candidates.extend(cw_pool)
         except Exception as e:
@@ -195,12 +195,41 @@ class CooperativeVRPSolver:
                     demands=demands,
                     capacities=[float(c) for c in vehicle_capacities],
                     dist_matrix=distance_matrix,
-                    num_rotations=6,
+                    num_rotations=12,
                 )
                 if any(len(r) > 0 for r in sweep_candidate):
                     pool_candidates.append(sweep_candidate)
             except Exception as e:
                 logger.debug(f"Spark sweep generation notice: {e}")
+
+        # C. Multi-Start Regret-3 and Regret-2 Insertion Construction
+        try:
+            regret3_candidate = DiverseConstructionHeuristics.regret_k_construction(
+                dist_matrix=distance_matrix,
+                num_vehicles=num_vehicles,
+                depot=depot,
+                demands=demands,
+                capacities=[float(c) for c in vehicle_capacities],
+                k_regret=3,
+            )
+            if any(len(r) > 0 for r in regret3_candidate):
+                pool_candidates.append(regret3_candidate)
+        except Exception as e:
+            logger.debug(f"Regret-3 construction notice: {e}")
+
+        try:
+            regret2_candidate = DiverseConstructionHeuristics.regret_k_construction(
+                dist_matrix=distance_matrix,
+                num_vehicles=num_vehicles,
+                depot=depot,
+                demands=demands,
+                capacities=[float(c) for c in vehicle_capacities],
+                k_regret=2,
+            )
+            if any(len(r) > 0 for r in regret2_candidate):
+                pool_candidates.append(regret2_candidate)
+        except Exception as e:
+            logger.debug(f"Regret-2 construction notice: {e}")
 
         # Select best candidate from initialization pool
         def evaluate_candidate(cand_routes: List[List[int]]) -> float:
@@ -377,17 +406,27 @@ class CooperativeVRPSolver:
         )
         t_vnd_ms = (time.perf_counter() - t0_vnd) * 1000.0
 
-        # ── Step 5: Adaptive Large Neighborhood Search (ALNS Perturbation) ───
+        # ── Step 5: Adaptive Large Neighborhood Search (ALNS Ruin-and-Recreate) ───
         t0_alns = time.perf_counter()
-        alns_iters = min(35, max(15, n))
+        alns_iters = min(40, max(20, n))
         current_fleet_stops = AdvancedNeighborhoodSearch.alns_ruin_and_recreate(
             incumbent_routes=current_fleet_stops,
             capacities=[float(c) for c in vehicle_capacities],
             demands=demands,
             dist_matrix=distance_matrix,
             depot=depot,
+            locations=locations,
             max_iterations=alns_iters,
             seed=seed,
+        )
+        # Final hierarchical polish
+        current_fleet_stops = AdvancedNeighborhoodSearch.deep_vnd(
+            current_fleet_stops,
+            [float(c) for c in vehicle_capacities],
+            demands,
+            distance_matrix,
+            depot=depot,
+            max_iterations=25,
         )
         t_alns_ms = (time.perf_counter() - t0_alns) * 1000.0
 

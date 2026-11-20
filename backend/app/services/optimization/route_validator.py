@@ -110,13 +110,14 @@ def validate_fleet_coverage(
         visited_multiset.extend(c_stops)
 
         # Check vehicle load
-        route_load = sum(demands[s] if s < len(demands) else 1.0 for s in c_stops)
-        cap = (
+        route_load = float(sum(float(demands[s]) if s < len(demands) else 1.0 for s in c_stops))
+        cap_val = (
             vehicle_capacities[r_idx]
             if r_idx < len(vehicle_capacities)
             else (vehicle_capacities[-1] if vehicle_capacities else 100.0)
         )
-        is_over = route_load > cap + 1e-4
+        cap = float(np.asarray(cap_val).item()) if hasattr(cap_val, "__len__") and not isinstance(cap_val, (str, bytes)) else float(cap_val)
+        is_over = bool(route_load > cap + 1e-4)
         if is_over:
             capacity_violations += 1
 
