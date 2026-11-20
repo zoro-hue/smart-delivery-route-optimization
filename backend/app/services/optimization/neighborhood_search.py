@@ -23,6 +23,7 @@ Implements:
 import math
 import copy
 import random
+import time
 from typing import List, Tuple, Dict, Any, Optional
 import numpy as np
 
@@ -798,7 +799,12 @@ class AdvancedNeighborhoodSearch:
                     return op
             return list(weights_dict.keys())[0]
 
+        t_alns_start = time.perf_counter()
+        max_alns_sec = 0.8  # Bounded latency to ensure sub-2.0s responsive execution
+
         for it in range(max_iterations):
+            if time.perf_counter() - t_alns_start > max_alns_sec:
+                break
             # Dynamic removal fraction: 15% - 35% of stops
             k_fraction = rng.uniform(0.15, 0.35)
             k_rem = min(max(2, int(n_cust * k_fraction)), min(8, n_cust - 1))
@@ -838,9 +844,9 @@ class AdvancedNeighborhoodSearch:
             polished = [cls.run_2opt(r, dist_matrix, depot) for r in repaired]
             pol_dist = RouteEvaluator.fleet_distance(polished, dist_matrix, depot)
 
-            # If promising (better than current or close to best), apply deep VND
-            if pol_dist < best_dist * 1.02:
-                polished = cls.deep_vnd(polished, capacities, demands, dist_matrix, depot, max_iterations=10)
+            # If strictly improving or highly promising, apply hierarchical deep VND polish
+            if pol_dist < best_dist - 1e-4:
+                polished = cls.deep_vnd(polished, capacities, demands, dist_matrix, depot, max_iterations=6)
                 pol_dist = RouteEvaluator.fleet_distance(polished, dist_matrix, depot)
 
             # 4. Evaluation & Adaptive Reward Updates

@@ -291,8 +291,9 @@ class CooperativeVRPSolver:
             pair_candidates.sort(key=lambda x: x[0])
             t_spatial_ms = (time.perf_counter() - t0_spatial) * 1000.0
 
-            # Optimize top boundary pairs
-            for _, idx_a, idx_b in pair_candidates[:min(4, len(pair_candidates))]:
+            # Optimize top boundary pairs (bounded to preserve sub-2s responsive latency)
+            max_boundary_pairs = 1 if n <= 25 else 2
+            for _, idx_a, idx_b in pair_candidates[:min(max_boundary_pairs, len(pair_candidates))]:
                 t0_boundary = time.perf_counter()
                 stops_a = list(current_fleet_stops[idx_a])
                 stops_b = list(current_fleet_stops[idx_b])
@@ -426,7 +427,7 @@ class CooperativeVRPSolver:
             demands,
             distance_matrix,
             depot=depot,
-            max_iterations=25,
+            max_iterations=10,
         )
         t_alns_ms = (time.perf_counter() - t0_alns) * 1000.0
 
