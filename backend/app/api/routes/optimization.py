@@ -1054,7 +1054,7 @@ async def _run_background_solvers_for_job(
                             is_feasible=a_res.get("is_feasible", False),
                             capacity_violations=a_res.get("capacity_violations", 0),
                             unserved_customers=a_res.get("unserved_customers", 0),
-                            routes=a_res.get("routes", []),
+                            routes=[{k: v for k, v in r.items() if k != "waypoints"} for r in a_res.get("routes", [])],
                             solver_log=a_res.get("solver_log", ""),
                             warnings=a_res.get("warnings", []),
                         )
@@ -1257,37 +1257,64 @@ async def start_optimization_job(
 @router.get("/optimization/jobs/{job_id}/status")
 async def get_optimization_job_status(
     job_id: str,
-    db: AsyncSession = Depends(get_db)
+    *args,
+    **kwargs
 ):
     """Retrieve real-time status, incremental solver results, and progress metrics for an optimization job."""
+    db = args[0] if args else kwargs.get("db", None)
     if job_id == "latest":
         if _active_jobs:
             latest_id = max(_active_jobs.keys(), key=lambda k: _active_jobs[k].get("created_at", 0))
             job = _active_jobs[latest_id]
             return _format_job_status_response(job)
-        stmt = select(Experiment).order_by(Experiment.timestamp.desc()).limit(1)
-        res = await db.execute(stmt)
-        latest_exp = res.scalar_one_or_none()
-        if latest_exp:
-            job_id = latest_exp.id
+        if db is not None:
+            stmt = select(Experiment).order_by(Experiment.timestamp.desc()).limit(1)
+            res = await db.execute(stmt)
+            latest_exp = res.scalar_one_or_none()
+            if latest_exp:
+                job_id = latest_exp.id
+            else:
+                raise HTTPException(404, "No optimization jobs found.")
         else:
-            raise HTTPException(404, "No optimization jobs found.")
+            from app.db.session import async_session_factory
+            async with async_session_factory() as session:
+                stmt = select(Experiment).order_by(Experiment.timestamp.desc()).limit(1)
+                res = await session.execute(stmt)
+                latest_exp = res.scalar_one_or_none()
+                if latest_exp:
+                    job_id = latest_exp.id
+                else:
+                    raise HTTPException(404, "No optimization jobs found.")
 
     if job_id in _active_jobs:
         job = _active_jobs[job_id]
         return _format_job_status_response(job)
 
-    # Check database if not in memory (e.g. process restart)
-    exp_stmt = select(Experiment).where(Experiment.id == job_id)
-    exp_res = await db.execute(exp_stmt)
-    exp = exp_res.scalar_one_or_none()
-    if not exp:
-        raise HTTPException(404, f"Optimization job '{job_id}' not found.")
+    # Check database only if not in memory (e.g. process restart)
+    if db is not None:
+        exp_stmt = select(Experiment).where(Experiment.id == job_id)
+        exp_res = await db.execute(exp_stmt)
+        exp = exp_res.scalar_one_or_none()
+        if not exp:
+            raise HTTPException(404, f"Optimization job '{job_id}' not found.")
 
-    res_stmt = select(ExperimentResult).where(ExperimentResult.experiment_id == job_id)
-    res_rows = (await db.execute(res_stmt)).scalars().all()
-    results = {r.algorithm: _result_to_dict(r) for r in res_rows}
-    to_run = exp.algorithm.split(",") if exp.algorithm else list(results.keys())
+        res_stmt = select(ExperimentResult).where(ExperimentResult.experiment_id == job_id)
+        res_rows = (await db.execute(res_stmt)).scalars().all()
+        results = {r.algorithm: _result_to_dict(r) for r in res_rows}
+        to_run = exp.algorithm.split(",") if exp.algorithm else list(results.keys())
+    else:
+        from app.db.session import async_session_factory
+        async with async_session_factory() as session:
+            exp_stmt = select(Experiment).where(Experiment.id == job_id)
+            exp_res = await session.execute(exp_stmt)
+            exp = exp_res.scalar_one_or_none()
+            if not exp:
+                raise HTTPException(404, f"Optimization job '{job_id}' not found.")
+
+            res_stmt = select(ExperimentResult).where(ExperimentResult.experiment_id == job_id)
+            res_rows = (await session.execute(res_stmt)).scalars().all()
+            results = {r.algorithm: _result_to_dict(r) for r in res_rows}
+            to_run = exp.algorithm.split(",") if exp.algorithm else list(results.keys())
     statuses = {a: "completed" for a in results.keys()}
 
     exp_status = (exp.status or "COMPLETED").upper()

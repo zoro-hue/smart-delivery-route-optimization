@@ -648,9 +648,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       } catch (pollErr: any) {
         consecutiveErrors++;
         console.warn(`Job status poll warning (attempt ${consecutiveErrors}):`, pollErr);
-        if (consecutiveErrors >= 6 && consecutiveErrors < 10) {
+        if (consecutiveErrors >= 8 && consecutiveErrors < 25) {
           setValidationError('Backend network connection slow or interrupted. Continuing to poll...');
-        } else if (consecutiveErrors >= 10) {
+        } else if (consecutiveErrors >= 25) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
           setIsComparing(false);
@@ -665,7 +665,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           setTimeout(() => setValidationError(null), 10000);
         }
       }
-    }, 1200);
+    }, 2000);
   };
 
   useEffect(() => {

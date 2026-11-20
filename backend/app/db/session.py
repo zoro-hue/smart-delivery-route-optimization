@@ -15,13 +15,26 @@ db_url = settings.POSTGRES_URL if settings.USE_POSTGRES else settings.DATABASE_U
 # SQLite needs special connect_args
 connect_args = {}
 if "sqlite" in db_url:
-    connect_args = {"check_same_thread": False}
+    connect_args = {"check_same_thread": False, "timeout": 30.0}
 
 engine = create_async_engine(
     db_url,
     echo=settings.DB_ECHO,
     connect_args=connect_args,
 )
+
+if "sqlite" in db_url:
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        try:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL;")
+            cursor.execute("PRAGMA busy_timeout=30000;")
+            cursor.close()
+        except Exception:
+            pass
 
 async_session_factory = async_sessionmaker(
     engine,
