@@ -1297,16 +1297,32 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           {/* Computed Routes Polylines */}
           {activeRoutes.map((route, idx) => {
             const color = activeRouteColors[idx % activeRouteColors.length];
-            const positions: [number, number][] = (route.waypoints || []).map((w) => [
-              w.lat,
-              w.lon,
-            ]);
+            const allStops = [depot, ...activeStops];
+            let positions: [number, number][] = [];
+
+            // 1. Primary: Detailed street curvature waypoints
+            if (route.waypoints && route.waypoints.length > 1) {
+              positions = route.waypoints.map((w) => [w.lat, w.lon]);
+            }
+            // 2. Secondary fallback: Ordered stops mapped through loaded locations
+            else if (route.stops && route.stops.length > 1 && allStops.length > 0) {
+              positions = route.stops
+                .filter((s) => s >= 0 && s < allStops.length)
+                .map((s) => [allStops[s].lat, allStops[s].lon]);
+            }
+            // 3. Tertiary fallback: Customer stops with depot origin/return
+            else if (route.customer_stops && route.customer_stops.length > 0 && allStops.length > 0) {
+              const fullStops = [0, ...route.customer_stops, 0];
+              positions = fullStops
+                .filter((s) => s >= 0 && s < allStops.length)
+                .map((s) => [allStops[s].lat, allStops[s].lon]);
+            }
 
             if (positions.length < 2) return null;
 
             return (
               <Polyline
-                key={idx}
+                key={`plan-polyline-${displayedAlgo}-${idx}-${positions.length}-${positions[0]?.[0] || 0}`}
                 positions={positions}
                 pathOptions={{
                   color,
@@ -1318,6 +1334,21 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             );
           })}
         </MapContainer>
+
+        {/* Active Route Algorithm Indicator Badge on Map */}
+        {activeRoutes.length > 0 && (
+          <div className="absolute bottom-4 left-4 z-[1000] glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] px-3.5 py-2.5 rounded-2xl shadow-lg backdrop-blur-xl flex items-center gap-3 pointer-events-auto">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#B7FF2A] ring-2 ring-black/20 animate-pulse" />
+            <div className="text-xs">
+              <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-bold">
+                Displayed: {displayedAlgo.toUpperCase()}
+              </strong>
+              <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                {activeRoutes.length} Vehicle Route{activeRoutes.length !== 1 ? 's' : ''} Rendered
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── FLOATING TOP-CENTER WORKSPACE TOOLBAR ────────────────── */}

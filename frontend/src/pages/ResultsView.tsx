@@ -18,6 +18,7 @@ import {
   Layers,
   AlertTriangle,
   RotateCw,
+  Maximize2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -66,6 +67,25 @@ function MapResizer({ isActive }: { isActive?: boolean }) {
       return () => clearTimeout(timer);
     }
   }, [isActive, map]);
+  return null;
+}
+
+function MapBoundsController({
+  positions,
+  fitTrigger,
+}: {
+  positions: [number, number][];
+  fitTrigger: number;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (positions.length > 1) {
+      try {
+        const bounds = L.latLngBounds(positions);
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14, animate: true });
+      } catch {}
+    }
+  }, [positions, fitTrigger, map]);
   return null;
 }
 
@@ -139,7 +159,13 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       : algoKeys[0] || 'classical';
 
   const [activeAlgo, setActiveAlgo] = useState<string>(initialAlgo);
+  const [fitTrigger, setFitTrigger] = useState<number>(0);
   const lastExperimentIdRef = useRef<string | null>(result?.experiment_id || null);
+
+  const handleSelectAlgorithm = (key: string) => {
+    setActiveAlgo(key);
+    setFitTrigger((t) => t + 1);
+  };
 
   // Sync active algorithm ONLY on initial load or when a new experiment arrives
   useEffect(() => {
@@ -155,11 +181,40 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             ? 'ortools'
             : algoKeys[0] || 'classical';
         setActiveAlgo(best);
+        setFitTrigger((t) => t + 1);
       }
     }
   }, [result?.experiment_id, resultsMap]);
 
   const currentResult = resultsMap[activeAlgo] || resultsMap[initialAlgo] || Object.values(resultsMap)[0];
+  const problemLocations = result?.problem?.locations || [];
+
+  const routePositionsList = useMemo(() => {
+    return (currentResult?.routes ?? []).map((route) => {
+      // 1. Primary: Detailed road-network curvature waypoints
+      if (route.waypoints && route.waypoints.length > 1) {
+        return route.waypoints.map((w) => [w.lat, w.lon] as [number, number]);
+      }
+      // 2. Secondary fallback: Ordered customer stop IDs with depot
+      if (route.stops && route.stops.length > 1 && problemLocations.length > 0) {
+        return route.stops
+          .filter((s) => s >= 0 && s < problemLocations.length)
+          .map((s) => [problemLocations[s].lat, problemLocations[s].lon] as [number, number]);
+      }
+      // 3. Tertiary fallback: Customer stops padded with depot at origin and destination
+      if (route.customer_stops && route.customer_stops.length > 0 && problemLocations.length > 0) {
+        const fullStops = [0, ...route.customer_stops, 0];
+        return fullStops
+          .filter((s) => s >= 0 && s < problemLocations.length)
+          .map((s) => [problemLocations[s].lat, problemLocations[s].lon] as [number, number]);
+      }
+      return [] as [number, number][];
+    });
+  }, [currentResult, problemLocations]);
+
+  const allRoutePositions = useMemo(() => routePositionsList.flat(), [routePositionsList]);
+  const hasNoGeometry = (currentResult?.routes ?? []).length > 0 && allRoutePositions.length < 2;
+  const activeRoutesCount = (currentResult?.routes ?? []).filter((r) => (r.customer_stops || []).length > 0).length;
 
   const currentVisitedIndices = useMemo(() => {
     const visited = new Set<number>();
@@ -346,7 +401,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             return (
               <button
                 key={key}
-                onClick={() => setActiveAlgo(key)}
+                onClick={() => handleSelectAlgorithm(key)}
                 className={`px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
                   isSelected
                     ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
@@ -475,6 +530,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapResizer isActive={isActive} />
+            <MapBoundsController positions={allRoutePositions} fitTrigger={fitTrigger} />
 
             {/* Origin Depot Pin (Lime-Green 'D' marker with zIndexOffset to remain prominent) */}
             <Marker position={depotPos} icon={getDepotIcon(isDark)} zIndexOffset={1000}>
@@ -519,14 +575,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             {(currentResult?.routes ?? []).map((route, rIdx) => {
               const color = activeRouteColors[rIdx % activeRouteColors.length];
               const driverNumber = rIdx + 1;
-              const positions =
-                route.waypoints?.map((w) => [w.lat, w.lon] as [number, number]) || [];
+              const positions = routePositionsList[rIdx] || [];
               const midPoint = positions.length > 2 ? positions[Math.floor(positions.length / 2)] : positions[0];
 
               return (
-                <React.Fragment key={`map-route-${driverNumber}-${rIdx}`}>
+                <React.Fragment key={`results-route-layer-${activeAlgo}-driver-${driverNumber}-${rIdx}-${positions.length}`}>
                   {positions.length > 1 && (
                     <Polyline
+                      key={`results-poly-${activeAlgo}-v${driverNumber}-${positions.length}-${positions[0]?.[0] || 0}-${positions[positions.length - 1]?.[1] || 0}`}
                       positions={positions}
                       color={color}
                       weight={4.5}
@@ -535,14 +591,20 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     />
                   )}
                   {midPoint && (
-                    <Marker position={midPoint} icon={createVehicleIcon(driverNumber, color, isDark)}>
+                    <Marker
+                      key={`results-vehicle-pin-${activeAlgo}-v${driverNumber}`}
+                      position={midPoint}
+                      icon={createVehicleIcon(driverNumber, color, isDark)}
+                    >
                       <Popup>
                         <div className="text-xs font-sans">
-                          <strong className="text-[#080808] dark:text-[#F5F5F7]">Fleet Vehicle Driver V{driverNumber}</strong>
+                          <strong className="text-[#080808] dark:text-[#F5F5F7]">Fleet Vehicle Driver V{driverNumber} ({currentResult?.algorithm_name || activeAlgo})</strong>
                           <br />
                           <span className="text-[#555555] dark:text-[#A1A1AA]">Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km</span>
                           <br />
                           <span className="text-[#555555] dark:text-[#A1A1AA]">Load: {Math.round(route.load || 0)} units</span>
+                          <br />
+                          <span className="text-[#555555] dark:text-[#A1A1AA]">Waypoints: {positions.length} coordinates</span>
                         </div>
                       </Popup>
                     </Marker>
@@ -552,8 +614,44 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             })}
           </MapContainer>
 
+          {/* Floating Selected Algorithm Badge Header */}
+          <div className="absolute top-4 left-4 z-[1000] glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] px-3.5 py-2.5 rounded-2xl shadow-lg backdrop-blur-xl flex items-center gap-3 pointer-events-auto">
+            <span className="h-3 w-3 rounded-full bg-[#B7FF2A] ring-2 ring-black/20 animate-pulse" />
+            <div className="text-xs">
+              <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-bold">
+                {currentResult?.algorithm_name || activeAlgo}
+              </strong>
+              <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                {currentResult?.total_distance_km ? `${currentResult.total_distance_km.toFixed(1)} km` : '0.0 km'} · {activeRoutesCount} Active Driver{activeRoutesCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {/* Fit To Route Button */}
+          <button
+            type="button"
+            onClick={() => setFitTrigger((t) => t + 1)}
+            className="absolute top-4 right-4 z-[1000] px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold pointer-events-auto"
+            title="Fit Map to Selected Algorithm Route"
+          >
+            <Maximize2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
+            <span className="hidden sm:inline">Fit Route</span>
+          </button>
+
+          {/* Geometry Missing / Error Notice */}
+          {hasNoGeometry && (
+            <div className="absolute top-18 left-4 z-[1000] bg-amber-500/20 border border-amber-500/50 text-amber-800 dark:text-amber-300 px-3.5 py-2 rounded-2xl text-xs font-bold shadow-lg backdrop-blur-xl flex items-center gap-2 pointer-events-auto">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>No road geometry available for {currentResult?.algorithm_name || activeAlgo}</span>
+            </div>
+          )}
+
           {/* Floating Map Legend Overlay */}
-          <div className="absolute bottom-4 left-4 glass-overlay bg-white/80 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg backdrop-blur-xl">
+          <div className="absolute bottom-4 left-4 glass-overlay bg-white/80 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg backdrop-blur-xl flex-wrap">
+            <span className="flex items-center gap-1.5 font-bold text-[#080808] dark:text-[#B7FF2A] border-r border-black/10 dark:border-white/10 pr-3">
+              <Route className="h-3.5 w-3.5 text-[#B7FF2A]" />
+              <span>{currentResult?.algorithm_name || activeAlgo}</span>
+            </span>
             <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">Legend:</span>
             <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
               <span className="h-3 w-3 rounded-full bg-[#B7FF00] border border-black flex items-center justify-center text-[7px] font-bold text-black">

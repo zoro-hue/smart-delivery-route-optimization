@@ -669,6 +669,8 @@ def _solve_single_algo(
                 if leg_key not in route_geometry_cache:
                     nu = snapped_node_ids[su]
                     nv = snapped_node_ids[sv]
+                    nu = str(nu[0]) if isinstance(nu, (tuple, list)) else str(nu)
+                    nv = str(nv[0]) if isinstance(nv, (tuple, list)) else str(nv)
                     pts = road_network_service.get_road_path_geometry(nu, nv)
                     if not pts:
                         pts = [(locations[su][0], locations[su][1]), (locations[sv][0], locations[sv][1])]
@@ -846,19 +848,7 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
         parts.append(f"{failed_count} failed")
     progress_label = " · ".join(parts) if parts else f"0/{total} queued"
 
-    is_job_complete = job.get("status") in ("COMPLETED", "FAILED", "CANCELLED")
-    results_to_send = {}
-    for k, v in job.get("results", {}).items():
-        if is_job_complete or k == job.get("primary_algorithm", "ortools"):
-            results_to_send[k] = v
-        else:
-            v_copy = dict(v)
-            if "routes" in v_copy:
-                v_copy["routes"] = [
-                    {rk: rv for rk, rv in r.items() if rk != "waypoints"}
-                    for r in v_copy["routes"]
-                ]
-            results_to_send[k] = v_copy
+    results_to_send = dict(job.get("results", {}))
 
     return {
         "job_id": job["job_id"],
@@ -1072,7 +1062,7 @@ async def _run_background_solvers_for_job(
                             is_feasible=a_res.get("is_feasible", False),
                             capacity_violations=a_res.get("capacity_violations", 0),
                             unserved_customers=a_res.get("unserved_customers", 0),
-                            routes=[{k: v for k, v in r.items() if k != "waypoints"} for r in a_res.get("routes", [])],
+                            routes=a_res.get("routes", []),
                             solver_log=a_res.get("solver_log", ""),
                             warnings=a_res.get("warnings", []),
                         )
@@ -2023,10 +2013,89 @@ def _experiment_to_dict(e: Experiment) -> dict:
     }
 
 
+ALGO_CANONICAL_METADATA: Dict[str, Tuple[str, str, str, str]] = {
+    "routeiq_cooperative": (
+        "ROUTE/IQ Cooperative Engine",
+        "cooperative",
+        "Cooperative Hybrid (Spark Local + Classical + QAOA CPU Sim)",
+        "Hybrid (Spark + QAOA + Adaptive Deep VND + ALNS)",
+    ),
+    "ortools": (
+        "OR-Tools (CVRP)",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "clarke_wright": (
+        "Clarke–Wright Savings",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "two_opt": (
+        "2-opt Improvement",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "dijkstra": (
+        "Dijkstra Shortest-Path",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "astar": (
+        "A* Heuristic Search",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "tabu_search": (
+        "Tabu Search Metaheuristic",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "kernighan_lin": (
+        "Kernighan–Lin Bipartition",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "vnd": (
+        "Variable Neighborhood Descent (VND)",
+        "classical",
+        "Classical",
+        "Classical CPU",
+    ),
+    "qiga": (
+        "Quantum-Inspired GA (QIGA/IQGA)",
+        "quantum_inspired",
+        "Quantum-Inspired Classical",
+        "Classically Simulated Q-Bits (Classical CPU)",
+    ),
+    "qaoa": (
+        "QAOA Hybrid",
+        "quantum_hybrid",
+        "Quantum-Classical Simulation",
+        "QAOA with Qiskit Aer/statevector CPU simulation",
+    ),
+}
+
+
 def _result_to_dict(r: ExperimentResult) -> dict:
+    meta = ALGO_CANONICAL_METADATA.get(
+        r.algorithm,
+        (r.algorithm.upper(), "classical", "Classical", "Classical CPU")
+    )
     return {
         "id": r.id,
         "algorithm": r.algorithm,
+        "algorithm_name": meta[0],
+        "category": meta[1],
+        "category_label": meta[2],
+        "compute_type": meta[3],
+        "status": "COMPLETED" if r.is_feasible else ("FAILED" if (r.total_distance_km or 0) == 0 else "PENALIZED"),
         "total_distance_km": r.total_distance_km,
         "total_travel_time_min": r.total_travel_time_min,
         "total_objective_cost": r.total_objective_cost,
@@ -2034,7 +2103,7 @@ def _result_to_dict(r: ExperimentResult) -> dict:
         "is_feasible": r.is_feasible,
         "capacity_violations": r.capacity_violations,
         "unserved_customers": r.unserved_customers,
-        "routes": r.routes,
+        "routes": r.routes or [],
         "qubit_count": r.qubit_count,
         "circuit_depth": r.circuit_depth,
         "qaoa_layers": r.qaoa_layers,
