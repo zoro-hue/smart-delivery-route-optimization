@@ -8,7 +8,7 @@ print("Fetching 18 valid delivery stops from live backend...")
 
 # 1. Fetch delivery stops
 try:
-    with urllib.request.urlopen(f"{base_url}/api/delivery-stops?limit=50", timeout=15) as resp:
+    with urllib.request.urlopen(f"{base_url}/api/delivery-stops?limit=50", timeout=45) as resp:
         stops_data = json.loads(resp.read().decode("utf-8"))
         raw_stops = stops_data.get("stops", [])
         print(f"Retrieved {len(raw_stops)} available delivery stops.")
@@ -61,7 +61,7 @@ headers = {"Content-Type": "application/json"}
 req = urllib.request.Request(f"{base_url}/api/optimization/jobs", data=req_data, headers=headers, method="POST")
 
 try:
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=45) as resp:
         job = json.loads(resp.read().decode("utf-8"))
         job_id = job.get("job_id")
         print(f"Successfully started optimization job: {job_id}, initial status: {job.get('status')}")
