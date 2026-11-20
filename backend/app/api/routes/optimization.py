@@ -675,12 +675,16 @@ def _solve_single_algo(
                     route_geometry_cache[leg_key] = pts
 
                 pts = route_geometry_cache[leg_key]
+                step = max(1, len(pts) // 30) if len(pts) > 30 else 1
                 start_p = 0 if not route_wps else 1
                 for p_idx in range(start_p, len(pts)):
+                    is_edge_point = (p_idx == 0 or p_idx == len(pts) - 1)
+                    if not is_edge_point and (p_idx % step != 0):
+                        continue
                     p_lat, p_lon = pts[p_idx]
                     route_wps.append({
-                        "lat": p_lat,
-                        "lon": p_lon,
+                        "lat": round(float(p_lat), 5),
+                        "lon": round(float(p_lon), 5),
                         "type": "depot" if (p_idx == 0 and su == 0) or (p_idx == len(pts) - 1 and sv == 0) else "customer",
                         "index": su if p_idx == 0 else (sv if p_idx == len(pts) - 1 else 0),
                         "is_stop": (p_idx == 0 and su != 0) or (p_idx == len(pts) - 1 and sv != 0),
@@ -842,6 +846,20 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
         parts.append(f"{failed_count} failed")
     progress_label = " · ".join(parts) if parts else f"0/{total} queued"
 
+    is_job_complete = job.get("status") in ("COMPLETED", "FAILED", "CANCELLED")
+    results_to_send = {}
+    for k, v in job.get("results", {}).items():
+        if is_job_complete or k == job.get("primary_algorithm", "ortools"):
+            results_to_send[k] = v
+        else:
+            v_copy = dict(v)
+            if "routes" in v_copy:
+                v_copy["routes"] = [
+                    {rk: rv for rk, rv in r.items() if rk != "waypoints"}
+                    for r in v_copy["routes"]
+                ]
+            results_to_send[k] = v_copy
+
     return {
         "job_id": job["job_id"],
         "experiment_id": job["experiment_id"],
@@ -859,7 +877,7 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
         "progress_label": progress_label,
         "solver_statuses": solver_statuses,
         "solver_errors": job.get("solver_errors", {}),
-        "results": job.get("results", {}),
+        "results": results_to_send,
         "comparison_summary": job.get("comparison_summary", {}),
         "problem": job.get("problem", {}),
         "is_cancelled": job.get("is_cancelled", False),
