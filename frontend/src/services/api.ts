@@ -115,10 +115,10 @@ export const api = {
   },
 
   // Datasets
-  getDatasets: async (): Promise<Dataset[]> => {
+  getDatasets: async (signal?: AbortSignal): Promise<Dataset[]> => {
     return requestWithRetry(
       async () => {
-        const res = await http.get('/datasets', { timeout: 35000 });
+        const res = await http.get('/datasets', { timeout: 15000, signal });
         if (!Array.isArray(res.data)) {
           throw new Error(
             typeof res.data === 'string' && res.data.includes('<!doctype')
@@ -129,17 +129,37 @@ export const api = {
         return res.data;
       },
       {
-        retries: 3,
-        delayMs: 1200,
+        retries: 2,
+        delayMs: 800,
         fallbackFn: (isVercelPreview && !rawApiUrl)
           ? async () => {
-              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/datasets`, { timeout: 35000 });
+              const fallbackRes = await axios.get(`${PRODUCTION_BACKEND_URL}/api/datasets`, { timeout: 15000, signal });
               if (Array.isArray(fallbackRes.data)) return fallbackRes.data;
               throw new Error('Invalid response from fallback production endpoint');
             }
           : undefined,
       }
     );
+  },
+
+  getDatasetsSummary: async () => {
+    const res = await http.get('/datasets/summary', { timeout: 10000 });
+    return res.data;
+  },
+
+  getDatasetStatus: async (datasetId: string, signal?: AbortSignal) => {
+    const res = await http.get(`/datasets/${datasetId}/status`, { timeout: 10000, signal });
+    return res.data;
+  },
+
+  processDatasetAsync: async (datasetId: string) => {
+    const res = await http.post(`/datasets/${datasetId}/process-async`, {}, { timeout: 15000 });
+    return res.data;
+  },
+
+  getDatasetJobStatus: async (jobId: string, signal?: AbortSignal) => {
+    const res = await http.get(`/datasets/jobs/${jobId}`, { timeout: 10000, signal });
+    return res.data;
   },
 
   scanWorkspace: async () => {

@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -62,20 +63,28 @@ CANONICAL_SCHEMAS = {
 
 
 def safe_extract_zip(zip_path: str, extract_to: str) -> List[Dict[str, Any]]:
-    """Safely extract ZIP file, preventing path traversal attacks."""
+    """Safely extract ZIP file, preventing path traversal attacks (Zip Slip)."""
     extracted = []
+    abs_extract_to = os.path.abspath(extract_to)
+    os.makedirs(abs_extract_to, exist_ok=True)
+
     with zipfile.ZipFile(zip_path, 'r') as zf:
         for member in zf.infolist():
-            # Security: prevent path traversal
+            # Security: normalize path and reject directory traversal / absolute paths
             member_path = os.path.normpath(member.filename)
-            if member_path.startswith('..') or os.path.isabs(member_path):
+            if member_path.startswith('..') or os.path.isabs(member_path) or member_path.startswith('/') or member_path.startswith('\\'):
                 logger.warning(f"Skipping suspicious path in ZIP: {member.filename}")
                 continue
-            # Skip directories and hidden files
-            if member.is_dir() or member.filename.startswith('.') or member.filename.startswith('__'):
+            # Skip directories and hidden / system files
+            if member.is_dir() or member.filename.startswith('.') or member.filename.startswith('__') or '/.' in member.filename:
                 continue
 
-            target_path = os.path.join(extract_to, os.path.basename(member.filename))
+            target_path = os.path.abspath(os.path.join(abs_extract_to, os.path.basename(member.filename)))
+            # Strict Zip Slip containment assertion
+            if not target_path.startswith(abs_extract_to):
+                logger.warning(f"ZipSlip attempt blocked for {member.filename}")
+                continue
+
             with zf.open(member) as src, open(target_path, 'wb') as dst:
                 dst.write(src.read())
 
@@ -91,7 +100,7 @@ def safe_extract_zip(zip_path: str, extract_to: str) -> List[Dict[str, Any]]:
 
 
 def detect_file_schema(file_path: str) -> Dict[str, Any]:
-    """Detect schema from CSV, JSON, or XLSX file."""
+    """Detect schema from CSV, JSON, XLSX, GraphML, or ZIP archive file."""
     ext = Path(file_path).suffix.lower()
     try:
         if ext == '.csv':
@@ -104,6 +113,8 @@ def detect_file_schema(file_path: str) -> Dict[str, Any]:
             df = pd.read_excel(file_path, nrows=100)
         elif ext == '.graphml':
             return _detect_graphml_schema(file_path)
+        elif ext == '.zip':
+            return _detect_zip_schema(file_path)
         else:
             return {"error": f"Unsupported file type: {ext}"}
 
@@ -131,6 +142,55 @@ def detect_file_schema(file_path: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Schema detection failed for {file_path}: {e}")
         return {"error": str(e)}
+
+
+def _detect_zip_schema(zip_path: str) -> Dict[str, Any]:
+    """Inspect contents of a ZIP archive and return schema of primary constituent file."""
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            members = [m for m in zf.infolist() if not m.is_dir() and not m.filename.startswith('.') and not m.filename.startswith('__')]
+            if not members:
+                return {"format": "zip", "error": "Empty ZIP archive"}
+
+            # Look for graphml first
+            for m in members:
+                if m.filename.lower().endswith('.graphml'):
+                    return _detect_graphml_schema(zip_path)
+
+            # Look for csv
+            for m in members:
+                if m.filename.lower().endswith('.csv'):
+                    with zf.open(m) as f:
+                        df = pd.read_csv(f, nrows=100, encoding='utf-8', on_bad_lines='warn')
+                        columns = []
+                        for col in df.columns:
+                            col_info = {
+                                "name": str(col),
+                                "dtype": str(df[col].dtype),
+                                "non_null_count": int(df[col].notna().sum()),
+                                "null_count": int(df[col].isna().sum()),
+                                "sample_values": [str(v) for v in df[col].dropna().head(3).tolist()]
+                            }
+                            if pd.api.types.is_numeric_dtype(df[col]):
+                                col_info["min"] = float(df[col].min()) if not df[col].isna().all() else None
+                                col_info["max"] = float(df[col].max()) if not df[col].isna().all() else None
+                            columns.append(col_info)
+                        return {
+                            "format": "csv_in_zip",
+                            "primary_file": m.filename,
+                            "is_tabular": True,
+                            "columns": columns,
+                            "row_count_sample": len(df)
+                        }
+
+            return {
+                "format": "zip",
+                "is_tabular": False,
+                "file_count": len(members),
+                "files": [m.filename for m in members[:10]]
+            }
+    except Exception as e:
+        return {"format": "zip", "error": str(e)}
 
 
 def _detect_graphml_schema(file_path: str) -> Dict[str, Any]:
