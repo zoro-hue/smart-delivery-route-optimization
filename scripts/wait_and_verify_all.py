@@ -125,7 +125,7 @@ try:
     # 7. Monitor Progressive Background Polling until All 11 Solvers Complete
     print("\n[Stage 7] Monitoring Progressive Background Comparison (Target: 11/11)...")
     t_poll_start = time.time()
-    max_wait = 180
+    max_wait = 240
     last_label = ""
     job_completed = False
 
@@ -136,7 +136,7 @@ try:
             if ("completed" in line.lower() or "evaluating" in line.lower()) and line != last_label:
                 print(f"  [{int(time.time() - t_poll_start)}s] Progress: {line}")
                 last_label = line
-        if "All 11 algorithms evaluated" in b_text or "11/11 completed" in b_text or "All 11 algorithms" in b_text or "Results retained" in b_text or ("completed" in b_text and "timed out" in b_text and "11" in b_text):
+        if "All 11 algorithms evaluated" in b_text or "11/11 completed" in b_text or "All 11 algorithms" in b_text:
             job_completed = True
             print("  DETECTED 11/11 ALGORITHMS COMPLETED IN FRONTEND UI!")
             break

@@ -947,16 +947,16 @@ async def _run_background_solvers_for_job(
                                 objective_weights, snapped_node_ids, road_warnings,
                                 route_geometry_cache
                             ),
-                            timeout=25.0
+                            timeout=35.0
                         )
                     except asyncio.TimeoutError:
-                        logger.warning(f"QAOA statevector simulation timed out after 25.0s for job {job_id}")
+                        logger.warning(f"QAOA statevector simulation timed out after 35.0s for job {job_id}")
                         algo_res = {
                             "success": False,
-                            "error": "QAOA statevector CPU simulation timed out (25.0s deadline)",
+                            "error": "QAOA statevector CPU simulation timed out (35.0s deadline)",
                             "routes": [],
                             "status": "TIMED_OUT",
-                            "execution_time_sec": 25.0,
+                            "execution_time_sec": 35.0,
                             "total_distance_km": 0.0,
                             "total_travel_time_min": 0.0,
                             "total_objective_cost": 0.0,
@@ -982,16 +982,16 @@ async def _run_background_solvers_for_job(
                                 objective_weights, snapped_node_ids, road_warnings,
                                 route_geometry_cache
                             ),
-                            timeout=25.0
+                            timeout=35.0
                         )
                     except asyncio.TimeoutError:
-                        logger.warning(f"Solver {algo} timed out after 25s for job {job_id}")
+                        logger.warning(f"Solver {algo} timed out after 35s for job {job_id}")
                         algo_res = {
                             "success": False,
-                            "error": f"Solver execution timed out (25.0s deadline)",
+                            "error": f"Solver execution timed out (35.0s deadline)",
                             "routes": [],
                             "status": "TIMED_OUT",
-                            "execution_time_sec": 25.0,
+                            "execution_time_sec": 35.0,
                             "total_distance_km": 0.0,
                             "total_travel_time_min": 0.0,
                             "total_objective_cost": 0.0,

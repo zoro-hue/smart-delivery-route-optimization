@@ -373,9 +373,9 @@ class RoadNetworkService:
             try:
                 from scipy.sparse import csgraph
                 snapped_indices = [self.node_to_idx[nid] for nid in snapped_nodes]
-                # Memory-optimized Dijkstra: for small problems (n <= 10, e.g. tests), compute predecessors.
-                # For production sizes (n > 10, 18, 50, 100), avoid allocating massive 54k int32 predecessor arrays.
-                compute_preds = (n <= 10)
+                # Memory-optimized Dijkstra: for instances up to 30 stops (e.g. 18-stop benchmarks), compute predecessors.
+                # 30 * 54k int32 is only ~6.5 MB, which fits easily and populates _path_cache for instant geometry reconstruction.
+                compute_preds = (n <= 30)
                 if compute_preds:
                     dists_dir, pred_dir = csgraph.dijkstra(
                         self._csr_directed,

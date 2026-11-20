@@ -530,7 +530,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       pollTimerRef.current = null;
     }
 
-    const overallTimeoutSec = 180; // 180-second safety deadline for comparison
+    const overallTimeoutSec = 300; // 300-second safety deadline for comparison
     let consecutiveErrors = 0;
 
     pollTimerRef.current = setInterval(async () => {
@@ -540,6 +540,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         if (elapsed > overallTimeoutSec) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
+          try {
+            const finalRes = await api.getJobStatus(jobId);
+            if (finalRes?.results) {
+              setExecutionResponse(finalRes);
+              onOptimizationComplete(finalRes);
+            }
+          } catch {}
           setIsComparing(false);
           setIsRunning(false);
           setFeedbackMessage('Comparison evaluation completed. Results retained.');
