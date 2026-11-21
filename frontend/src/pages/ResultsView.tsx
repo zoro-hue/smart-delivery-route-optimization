@@ -19,6 +19,11 @@ import {
   AlertTriangle,
   RotateCw,
   Maximize2,
+  ChevronDown,
+  ChevronUp,
+  Database,
+  Cpu,
+  Sparkles,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -361,6 +366,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
   const currentTheme = ALGORITHM_THEMES[activeAlgo] || ALGORITHM_THEMES.ortools;
   const activeRouteColors = isDark ? currentTheme.darkVehicleColors : currentTheme.lightVehicleColors;
   const [fitTrigger, setFitTrigger] = useState<number>(0);
+  const [showAdvancedScorecard, setShowAdvancedScorecard] = useState<boolean>(false);
+  const [showAdvancedTabs, setShowAdvancedTabs] = useState<boolean>(false);
   const lastExperimentIdRef = useRef<string | null>(result?.experiment_id || null);
 
   const handleSelectAlgorithm = (key: string) => {
@@ -599,6 +606,47 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         </div>
       )}
 
+      {/* ─── TWO RESEARCH PILLARS PROVENANCE BANNER ───────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-xs">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0 border border-amber-500/30">
+            <Database className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
+                Research Pillar 1: Apache Spark Big Data Engine
+              </span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">
+                Spark 4.2 Local
+              </span>
+            </div>
+            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
+              Spatial RDD stop partitioning & parallel road-network distance matrix graph projection ({result.problem?.locations?.length || 0} stops processed).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 md:border-l md:border-black/10 md:dark:border-[#29292E] md:pl-3">
+          <div className="p-2 rounded-xl bg-[#B7FF00]/15 text-[#080808] dark:text-[#B7FF00] shrink-0 border border-[#B7FF00]/30">
+            <Cpu className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
+                Research Pillar 2: Quantum & Hybrid Solvers
+              </span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
+                Qiskit Aer CPU
+              </span>
+            </div>
+            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
+              Variational QAOA statevector circuit simulation for Hamiltonian optimization + QIGA simulated Q-bit evolutionary operators.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* ─── ALGORITHM SELECTION PILLS & ACTIVE INSPECTOR HEADER ───────────────── */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
@@ -621,37 +669,114 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black/5 dark:bg-[#111113] border border-black/5 dark:border-[#29292E] text-xs">
-          {algoKeys.map((key) => {
-            const data = resultsMap[key];
-            const isSelected = activeAlgo === key;
-            const isBest = key === bestAlgoId;
-            const algoName = data?.algorithm_name || key.toUpperCase();
+        {/* Algorithm Tabs Grouping: Primary Visible Research Systems vs Collapsible Advanced Classical Benchmarks */}
+        {(() => {
+          const primaryPillKeys = ['routeiq_cooperative', 'qaoa', 'qiga'];
+          const executedPrimaryKeys = algoKeys.filter((k) => primaryPillKeys.includes(k));
+          const executedClassicalKeys = algoKeys.filter((k) => !primaryPillKeys.includes(k));
+          const isInspectingClassical = executedClassicalKeys.includes(activeAlgo);
+          const isClassicalExpanded = showAdvancedTabs || isInspectingClassical;
 
-            return (
-              <button
-                key={key}
-                onClick={() => handleSelectAlgorithm(key)}
-                className={`px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                  isSelected
-                    ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
-                    : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
-                }`}
-              >
-                <span>{algoName}</span>
-                <span className="font-technical text-[10px] opacity-80">
-                  {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
-                </span>
-                {isBest && (
-                  <span
-                    className="h-2 w-2 rounded-full bg-[#B7FF00]"
-                    title="Best Feasible Solution"
-                  />
+          return (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-black/5 dark:bg-[#111113] border border-black/5 dark:border-[#29292E] text-xs">
+                {/* 1. Primary Visible Optimization Systems */}
+                {(executedPrimaryKeys.length > 0 ? executedPrimaryKeys : algoKeys).map((key) => {
+                  const data = resultsMap[key];
+                  const isSelected = activeAlgo === key;
+                  const isBest = key === bestAlgoId;
+                  const algoName = data?.algorithm_name || key.toUpperCase();
+
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleSelectAlgorithm(key)}
+                      className={`px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                        isSelected
+                          ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
+                          : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
+                      }`}
+                    >
+                      <span>{algoName}</span>
+                      <span className="font-technical text-[10px] opacity-80">
+                        {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
+                      </span>
+                      {isBest && (
+                        <span
+                          className="h-2 w-2 rounded-full bg-[#B7FF00]"
+                          title="Best Feasible Solution"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* 2. Advanced Classical Benchmarks Collapsible Button */}
+                {executedClassicalKeys.length > 0 && (
+                  <button
+                    onClick={() => setShowAdvancedTabs(!showAdvancedTabs)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                      isInspectingClassical
+                        ? 'bg-blue-500/10 border-blue-500/40 text-blue-600 dark:text-blue-400'
+                        : 'bg-black/5 dark:bg-[#18181B] border-black/10 dark:border-[#29292E] text-[#555555] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-[#F5F5F7]'
+                    }`}
+                  >
+                    {isClassicalExpanded ? (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    )}
+                    <span>Advanced Classical Benchmarks ({executedClassicalKeys.length})</span>
+                  </button>
                 )}
-              </button>
-            );
-          })}
-        </div>
+              </div>
+
+              {/* Expanded Classical Benchmarks Pills */}
+              {executedClassicalKeys.length > 0 && isClassicalExpanded && (
+                <div className="flex flex-wrap items-center gap-2 p-2 rounded-2xl bg-blue-500/[0.03] dark:bg-[#141418] border border-blue-500/20 text-xs animate-fadeIn">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1.5">
+                    <span>Classical Solvers:</span>
+                  </div>
+                  {executedClassicalKeys.map((key) => {
+                    const data = resultsMap[key];
+                    const isSelected = activeAlgo === key;
+                    const isBest = key === bestAlgoId;
+                    const isOrtools = key === 'ortools' || key === 'classical';
+                    const algoName = data?.algorithm_name || key.toUpperCase();
+
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => handleSelectAlgorithm(key)}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 text-xs ${
+                          isSelected
+                            ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
+                            : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
+                        }`}
+                      >
+                        <span>{algoName}</span>
+                        {isOrtools && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                            Baseline
+                          </span>
+                        )}
+                        <span className="font-technical text-[10px] opacity-80">
+                          {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
+                        </span>
+                        {isBest && (
+                          <span
+                            className="h-2 w-2 rounded-full bg-[#B7FF00]"
+                            title="Best Feasible Solution"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ─── ACTIVE METRICS FOR SELECTED ALGORITHM ─────────────────────── */}
@@ -1218,153 +1343,390 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/5 dark:divide-[#29292E]">
-                {comparisonItems.map((item) => {
-                  const isCurrent = activeAlgo === item.id;
-                  const isBest = item.id === bestAlgoId;
+                {/* Primary Research Systems & Academic Baseline Rows */}
+                {(() => {
+                  const primaryKeys = ['routeiq_cooperative', 'qaoa', 'qiga', 'ortools', 'classical'];
+                  const primaryItems = comparisonItems.filter((it) => primaryKeys.includes(it.id));
+                  const displayPrimary = primaryItems.length > 0 ? primaryItems : comparisonItems;
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className={`hover:bg-black/5 dark:hover:bg-[#18181B]/80 transition-colors ${
-                        isBest ? 'bg-[#B7FF00]/5 dark:bg-[#B7FF00]/5' : ''
-                      }`}
-                    >
-                      {/* Name & Category */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{item.name}</span>
-                          {isBest && (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
-                              Best Feasible
+                  const renderRow = (item: any, isClassicalBenchmark?: boolean) => {
+                    const isCurrent = activeAlgo === item.id;
+                    const isBest = item.id === bestAlgoId;
+                    const isCoop = item.id === 'routeiq_cooperative';
+                    const isOrtools = item.id === 'ortools' || item.id === 'classical';
+                    const isInternal = ['tabu_search', 'kernighan_lin', 'vnd'].includes(item.id);
+
+                    return (
+                      <tr
+                        key={item.id}
+                        className={`hover:bg-black/5 dark:hover:bg-[#18181B]/80 transition-colors ${
+                          isBest ? 'bg-[#B7FF00]/5 dark:bg-[#B7FF00]/5' : ''
+                        }`}
+                      >
+                        {/* Name & Category */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{item.name}</span>
+                            {isBest && (
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
+                                Best Feasible
+                              </span>
+                            )}
+                            {isCoop && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">
+                                Primary Flagship
+                              </span>
+                            )}
+                            {isOrtools && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                                Scientific Baseline
+                              </span>
+                            )}
+                            {isInternal && (
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
+                                Internal Subroutine
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block mt-0.5">
+                            {item.category_label} · {item.compute_type}
+                          </span>
+                        </td>
+
+                        {/* Feasibility & Individual Solver Status */}
+                        <td className="py-3 px-4">
+                          {item.status === 'RUNNING' ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                              <RotateCw className="h-3 w-3 animate-spin" />
+                              <span>Running...</span>
+                            </span>
+                          ) : item.status === 'PENDING' ? (
+                            <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
+                              <span>Pending</span>
+                            </span>
+                          ) : item.status === 'TIMED_OUT' ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-orange-500">
+                              <span>Timed Out</span>
+                            </span>
+                          ) : item.status === 'FAILED' ? (
+                            <span className="inline-flex items-center gap-1 font-bold text-red-500" title={item.error || 'Solver failed'}>
+                              <span>Failed</span>
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 font-bold ${
+                              item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
+                            }`}>
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
                             </span>
                           )}
-                        </div>
-                        <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block mt-0.5">
-                          {item.category_label} · {item.compute_type}
-                        </span>
-                      </td>
+                        </td>
 
-                      {/* Feasibility & Individual Solver Status */}
-                      <td className="py-3 px-4">
-                        {item.status === 'RUNNING' ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-amber-500">
-                            <RotateCw className="h-3 w-3 animate-spin" />
-                            <span>Running...</span>
-                          </span>
-                        ) : item.status === 'PENDING' ? (
-                          <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
-                            <span>Pending</span>
-                          </span>
-                        ) : item.status === 'TIMED_OUT' ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-orange-500">
-                            <span>Timed Out</span>
-                          </span>
-                        ) : item.status === 'FAILED' ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-red-500" title={item.error || 'Solver failed'}>
-                            <span>Failed</span>
-                          </span>
-                        ) : (
-                          <span className={`inline-flex items-center gap-1 font-bold ${
-                            item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
-                          }`}>
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
-                          </span>
-                        )}
-                      </td>
+                        {/* Total Distance */}
+                        <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
+                          {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
+                            ? `${item.total_distance_km.toFixed(2)} km`
+                            : (item.status === 'RUNNING' ? 'Computing...' : '—')}
+                        </td>
 
-                      {/* Total Distance */}
-                      <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                        {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
-                          ? `${item.total_distance_km.toFixed(2)} km`
-                          : (item.status === 'RUNNING' ? 'Computing...' : '—')}
-                      </td>
+                        {/* Travel Time */}
+                        <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
+                          {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
+                        </td>
 
-                      {/* Travel Time */}
-                      <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                        {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
-                      </td>
+                        {/* Implied Average Speed */}
+                        <td className="py-3 px-4 font-technical font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                          {typeof item.total_distance_km === 'number' && item.total_distance_km > 0 && item.total_travel_time_min
+                            ? `${(item.implied_speed_kmh || (item.total_distance_km / (item.total_travel_time_min / 60))).toFixed(1)} km/h`
+                            : '—'}
+                        </td>
 
-                      {/* Implied Average Speed */}
-                      <td className="py-3 px-4 font-technical font-semibold text-[#080808] dark:text-[#F5F5F7]">
-                        {typeof item.total_distance_km === 'number' && item.total_distance_km > 0 && item.total_travel_time_min
-                          ? `${(item.implied_speed_kmh || (item.total_distance_km / (item.total_travel_time_min / 60))).toFixed(1)} km/h`
-                          : '—'}
-                      </td>
+                        {/* Vehicles & Coverage */}
+                        <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
+                          {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
+                        </td>
 
-                      {/* Vehicles & Coverage */}
-                      <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                        {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
-                      </td>
+                        {/* Violations */}
+                        <td className="py-3 px-4 font-technical">
+                          {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
+                            <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Error'}>
+                              {item.error || 'Execution failed'}
+                            </span>
+                          ) : item.capacity_violations === 0 && item.unserved_customers === 0 ? (
+                            <span className="text-[#22C55E] font-bold">0 violations</span>
+                          ) : (
+                            <span className="text-red-500 font-bold">
+                              {item.capacity_violations} cap / {item.unserved_customers} unserved
+                            </span>
+                          )}
+                        </td>
 
-                      {/* Violations */}
-                      <td className="py-3 px-4 font-technical">
-                        {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
-                          <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Error'}>
-                            {item.error || 'Execution failed'}
-                          </span>
-                        ) : item.capacity_violations === 0 && item.unserved_customers === 0 ? (
-                          <span className="text-[#22C55E] font-bold">0 violations</span>
-                        ) : (
-                          <span className="text-red-500 font-bold">
-                            {item.capacity_violations} cap / {item.unserved_customers} unserved
-                          </span>
-                        )}
-                      </td>
+                        {/* Resource: CPU & Heap / RSS RAM */}
+                        <td className="py-3 px-4 font-technical">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
+                              {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
+                            </span>
+                            <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]" title={`Process RSS: ${item.process_rss_mb || 0} MB | Python Heap: ${item.heap_allocated_mb || item.memory_used_mb || 0} MB (peak: ${item.heap_peak_mb || item.peak_memory_mb || 0} MB)`}>
+                              {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
+                            </span>
+                          </div>
+                        </td>
 
-                      {/* Resource: CPU & Heap / RSS RAM */}
-                      <td className="py-3 px-4 font-technical">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
-                            {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
-                          </span>
-                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]" title={`Process RSS: ${item.process_rss_mb || 0} MB | Python Heap: ${item.heap_allocated_mb || item.memory_used_mb || 0} MB (peak: ${item.heap_peak_mb || item.peak_memory_mb || 0} MB)`}>
-                            {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
-                          </span>
-                        </div>
-                      </td>
+                        {/* Theoretical Big-O Complexity */}
+                        <td className="py-3 px-4 font-technical">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={`Theoretical Worst-Case Time: ${item.time_complexity || 'O(N^2)'}`}>
+                              T: {item.time_complexity || 'O(N^2)'}
+                            </span>
+                            <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={`Theoretical Worst-Case Space: ${item.space_complexity || 'O(N)'}`}>
+                              S: {item.space_complexity || 'O(N)'}
+                            </span>
+                          </div>
+                        </td>
 
-                      {/* Theoretical Big-O Complexity */}
-                      <td className="py-3 px-4 font-technical">
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={`Theoretical Worst-Case Time: ${item.time_complexity || 'O(N^2)'}`}>
-                            T: {item.time_complexity || 'O(N^2)'}
-                          </span>
-                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={`Theoretical Worst-Case Space: ${item.space_complexity || 'O(N)'}`}>
-                            S: {item.space_complexity || 'O(N)'}
-                          </span>
-                        </div>
-                      </td>
+                        {/* Objective Cost */}
+                        <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
+                          {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
+                        </td>
 
-                      {/* Objective Cost */}
-                      <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                        {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
-                      </td>
+                        {/* Runtime */}
+                        <td className="py-3 px-4 font-technical text-[#777777] dark:text-[#A1A1AA]">
+                          {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
+                        </td>
 
-                      {/* Runtime */}
-                      <td className="py-3 px-4 font-technical text-[#777777] dark:text-[#A1A1AA]">
-                        {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
-                      </td>
+                        {/* View Action */}
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => handleSelectAlgorithm(item.id)}
+                            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              isCurrent
+                                ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40'
+                                : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
+                            }`}
+                          >
+                            {isCurrent ? '✓ Inspecting' : 'Inspect Route'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  };
 
-                      {/* View Action */}
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleSelectAlgorithm(item.id)}
-                          className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                            isCurrent
-                              ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40'
-                              : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
-                          }`}
-                        >
-                          {isCurrent ? '✓ Inspecting' : 'Inspect Route'}
-                        </button>
-                      </td>
-                    </tr>
+                  return (
+                    <>
+                      {displayPrimary.map((it) => renderRow(it, false))}
+                    </>
                   );
-                })}
+                })()}
               </tbody>
             </table>
           </div>
+
+          {/* ─── OPTIONAL COLLAPSIBLE ADVANCED CLASSICAL BENCHMARKS (7 Standalone Solvers) ─── */}
+          {(() => {
+            const primaryKeys = ['routeiq_cooperative', 'qaoa', 'qiga', 'ortools', 'classical'];
+            const classicalBenchmarkItems = comparisonItems.filter((it) => !primaryKeys.includes(it.id));
+            if (classicalBenchmarkItems.length === 0) return null;
+
+            return (
+              <div className="rounded-2xl border border-black/10 dark:border-[#29292E] overflow-hidden bg-white dark:bg-[#111113]">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedScorecard(!showAdvancedScorecard)}
+                  className="w-full flex items-center justify-between p-4 bg-black/5 dark:bg-[#18181B] hover:bg-black/10 dark:hover:bg-[#202024] transition-all cursor-pointer text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded-lg bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
+                      {showAdvancedScorecard ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-[#080808] dark:text-[#F5F5F7]">
+                          Advanced Classical Benchmarks ({classicalBenchmarkItems.length} Standalone Solvers)
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/30">
+                          Academic Comparison Suite
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5">
+                        Standalone heuristic baselines (Clarke-Wright, 2-opt, Tabu, KL, VND, A*, Dijkstra). Note: Heuristics also execute internally inside the Cooperative Engine.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-[#080808] dark:text-[#B7FF00] font-technical shrink-0">
+                    {showAdvancedScorecard ? 'Collapse Benchmarks ▲' : `View All ${classicalBenchmarkItems.length} Benchmarks ▼`}
+                  </span>
+                </button>
+
+                {showAdvancedScorecard && (
+                  <div className="overflow-x-auto border-t border-black/10 dark:border-[#29292E] animate-fadeIn">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-black/10 dark:border-[#29292E] bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] text-[10px] uppercase font-bold tracking-wider">
+                          <th className="py-3 px-4">Classical Solver</th>
+                          <th className="py-3 px-4">Feasibility</th>
+                          <th className="py-3 px-4">Total Distance</th>
+                          <th className="py-3 px-4">Est. Driving Duration</th>
+                          <th className="py-3 px-4">Implied Avg Speed</th>
+                          <th className="py-3 px-4">Vehicles / Coverage</th>
+                          <th className="py-3 px-4">Violations</th>
+                          <th className="py-3 px-4">CPU / RAM</th>
+                          <th className="py-3 px-4">Complexity</th>
+                          <th className="py-3 px-4">Objective Cost</th>
+                          <th className="py-3 px-4">Runtime</th>
+                          <th className="py-3 px-4 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/5 dark:divide-[#29292E]">
+                        {classicalBenchmarkItems.map((item) => {
+                          const isCurrent = activeAlgo === item.id;
+                          const isBest = item.id === bestAlgoId;
+                          const isInternal = ['tabu_search', 'kernighan_lin', 'vnd'].includes(item.id);
+
+                          return (
+                            <tr
+                              key={item.id}
+                              className={`hover:bg-black/5 dark:hover:bg-[#18181B]/80 transition-colors ${
+                                isBest ? 'bg-[#B7FF00]/5 dark:bg-[#B7FF00]/5' : ''
+                              }`}
+                            >
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{item.name}</span>
+                                  {isBest && (
+                                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
+                                      Best Feasible
+                                    </span>
+                                  )}
+                                  {isInternal && (
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
+                                      Internal Subroutine
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block mt-0.5">
+                                  {item.category_label} · {item.compute_type}
+                                </span>
+                              </td>
+
+                              <td className="py-3 px-4">
+                                {item.status === 'RUNNING' ? (
+                                  <span className="inline-flex items-center gap-1 font-bold text-amber-500">
+                                    <RotateCw className="h-3 w-3 animate-spin" />
+                                    <span>Running...</span>
+                                  </span>
+                                ) : item.status === 'PENDING' ? (
+                                  <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
+                                    <span>Pending</span>
+                                  </span>
+                                ) : item.status === 'TIMED_OUT' ? (
+                                  <span className="inline-flex items-center gap-1 font-bold text-orange-500">
+                                    <span>Timed Out</span>
+                                  </span>
+                                ) : item.status === 'FAILED' ? (
+                                  <span className="inline-flex items-center gap-1 font-bold text-red-500" title={item.error || 'Solver failed'}>
+                                    <span>Failed</span>
+                                  </span>
+                                ) : (
+                                  <span className={`inline-flex items-center gap-1 font-bold ${
+                                    item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
+                                  }`}>
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
+                                {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
+                                  ? `${item.total_distance_km.toFixed(2)} km`
+                                  : (item.status === 'RUNNING' ? 'Computing...' : '—')}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
+                                {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                                {typeof item.total_distance_km === 'number' && item.total_distance_km > 0 && item.total_travel_time_min
+                                  ? `${(item.implied_speed_kmh || (item.total_distance_km / (item.total_travel_time_min / 60))).toFixed(1)} km/h`
+                                  : '—'}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
+                                {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical">
+                                {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
+                                  <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Error'}>
+                                    {item.error || 'Execution failed'}
+                                  </span>
+                                ) : item.capacity_violations === 0 && item.unserved_customers === 0 ? (
+                                  <span className="text-[#22C55E] font-bold">0 violations</span>
+                                ) : (
+                                  <span className="text-red-500 font-bold">
+                                    {item.capacity_violations} cap / {item.unserved_customers} unserved
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical">
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
+                                    {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
+                                  </span>
+                                  <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                                    {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 font-technical">
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]">
+                                    T: {item.time_complexity || 'O(N^2)'}
+                                  </span>
+                                  <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]">
+                                    S: {item.space_complexity || 'O(N)'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
+                                {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
+                              </td>
+
+                              <td className="py-3 px-4 font-technical text-[#777777] dark:text-[#A1A1AA]">
+                                {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
+                              </td>
+
+                              <td className="py-3 px-4 text-right">
+                                <button
+                                  onClick={() => handleSelectAlgorithm(item.id)}
+                                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    isCurrent
+                                      ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40'
+                                      : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
+                                  }`}
+                                >
+                                  {isCurrent ? '✓ Inspecting' : 'Inspect Route'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

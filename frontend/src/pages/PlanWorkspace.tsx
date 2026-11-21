@@ -37,6 +37,7 @@ import {
   ArrowRight,
   Maximize2,
   Minimize2,
+  Database,
 } from 'lucide-react';
 import { OptimizationResponse, VehicleRoute } from '../types';
 import { api } from '../services/api';
@@ -53,53 +54,63 @@ export interface AlgorithmConfigItem {
   badge: string;
   computeType: string;
   maxLimit?: number;
+  isPrimary?: boolean;
+  isBaseline?: boolean;
+  isInternalSubroutine?: boolean;
 }
 
 export const WORKSPACE_ALGORITHMS: AlgorithmConfigItem[] = [
-  // Cooperative Hybrid Engine
+  // ─── PRIMARY VISIBLE RESEARCH SYSTEMS (2 PILLARS INTEGRATION) ─────────────
   {
     id: 'routeiq_cooperative',
     name: 'ROUTE/IQ Cooperative Engine',
     group: 'cooperative',
-    groupLabel: 'Cooperative Hybrid (Spark Local + Classical + QAOA CPU Sim)',
-    role: 'Pillar 1 Spark local spatial decomposition + Adaptive Controller + QAOA/Tabu + VND with Proposition 1 Guardrail.',
-    badge: 'Spark + QAOA/Tabu + Prop 1',
+    groupLabel: 'Primary Hybrid System (Spark Big Data + Quantum + Heuristics + VND)',
+    role: 'Primary flagship hybrid optimizer: synthesizes Pillar 1 Apache Spark spatial partitioning, MAB Adaptive Controller, QAOA/QIGA/Tabu candidate generation, and VND local descent with Proposition 1 Guardrail.',
+    badge: 'Flagship Hybrid · Spark + Quantum + VND',
     computeType: 'Hybrid (Spark Local + Classical + QAOA CPU Sim)',
-  },
-  // Classical algorithms
-  {
-    id: 'dijkstra',
-    name: 'Dijkstra',
-    group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Shortest-path baseline.',
-    badge: 'Shortest-Path Baseline',
-    computeType: 'Classical CPU',
+    isPrimary: true,
   },
   {
-    id: 'astar',
-    name: 'A*',
-    group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Heuristic-based shortest-path search.',
-    badge: 'Heuristic Search',
-    computeType: 'Classical CPU',
+    id: 'qaoa',
+    name: 'QAOA (Quantum Approximate Optimization)',
+    group: 'quantum',
+    groupLabel: 'Quantum Computing Pillar (Qiskit Aer CPU Simulation)',
+    role: 'Pillar 2 Variational quantum-classical optimization via QAOA with Qiskit Aer statevector CPU simulation evaluating parameterized Hamiltonian circuits.',
+    badge: 'QAOA Gate Simulation · Qiskit Aer',
+    computeType: 'QAOA with Qiskit Aer/statevector CPU simulation',
+    maxLimit: 8,
+    isPrimary: true,
   },
+  {
+    id: 'qiga',
+    name: 'QIGA (Quantum-Inspired Genetic Algorithm)',
+    group: 'quantum',
+    groupLabel: 'Quantum Computing Pillar (Simulated Q-Bits)',
+    role: 'Pillar 2 Quantum-inspired evolutionary optimization using simulated Q-bit rotation gates and quantum superposition, simulated classically on CPU.',
+    badge: 'Quantum-Inspired Evolutionary (CPU)',
+    computeType: 'Classically Simulated Q-Bits (Classical CPU)',
+    maxLimit: 50,
+    isPrimary: true,
+  },
+
+  // ─── ADVANCED CLASSICAL BENCHMARKS (STANDALONE SCIENTIFIC COMPARISONS) ─────
   {
     id: 'ortools',
     name: 'OR-Tools',
     group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Classical vehicle routing optimization, using the configured routing solver.',
-    badge: 'Primary VRP Optimizer',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Primary scientific baseline: Google OR-Tools vehicle routing solver with Guided Local Search metaheuristics.',
+    badge: 'Primary Scientific Baseline',
     computeType: 'Classical CPU',
+    isBaseline: true,
   },
   {
     id: 'clarke_wright',
     name: 'Clarke–Wright Savings',
     group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Route construction heuristic.',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Classical savings heuristic for initial greedy multi-vehicle route construction.',
     badge: 'Construction Heuristic',
     computeType: 'Classical CPU',
   },
@@ -107,58 +118,58 @@ export const WORKSPACE_ALGORITHMS: AlgorithmConfigItem[] = [
     id: 'two_opt',
     name: '2-opt',
     group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Route improvement heuristic.',
-    badge: 'Route Improvement',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Iterative 2-opt edge-exchange improvement heuristic for uncrossing route paths.',
+    badge: 'Route Improvement Heuristic',
     computeType: 'Classical CPU',
   },
   {
     id: 'tabu_search',
     name: 'Tabu Search',
     group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Recency-memory metaheuristic with tabu tenure and aspiration.',
-    badge: 'Metaheuristic Memory',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Recency-memory metaheuristic with tabu tenure; also serves as an internal candidate generation subroutine within the Cooperative Engine.',
+    badge: 'Metaheuristic (Standalone & Internal)',
     computeType: 'Classical CPU',
+    isInternalSubroutine: true,
   },
   {
     id: 'kernighan_lin',
     name: 'Kernighan–Lin',
     group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Variable-depth bipartition sequence exchange with node locking.',
-    badge: 'Bipartition Exchange',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Variable-depth bipartition sequence exchange with node locking; also serves as an internal candidate generation subroutine within the Cooperative Engine.',
+    badge: 'Bipartition Exchange (Standalone & Internal)',
     computeType: 'Classical CPU',
+    isInternalSubroutine: true,
   },
   {
     id: 'vnd',
-    name: 'Variable Neighborhood Descent',
+    name: 'Variable Neighborhood Descent (VND)',
     group: 'classical',
-    groupLabel: 'Classical algorithms',
-    role: 'Deterministic local search across 2-opt, relocate, and swap neighborhoods.',
-    badge: 'Multi-Neighborhood Descent',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Multi-neighborhood deterministic local search (2-opt, relocate, swap); also serves as the internal route polishing phase within the Cooperative Engine.',
+    badge: 'Multi-Neighborhood (Standalone & Internal)',
+    computeType: 'Classical CPU',
+    isInternalSubroutine: true,
+  },
+  {
+    id: 'astar',
+    name: 'A*',
+    group: 'classical',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Heuristic-guided shortest-path routing baseline across directed NYC street network graph.',
+    badge: 'Heuristic Path Search',
     computeType: 'Classical CPU',
   },
-  // Quantum / quantum-classical algorithms
   {
-    id: 'qaoa',
-    name: 'QAOA',
-    group: 'quantum',
-    groupLabel: 'Quantum / quantum-classical algorithms',
-    role: 'Hybrid variational quantum-classical optimization via QAOA with Qiskit Aer/statevector CPU simulation.',
-    badge: 'QAOA CPU Simulation · Qiskit',
-    computeType: 'QAOA with Qiskit Aer/statevector CPU simulation',
-    maxLimit: 8,
-  },
-  {
-    id: 'qiga',
-    name: 'Quantum-Inspired Genetic Algorithm (QIGA/IQGA)',
-    group: 'quantum',
-    groupLabel: 'Quantum / quantum-classical algorithms',
-    role: 'Quantum-inspired evolutionary optimization, simulated classically on CPU.',
-    badge: 'Quantum-Inspired Evolutionary (CPU)',
-    computeType: 'Classically Simulated Q-Bits (Classical CPU)',
-    maxLimit: 50,
+    id: 'dijkstra',
+    name: 'Dijkstra',
+    group: 'classical',
+    groupLabel: 'Advanced Classical Benchmarks',
+    role: 'Exact shortest-path algorithm baseline across directed NYC street network graph.',
+    badge: 'Shortest-Path Baseline',
+    computeType: 'Classical CPU',
   },
 ];
 
@@ -446,6 +457,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
   // Advanced Solver & QAOA Options
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
+  const [showAdvancedClassical, setShowAdvancedClassical] = useState<boolean>(false);
   const [qaoaDepth, setQaoaDepth] = useState<number>(settings.qaoaDepth);
   const [qaoaShots, setQaoaShots] = useState<number>(() => {
     return parseInt(localStorage.getItem('routeiq_qaoa_shots') || '1024', 10);
@@ -1707,15 +1719,37 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             </div>
 
             {/* 3. Optimization Algorithms Selection */}
-            <div className="bg-white/70 dark:bg-[#18181B] backdrop-blur-xl border border-white/75 dark:border-[#29292E] p-4 rounded-2xl space-y-3 shadow-[0_4px_16px_rgba(0,0,0,0.03),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
+            <div className="bg-white/70 dark:bg-[#18181B] backdrop-blur-xl border border-white/75 dark:border-[#29292E] p-4 rounded-2xl space-y-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.03),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] flex items-center gap-1.5">
                   <Sliders className="h-3.5 w-3.5 text-[#080808] dark:text-white" />
                   <span>Optimization Algorithms</span>
                 </span>
                 <span className="text-[11px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
-                  Select classical heuristics, exact solvers, or quantum methods
+                  Grounded on Two Research Pillars: Apache Spark Big Data & Quantum Computing
                 </span>
+              </div>
+
+              {/* ─── TWO RESEARCH PILLARS ARCHITECTURE CAPSULE ─── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 rounded-xl bg-black/[0.03] dark:bg-[#141418] border border-black/5 dark:border-[#29292E]/80 text-[11px]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Database className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                    <span className="font-bold text-[#080808] dark:text-[#F5F5F7] text-[11px]">Pillar 1: Apache Spark Big Data</span>
+                  </div>
+                  <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-snug">
+                    Spatial decomposition, bounding-box clustering, and parallel road-graph matrix preconditioning.
+                  </p>
+                </div>
+                <div className="space-y-1 sm:border-l sm:border-black/5 sm:dark:border-[#29292E]/80 sm:pl-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <Cpu className="h-3.5 w-3.5 text-[#B7FF00] shrink-0" />
+                    <span className="font-bold text-[#080808] dark:text-[#F5F5F7] text-[11px]">Pillar 2: Quantum Computing</span>
+                  </div>
+                  <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-snug">
+                    Qiskit Aer QAOA gate simulation for sub-problems + QIGA simulated Q-bit superposition.
+                  </p>
+                </div>
               </div>
 
               {/* Mode Switcher */}
@@ -1741,7 +1775,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   onClick={() => {
                     setSelectionMode('custom');
                     localStorage.setItem('routeiq_selection_mode', 'custom');
-                    if (selectedAlgorithms.length === 0) setSelectedAlgorithms(['ortools']);
+                    if (selectedAlgorithms.length === 0) setSelectedAlgorithms(['routeiq_cooperative', 'ortools']);
                   }}
                   className={`py-1.5 px-1 rounded-lg text-center transition-all cursor-pointer ${
                     selectionMode === 'custom'
@@ -1766,33 +1800,37 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                       : 'text-[#555555] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-white'
                   }`}
                 >
-                  Compare
+                  Compare All (11)
                 </button>
               </div>
 
               {/* Mode 1: Recommended */}
               {selectionMode === 'recommended' && (
-                <div className="p-3 rounded-xl bg-black/5 dark:bg-[#17171A] border border-black/5 dark:border-[#29292E] space-y-2 animate-fadeIn">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7]">ROUTE/IQ Cooperative Engine</span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
-                      Recommended
-                    </span>
+                <div className="p-3.5 rounded-xl bg-black/5 dark:bg-[#17171A] border border-black/5 dark:border-[#29292E] space-y-2 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7]">ROUTE/IQ Cooperative Engine</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
+                        Primary Hybrid Pick
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-technical text-[#10B981] font-bold">Pillars 1 & 2</span>
                   </div>
                   <p className="text-[11px] text-[#666666] dark:text-[#A1A1AA] leading-snug">
-                    Flagship hybrid optimizer: Spark 4.2 partitioning, Adaptive MAB controller, and Proposition 1 Guardrail.
+                    Primary hybrid optimization system: Combines Apache Spark spatial decomposition, Multi-Armed Bandit adaptive scheduling, QAOA/QIGA candidate seeds, and VND local descent with Proposition 1 Guardrail (guaranteeing performance $\le$ OR-Tools incumbent).
                   </p>
                 </div>
               )}
 
               {/* Mode 2 & 3: Custom / Compare List */}
               {(selectionMode === 'custom' || selectionMode === 'compare') && (
-                <div className="space-y-3 animate-fadeIn">
+                <div className="space-y-3.5 animate-fadeIn">
+                  {/* Selection Top Bar */}
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[11px] font-bold text-[#555555] dark:text-[#A1A1AA]">
                       {selectedAlgorithms.length} of {WORKSPACE_ALGORITHMS.length} Solvers Selected
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -1800,63 +1838,39 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                           setSelectedAlgorithms(allAlgos);
                         }}
                         className="text-[10px] font-bold text-[#080808] dark:text-[#B7FF00] bg-black/10 dark:bg-[#202024] px-2 py-0.5 rounded hover:bg-black/20 cursor-pointer"
+                        title="Select all 11 algorithms for comprehensive benchmark comparison"
                       >
-                        Select All
+                        All (11)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAlgorithms(['routeiq_cooperative', 'qaoa', 'qiga'])}
+                        className="text-[10px] font-bold text-[#080808] dark:text-[#F5F5F7] bg-black/5 dark:bg-[#1E1E22] px-2 py-0.5 rounded hover:bg-black/15 cursor-pointer"
+                        title="Select the three primary research pillars systems only"
+                      >
+                        Pillars Only (3)
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedAlgorithms(['routeiq_cooperative', 'ortools'])}
-                        className="text-[10px] text-[#777777] hover:text-[#080808] dark:hover:text-white cursor-pointer"
+                        className="text-[10px] text-[#777777] hover:text-[#080808] dark:hover:text-white cursor-pointer px-1"
                       >
                         Reset
                       </button>
                     </div>
                   </div>
-                  {/* Classical algorithms */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-                      Classical algorithms
-                    </span>
-                    {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'classical').map((algo) => {
-                      const isChecked = selectedAlgorithms.includes(algo.id);
-                      return (
-                        <div
-                          key={algo.id}
-                          onClick={() => handleToggleAlgorithm(algo.id)}
-                          className={`flex items-start justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
-                            isChecked
-                              ? 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/50 shadow-xs'
-                              : 'bg-black/5 dark:bg-[#17171A] border-transparent dark:border-[#29292E]/60 hover:bg-black/10'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleToggleAlgorithm(algo.id)}
-                              className="rounded accent-[#080808] dark:accent-[#B7FF00] cursor-pointer h-3.5 w-3.5 mt-0.5"
-                            />
-                            <div className="min-w-0">
-                              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block">{algo.name}</span>
-                              <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-tight mt-0.5">
-                                {algo.role}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-technical text-[#777777] dark:text-[#A1A1AA] shrink-0 ml-1">
-                            {algo.badge}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* Quantum algorithms */}
+                  {/* ─── PRIMARY VISIBLE OPTIMIZATION SYSTEMS (ALWAYS VISIBLE) ─── */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-                      Quantum / Quantum-Classical
-                    </span>
-                    {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'quantum').map((algo) => {
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 text-[#B7FF00]" />
+                        <span>Primary Visible Optimization Systems</span>
+                      </span>
+                      <span className="text-[9px] font-mono text-[#B7FF00] font-bold">3 Core Systems</span>
+                    </div>
+
+                    {WORKSPACE_ALGORITHMS.filter((a) => a.isPrimary).map((algo) => {
                       const isChecked = selectedAlgorithms.includes(algo.id);
                       const isQaoaOversize = algo.id === 'qaoa' && activeStops.length > 8;
 
@@ -1864,13 +1878,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                         <div
                           key={algo.id}
                           onClick={() => handleToggleAlgorithm(algo.id)}
-                          className={`flex items-start justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
+                          className={`flex items-start justify-between p-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
                             isChecked
-                              ? 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/50 shadow-xs'
+                              ? 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/50 shadow-xs ring-1 ring-black/5 dark:ring-[#B7FF00]/20'
                               : 'bg-black/5 dark:bg-[#17171A] border-transparent dark:border-[#29292E]/60 hover:bg-black/10'
                           }`}
                         >
-                          <div className="flex items-start gap-2 min-w-0">
+                          <div className="flex items-start gap-2.5 min-w-0">
                             <input
                               type="checkbox"
                               checked={isChecked}
@@ -1878,7 +1892,14 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                               className="rounded accent-[#080808] dark:accent-[#B7FF00] cursor-pointer h-3.5 w-3.5 mt-0.5"
                             />
                             <div className="min-w-0">
-                              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block">{algo.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{algo.name}</span>
+                                {algo.id === 'routeiq_cooperative' && (
+                                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#B7FF00]/20 text-[#080808] dark:text-[#B7FF00] font-bold">
+                                    Flagship
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-tight mt-0.5">
                                 {algo.role}
                               </p>
@@ -1889,7 +1910,9 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                               )}
                             </div>
                           </div>
-                          <span className="text-[9px] font-technical text-[#A855F7] shrink-0 ml-1">
+                          <span className={`text-[9px] font-technical shrink-0 ml-1.5 ${
+                            algo.id === 'routeiq_cooperative' ? 'text-[#10B981]' : 'text-[#A855F7]'
+                          }`}>
                             {algo.badge}
                           </span>
                         </div>
@@ -1897,44 +1920,129 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                     })}
                   </div>
 
-                  {/* Cooperative Hybrid Engine */}
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
-                      Cooperative Hybrid Engine
-                    </span>
-                    {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'cooperative').map((algo) => {
-                      const isChecked = selectedAlgorithms.includes(algo.id);
-
-                      return (
-                        <div
-                          key={algo.id}
-                          onClick={() => handleToggleAlgorithm(algo.id)}
-                          className={`flex items-start justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
-                            isChecked
-                              ? 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/50 shadow-xs'
-                              : 'bg-black/5 dark:bg-[#17171A] border-transparent dark:border-[#29292E]/60 hover:bg-black/10'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleToggleAlgorithm(algo.id)}
-                              className="rounded accent-[#080808] dark:accent-[#B7FF00] cursor-pointer h-3.5 w-3.5 mt-0.5"
-                            />
-                            <div className="min-w-0">
-                              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block">{algo.name}</span>
-                              <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-tight mt-0.5">
-                                {algo.role}
-                              </p>
-                            </div>
+                  {/* ─── ADVANCED CLASSICAL BENCHMARKS (OPTIONAL COLLAPSIBLE SECTION) ─── */}
+                  <div className="pt-1">
+                    <div className="rounded-xl border border-black/10 dark:border-[#29292E] overflow-hidden bg-black/[0.02] dark:bg-[#141418]/60">
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedClassical(!showAdvancedClassical)}
+                        className="w-full flex items-center justify-between p-2.5 bg-black/5 dark:bg-[#1A1A1E] hover:bg-black/10 dark:hover:bg-[#202024] transition-all cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          {showAdvancedClassical ? (
+                            <ChevronUp className="h-4 w-4 text-[#777777] dark:text-[#A1A1AA]" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-[#777777] dark:text-[#A1A1AA]" />
+                          )}
+                          <div>
+                            <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] block">
+                              Advanced Classical Benchmarks
+                            </span>
+                            <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA]">
+                              8 Standalone Solvers (OR-Tools, Heuristics, Path Baselines)
+                            </span>
                           </div>
-                          <span className="text-[9px] font-technical text-[#10B981] shrink-0 ml-1">
-                            {algo.badge}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/10 dark:bg-[#25252A] text-[#555555] dark:text-[#A1A1AA] font-bold">
+                            {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'classical' && selectedAlgorithms.includes(a.id)).length}/8
                           </span>
                         </div>
-                      );
-                    })}
+                      </button>
+
+                      {showAdvancedClassical && (
+                        <div className="p-2.5 space-y-2 border-t border-black/5 dark:border-[#29292E] animate-fadeIn">
+                          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-800 dark:text-amber-300">
+                            <strong>Academic Benchmarks:</strong> Preserved for rigorous scientific comparison. Note: Classical heuristics (Tabu Search, Kernighan-Lin, VND) also execute internally as subroutines within the Cooperative Engine.
+                          </div>
+
+                          <div className="flex items-center justify-between pb-1">
+                            <span className="text-[9px] uppercase tracking-wider text-[#777777] dark:text-[#71717A] font-bold">
+                              Classical Solver Selection
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const classicalIds = WORKSPACE_ALGORITHMS.filter((a) => a.group === 'classical').map((a) => a.id);
+                                  setSelectedAlgorithms((prev) => Array.from(new Set([...prev, ...classicalIds])));
+                                }}
+                                className="text-[9px] font-bold text-[#080808] dark:text-[#B7FF00] hover:underline cursor-pointer"
+                              >
+                                Select All Classical
+                              </button>
+                              <span className="text-[9px] text-[#555555]">·</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const classicalIds = new Set(WORKSPACE_ALGORITHMS.filter((a) => a.group === 'classical').map((a) => a.id));
+                                  setSelectedAlgorithms((prev) => {
+                                    const filtered = prev.filter((id) => !classicalIds.has(id));
+                                    return filtered.length > 0 ? filtered : ['routeiq_cooperative'];
+                                  });
+                                }}
+                                className="text-[9px] text-[#777777] hover:underline cursor-pointer"
+                              >
+                                Clear Classical
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {WORKSPACE_ALGORITHMS.filter((a) => a.group === 'classical').map((algo) => {
+                              const isChecked = selectedAlgorithms.includes(algo.id);
+                              const isOrtools = algo.id === 'ortools';
+
+                              return (
+                                <div
+                                  key={algo.id}
+                                  onClick={() => handleToggleAlgorithm(algo.id)}
+                                  className={`flex items-start justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
+                                    isChecked
+                                      ? isOrtools
+                                        ? 'bg-blue-500/5 dark:bg-blue-500/10 border-blue-500/40 shadow-xs'
+                                        : 'bg-white dark:bg-[#202024] border-[#080808] dark:border-[#B7FF00]/40 shadow-xs'
+                                      : 'bg-black/5 dark:bg-[#17171A] border-transparent dark:border-[#29292E]/60 hover:bg-black/10'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2 min-w-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => handleToggleAlgorithm(algo.id)}
+                                      className="rounded accent-[#080808] dark:accent-[#B7FF00] cursor-pointer h-3.5 w-3.5 mt-0.5"
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{algo.name}</span>
+                                        {isOrtools && (
+                                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                                            Academic Baseline
+                                          </span>
+                                        )}
+                                        {algo.isInternalSubroutine && (
+                                          <span className="text-[9px] px-1 py-0.2 rounded bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
+                                            Internal Subroutine
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-[10px] text-[#666666] dark:text-[#A1A1AA] leading-tight mt-0.5">
+                                        {algo.role}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] font-technical text-[#777777] dark:text-[#A1A1AA] shrink-0 ml-1">
+                                    {algo.badge}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
