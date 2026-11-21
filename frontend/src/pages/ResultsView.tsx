@@ -45,7 +45,7 @@ const getDepotIcon = (isDark: boolean) =>
     className: 'custom-map-pin-depot',
     html: `<div style="background-color: #B7FF2A; border: 2.5px solid ${
       isDark ? '#000000' : '#080808'
-    }; color: #080808; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: ${
+    }; color: #080808; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: ${
       isDark
         ? '0 0 24px rgba(183, 255, 42, 0.7), 0 4px 14px rgba(0,0,0,0.8)'
         : '0 4px 16px rgba(0,0,0,0.35)'
@@ -310,7 +310,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         className: 'custom-customer-pin-unvisited',
         html: `<div style="background-color: ${
           isDark ? '#3F1515' : '#FEF2F2'
-        }; border: 2.5px dashed #EF4444; color: #EF4444; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: 0 0 14px rgba(239,68,68,0.7);">${index}</div>`,
+        }; border: 2.5px dashed #EF4444; color: #EF4444; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 0 14px rgba(239,68,68,0.7);">${index}</div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
         popupAnchor: [0, -16],
@@ -324,7 +324,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         isDark ? '#B7FF2A' : '#FFFFFF'
       }; color: ${
         isDark ? '#B7FF2A' : '#FFFFFF'
-      }; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; box-shadow: ${
+      }; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: ${
         isDark ? '0 0 12px rgba(183,255,42,0.3), 0 4px 12px rgba(0,0,0,0.6)' : '0 4px 14px rgba(0,0,0,0.3)'
       };">${index}</div>`,
       iconSize: [28, 28],
@@ -341,7 +341,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       isDark ? '#000000' : '#FFFFFF'
     }; color: ${
       isLime ? '#080808' : '#FFFFFF'
-    }; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
+    }; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
     iconSize: [36, 24],
     iconAnchor: [18, 12],
     popupAnchor: [0, -14],
@@ -553,7 +553,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
   ];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="results-workspace space-y-6 pb-12 font-heading">
       {/* Editorial Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 pb-3 border-b border-black/10 dark:border-[#29292E]">
         <div>
@@ -565,7 +565,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             Results
           </h1>
           <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
-            <p className="text-[11px] text-[#777777] dark:text-[#71717A] font-technical">
+            <p className="text-[11px] text-[#777777] dark:text-[#71717A] font-normal">
               Experiment ID: {result.experiment_id || 'N/A'} · Total Execution: {(result.execution_time_sec || 0).toFixed(2)}s · Solvers Executed: {algoKeys.length}
             </p>
             {result.status === 'PARTIAL' && (
@@ -624,7 +624,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               </div>
               <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
                 {result.comparison_summary?.best_reason || 'Verified 100% capacity and delivery coverage with minimal distance.'}{' '}
-                (Road Distance: <strong>{bestAlgoItem.total_distance_km.toFixed(2)} km</strong> · Est. Driving Duration: <strong>{Math.round(bestAlgoItem.total_travel_time_min)} min</strong> · Implied Speed: <strong>{(bestAlgoItem.implied_speed_kmh || (bestAlgoItem.total_distance_km / (bestAlgoItem.total_travel_time_min / 60))).toFixed(1)} km/h</strong> · Violations: <strong>0</strong>)
+                (Road Distance: <strong className="font-semibold tabular-nums">{bestAlgoItem.total_distance_km.toFixed(2)} km</strong> · Est. Driving Duration: <strong className="font-semibold tabular-nums">{Math.round(bestAlgoItem.total_travel_time_min)} min</strong> · Implied Speed: <strong className="font-semibold tabular-nums">{(bestAlgoItem.implied_speed_kmh || (bestAlgoItem.total_distance_km / (bestAlgoItem.total_travel_time_min / 60))).toFixed(1)} km/h</strong> · Violations: <strong className="font-semibold tabular-nums">0</strong>)
               </p>
             </div>
           </div>
@@ -650,14 +650,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
+              <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
                 Research Pillar 1: Apache Spark Big Data Engine
               </span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
                 Spark 4.2 Local
               </span>
             </div>
-            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
+            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug font-normal">
               Spatial RDD stop partitioning & parallel road-network distance matrix graph projection ({result.problem?.locations?.length || 0} stops processed).
             </p>
           </div>
@@ -669,14 +669,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
+              <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
                 Research Pillar 2: Quantum & Hybrid Solvers
               </span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-semibold">
                 Qiskit Aer CPU
               </span>
             </div>
-            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
+            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug font-normal">
               Variational QAOA statevector circuit simulation for Hamiltonian optimization + QIGA simulated Q-bit evolutionary operators.
             </p>
           </div>
@@ -687,20 +687,20 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] font-heading">
               Active Route Inspection: {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
             </span>
             {activeAlgo === bestAlgoId ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-semibold">
                 Viewing Recommended Best
               </span>
             ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/30">
                 Comparative Inspection (Recommended Best is {bestAlgoItem?.name || 'ROUTE/IQ Cooperative'})
               </span>
             )}
           </div>
-          <span className="text-[11px] text-[#777777] dark:text-[#71717A]">
+          <span className="text-[11px] text-[#777777] dark:text-[#71717A] font-normal">
             Click any algorithm chip or scorecard row to inspect its genuine road route
           </span>
         </div>
@@ -734,7 +734,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       }`}
                     >
                       <span>{algoName}</span>
-                      <span className="font-technical text-[9px] opacity-75">
+                      <span className="text-[9px] opacity-75 font-normal tabular-nums">
                         {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
                       </span>
                       {isBest && (
@@ -770,7 +770,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               {/* Expanded Classical Benchmarks Pills */}
               {executedClassicalKeys.length > 0 && isClassicalExpanded && (
                 <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-blue-500/[0.03] dark:bg-[#141418] border border-blue-500/20 text-xs animate-fadeIn">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1">
                     <span>Classical Solvers:</span>
                   </div>
                   {executedClassicalKeys.map((key) => {
@@ -792,11 +792,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       >
                         <span>{algoName}</span>
                         {isOrtools && (
-                          <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                          <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold">
                             Baseline
                           </span>
                         )}
-                        <span className="font-technical text-[9px] opacity-75">
+                        <span className="text-[9px] opacity-75 font-normal tabular-nums">
                           {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
                         </span>
                         {isBest && (
@@ -826,74 +826,74 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         return (
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5 py-2.5 border-y border-black/10 dark:border-[#29292E]">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Inspected Algorithm
               </span>
-              <div className="text-xs sm:text-sm font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate" title={currentResult?.algorithm_name}>
+              <div className="text-xs sm:text-sm font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate font-heading" title={currentResult?.algorithm_name}>
                 {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
               </div>
-              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical uppercase block truncate">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal uppercase block truncate">
                 {currentResult?.compute_type || currentResult?.category || 'Classical CPU'}
               </span>
             </div>
 
             <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Total Road Distance
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {distKm.toFixed(2)} km
               </div>
-              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                 Directed road graph
               </span>
             </div>
 
             <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Est. Driving Duration
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {Math.round(drivingMin)} min
               </div>
-              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
                 {serviceMin > 0 ? `+${Math.round(serviceMin)}m svc (${Math.round(totalDurationMin)}m tot)` : 'Pure driving transit time'}
               </span>
             </div>
 
             <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Implied Avg Speed
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {impliedSpeedKmh.toFixed(1)} km/h
               </div>
-              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
                 @ 40 km/h NYC baseline
               </span>
             </div>
 
             <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Fleet Assigned
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {(currentResult?.routes ?? []).length || settings.defaultVehicles} Vehicles
               </div>
-              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                 {currentResult?.served_customers !== undefined ? `${currentResult.served_customers} stops served` : 'Active fleet routes'}
               </span>
             </div>
 
             <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Feasibility Status
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5 flex items-center gap-1">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 flex items-center gap-1 font-heading">
                 <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
                 <CheckCircle2 className={`h-3.5 w-3.5 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
               </div>
-              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block truncate">
                 {currentResult?.capacity_violations ? `${currentResult.capacity_violations} violations` : '0 violations'} · {currentResult?.execution_time_sec?.toFixed(3)}s
               </span>
             </div>
@@ -962,12 +962,12 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             {/* Origin Depot Pin (Lime-Green 'D' marker with zIndexOffset to remain prominent) */}
             <Marker position={depotPos} icon={getDepotIcon(isDark)} zIndexOffset={1000}>
               <Popup>
-                <div className="text-xs font-sans space-y-1">
+                <div className="text-xs font-heading space-y-1">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-[#B7FF2A] ring-1 ring-black" />
                     <strong className="text-[#080808] dark:text-white font-bold">Origin Depot Hub (D)</strong>
                   </div>
-                  <p className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                  <p className="tabular-nums text-[10px] text-[#777777] dark:text-[#A1A1AA]">
                     {depotPos[0].toFixed(6)}, {depotPos[1].toFixed(6)}
                   </p>
                   <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-black text-[#B7FF2A] font-bold">
@@ -984,14 +984,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               return (
                 <Marker key={idx + 1} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark, isUnvisited)}>
                   <Popup>
-                    <div className="text-xs font-sans space-y-1">
+                    <div className="text-xs font-heading space-y-1">
                       <strong className="text-[#080808] dark:text-[#F5F5F7]">Customer Delivery Stop #{idx + 1}</strong>
                       {isUnvisited && (
                         <div className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-[10px]">
                           ⚠️ Unvisited by {currentResult?.algorithm_name || activeAlgo}
                         </div>
                       )}
-                      <div className="text-[#555555] dark:text-[#A1A1AA]">Demand: {loc.demand} units</div>
+                      <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Demand: {loc.demand} units</div>
                     </div>
                   </Popup>
                 </Marker>
@@ -1024,14 +1024,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       icon={createVehicleIcon(driverNumber, color, isDark)}
                     >
                       <Popup>
-                        <div className="text-xs font-sans">
+                        <div className="text-xs font-heading space-y-0.5">
                           <strong className="text-[#080808] dark:text-[#F5F5F7]">Fleet Vehicle Driver V{driverNumber} ({currentResult?.algorithm_name || activeAlgo})</strong>
                           <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km</span>
+                          <span className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km</span>
                           <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Load: {Math.round(route.load || 0)} units</span>
+                          <span className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Load: {Math.round(route.load || 0)} units</span>
                           <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Waypoints: {positions.length} coordinates</span>
+                          <span className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Waypoints: {positions.length} coordinates</span>
                         </div>
                       </Popup>
                     </Marker>
@@ -1045,10 +1045,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           <div className="absolute top-4 left-4 z-[1000] glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] px-3.5 py-2.5 rounded-2xl shadow-lg backdrop-blur-xl flex items-center gap-3 pointer-events-auto">
             <span className="h-3 w-3 rounded-full bg-[#B7FF2A] ring-2 ring-black/20 animate-pulse" />
             <div className="text-xs">
-              <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-bold">
+              <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-semibold">
                 {currentResult?.algorithm_name || activeAlgo}
               </strong>
-              <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-normal tabular-nums">
                 {currentResult?.total_distance_km ? `${currentResult.total_distance_km.toFixed(1)} km` : '0.0 km'} · {activeRoutesCount} Active Driver{activeRoutesCount !== 1 ? 's' : ''}
               </span>
             </div>
@@ -1058,7 +1058,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           <button
             type="button"
             onClick={() => setFitTrigger((t) => t + 1)}
-            className="absolute top-4 right-4 z-[1000] px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold pointer-events-auto"
+            className="absolute top-4 right-4 z-[1000] px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold pointer-events-auto"
             title="Fit Map to Selected Algorithm Route"
           >
             <Maximize2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
@@ -1067,7 +1067,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           {/* Geometry Missing / Error Notice */}
           {hasNoGeometry && (
-            <div className="absolute top-18 left-4 z-[1000] bg-amber-500/20 border border-amber-500/50 text-amber-800 dark:text-amber-300 px-3.5 py-2 rounded-2xl text-xs font-bold shadow-lg backdrop-blur-xl flex items-center gap-2 pointer-events-auto">
+            <div className="absolute top-18 left-4 z-[1000] bg-amber-500/20 border border-amber-500/50 text-amber-800 dark:text-amber-300 px-3.5 py-2 rounded-2xl text-xs font-semibold shadow-lg backdrop-blur-xl flex items-center gap-2 pointer-events-auto">
               <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
               <span>No road geometry available for {currentResult?.algorithm_name || activeAlgo}</span>
             </div>
@@ -1075,25 +1075,25 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           {/* Floating Map Legend Overlay */}
           <div className="absolute bottom-4 left-4 glass-overlay bg-white/80 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg backdrop-blur-xl flex-wrap">
-            <span className="flex items-center gap-1.5 font-bold text-[#080808] dark:text-[#B7FF2A] border-r border-black/10 dark:border-white/10 pr-3">
+            <span className="flex items-center gap-1.5 font-semibold text-[#080808] dark:text-[#B7FF2A] border-r border-black/10 dark:border-white/10 pr-3">
               <Route className="h-3.5 w-3.5 text-[#B7FF2A]" />
               <span>{currentResult?.algorithm_name || activeAlgo}</span>
             </span>
-            <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">Legend:</span>
-            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
+            <span className="font-semibold text-[#080808] dark:text-[#F5F5F7]">Legend:</span>
+            <span className="flex items-center gap-1.5 font-normal text-[#171717] dark:text-[#F5F5F7]">
               <span className="h-3 w-3 rounded-full bg-[#B7FF00] border border-black flex items-center justify-center text-[7px] font-bold text-black">
                 D
               </span>
               <span>Origin Hub</span>
             </span>
-            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
+            <span className="flex items-center gap-1.5 font-normal text-[#171717] dark:text-[#F5F5F7]">
               <span className="h-3 w-3 rounded-full bg-[#080808] dark:bg-[#141418] border border-white dark:border-[#B7FF00] flex items-center justify-center text-[7px] font-bold text-white dark:text-[#B7FF00]">
                 #
               </span>
               <span>Customer Stops (1, 2, 3...)</span>
             </span>
-            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
-              <span className="px-1.5 py-0.5 rounded-full bg-[#080808] text-[#B7FF00] border border-[#B7FF00] text-[9px] font-technical font-bold">
+            <span className="flex items-center gap-1.5 font-normal text-[#171717] dark:text-[#F5F5F7]">
+              <span className="px-1.5 py-0.5 rounded-full bg-[#080808] text-[#B7FF00] border border-[#B7FF00] text-[9px] font-semibold">
                 V1..Vn
               </span>
               <span>Fleet Vehicles</span>
@@ -1111,7 +1111,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         <div className="lg:col-span-5 space-y-6">
           {/* Driver Schedule Sequences */}
           <div className="space-y-2.5 pb-4 border-b border-black/10 dark:border-[#29292E]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
               Driver Vehicle Schedules ({currentResult?.algorithm_name || activeAlgo})
             </span>
 
@@ -1140,35 +1140,35 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7]">
                           {vp?.name || `Driver #${driverNumber}`}
                         </span>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded font-technical font-medium capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-normal capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
                           {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-technical font-bold text-xs text-[#080808] dark:text-[#B7FF00]">
+                        <span className="font-semibold text-xs text-[#080808] dark:text-[#B7FF00] tabular-nums">
                           {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
                         </span>
                         {!isRangeFeasible && (
-                          <span className="text-[8px] px-1 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
+                          <span className="text-[8px] px-1 py-0.2 rounded bg-red-500/15 text-red-500 font-semibold">
                             Range Overdue
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+                    <div className="flex items-center justify-between text-[10px] text-[#777777] dark:text-[#A1A1AA] font-normal">
                       <span className="truncate max-w-[260px]">
                         Stops: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')} ({Math.max(0, stopsArr.length - 2)} stops)
                       </span>
-                      <span className="font-mono text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 font-semibold">
+                      <span className="text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 font-medium tabular-nums">
                         Load: {route.load ?? 0} / {route.capacity ?? 100} kg ({route.utilization_pct ?? 0}%)
                       </span>
                     </div>
 
                     {remainingRange !== null && (
-                      <div className="flex items-center justify-between text-[9px] pt-1 border-t border-black/5 dark:border-white/5 font-technical text-[#777777] dark:text-[#A1A1AA]">
+                      <div className="flex items-center justify-between text-[9px] pt-1 border-t border-black/5 dark:border-white/5 font-normal text-[#777777] dark:text-[#A1A1AA]">
                         <span>Usable Range: {route.usable_range_km} km</span>
-                        <span className={`font-semibold ${isRangeFeasible ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        <span className={`font-semibold tabular-nums ${isRangeFeasible ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                           {remainingRange} km remaining
                         </span>
                       </div>
@@ -1189,7 +1189,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           {/* Comparative Metrics Chart */}
           {chartData.length > 1 && (
             <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
                 Comparative Route Distance (km)
               </span>
 
@@ -1198,11 +1198,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                   <BarChart data={chartData}>
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 9, fill: isDark ? '#A1A1AA' : '#171717' }}
+                      tick={{ fontSize: 9, fontFamily: "'Roboto Condensed', sans-serif", fill: isDark ? '#A1A1AA' : '#171717' }}
                       stroke={isDark ? '#29292E' : 'rgba(0,0,0,0.1)'}
                     />
                     <YAxis
-                      tick={{ fontSize: 9, fill: isDark ? '#A1A1AA' : '#171717' }}
+                      tick={{ fontSize: 9, fontFamily: "'Roboto Condensed', sans-serif", fill: isDark ? '#A1A1AA' : '#171717' }}
                       stroke={isDark ? '#29292E' : 'rgba(0,0,0,0.1)'}
                     />
                     <Tooltip
@@ -1212,6 +1212,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         color: isDark ? '#F5F5F7' : '#080808',
                         borderRadius: '10px',
                         fontSize: '11px',
+                        fontFamily: "'Roboto Condensed', sans-serif",
                         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                       }}
                       itemStyle={{ color: isDark ? '#B7FF00' : '#080808', fontWeight: 600 }}
@@ -1237,7 +1238,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         const isIdentical = diag.relationship_code === 'INDEPENDENT_IDENTICAL_CONVERGENCE';
 
         return (
-          <div className="p-4 rounded-2xl bg-white dark:bg-[#141418] border border-black/10 dark:border-[#29292E] shadow-2xs space-y-3">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141418] border border-black/10 dark:border-[#29292E] shadow-2xs space-y-3 font-heading">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <div
@@ -1255,11 +1256,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className="text-xs sm:text-[13px] font-bold text-[#080808] dark:text-[#F5F5F7] font-heading">
+                    <h3 className="text-xs sm:text-[13px] font-semibold text-[#080808] dark:text-[#F5F5F7] font-heading">
                       Route Identity & Independent Optimization Diagnostics
                     </h3>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${
                         isSupremacy
                           ? 'bg-purple-600 text-white'
                           : isAlt
@@ -1272,17 +1273,17 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       {diag.relationship_label}
                     </span>
                   </div>
-                  <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5">
+                  <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5 font-normal">
                     Rigorous mathematical comparison between ROUTE/IQ Cooperative Engine and OR-Tools incumbent
                   </p>
                 </div>
               </div>
 
               {/* Memory Separation Verification Badge */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/5 dark:bg-[#1E1E22] border border-black/5 dark:border-[#29292E] text-[10px] font-technical">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/5 dark:bg-[#1E1E22] border border-black/5 dark:border-[#29292E] text-[10px] font-normal">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                 <span className="text-[#555555] dark:text-[#A1A1AA]">Process Memory Separation:</span>
-                <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
+                <span className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
                   {diag.is_separate_memory_objects ? 'Verified (id≠id)' : 'Shared'}
                 </span>
               </div>
@@ -1291,47 +1292,47 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             {/* 4 Metric Columns */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
               <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Directed Edge Overlap
                 </span>
-                <div className="text-sm sm:text-base font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 tabular-nums font-heading">
                   {diag.directed_edge_overlap_pct.toFixed(1)}%
                 </div>
-                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   {diag.shared_directed_edges_count} shared / {diag.total_coop_directed_edges} coop edges
                 </span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Undirected Edge Overlap
                 </span>
-                <div className="text-sm sm:text-base font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 tabular-nums font-heading">
                   {diag.undirected_edge_overlap_pct.toFixed(1)}%
                 </div>
-                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   Bi-directional road traversal match
                 </span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Vehicle Allocation Match
                 </span>
-                <div className="text-sm sm:text-base font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 tabular-nums font-heading">
                   {diag.vehicle_allocation_similarity_pct.toFixed(1)}%
                 </div>
-                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   Fleet stop clustering Jaccard index
                 </span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Distance Delta (Coop vs OR-Tools)
                 </span>
                 <div
-                  className={`text-sm sm:text-base font-bold font-technical mt-0.5 ${
+                  className={`text-sm sm:text-base font-semibold mt-0.5 tabular-nums font-heading ${
                     diag.distance_delta_km > 0.005
                       ? 'text-purple-600 dark:text-purple-400'
                       : 'text-[#080808] dark:text-[#F5F5F7]'
@@ -1341,7 +1342,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     ? `-${diag.distance_delta_km.toFixed(3)} km (-${diag.distance_delta_pct.toFixed(2)}%)`
                     : 'Equal Minimal Distance'}
                 </div>
-                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   {diag.distance_coop_km.toFixed(3)} km vs {diag.distance_ortools_km.toFixed(3)} km
                 </span>
               </div>
@@ -1349,10 +1350,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
             {/* Explanation Narrative */}
             <div className="px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px]">
-              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block text-[10px] uppercase tracking-wider font-heading mb-0.5">
+              <span className="font-semibold text-[#080808] dark:text-[#F5F5F7] block text-[10px] uppercase tracking-wider font-heading mb-0.5">
                 Audited Algorithmic Verdict
               </span>
-              <p className="text-[#555555] dark:text-[#D4D4D8] leading-relaxed">{diag.explanation}</p>
+              <p className="text-[#555555] dark:text-[#D4D4D8] leading-relaxed font-normal">{diag.explanation}</p>
             </div>
           </div>
         );

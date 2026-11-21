@@ -157,20 +157,20 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
   return (
     <div className="mt-6 rounded-2xl bg-white dark:bg-[#101014] border border-black/10 dark:border-white/10 p-4 sm:p-5 shadow-2xs">
       {/* Header & Badges */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-black/5 dark:border-white/5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-black/5 dark:border-white/5 font-heading">
         <div>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#B7FF2A]/15 text-black dark:text-[#B7FF2A] border border-[#B7FF2A]/30">
               <Leaf className="w-3 h-3" /> Green Logistics & Decarbonization
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-medium bg-black/5 dark:bg-white/5 text-[#555555] dark:text-[#A1A1AA] border border-black/5 dark:border-white/5">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-normal bg-black/5 dark:bg-white/5 text-[#555555] dark:text-[#A1A1AA] border border-black/5 dark:border-white/5">
               <ShieldCheck className="w-3 h-3 text-[#B7FF2A]" /> EPA 2024 · DEFRA · eGRID NYC
             </span>
           </div>
           <h2 className="text-base sm:text-[17px] font-semibold tracking-tight text-[#080808] dark:text-white font-heading">
             Energy & Resource Savings Analysis
           </h2>
-          <p className="text-[11px] sm:text-xs text-[#666666] dark:text-[#8E8E93] mt-0.5 max-w-2xl leading-relaxed">
+          <p className="text-[11px] sm:text-xs text-[#666666] dark:text-[#8E8E93] mt-0.5 max-w-2xl leading-relaxed font-normal">
             Quantifying fuel, thermal/electrical energy, well-to-wheel greenhouse emissions, and operational cost savings across vehicle propulsion technologies.
           </p>
         </div>
@@ -188,10 +188,10 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
       </div>
 
       {/* Interactive Controls Bar: Propulsion Selector & Baseline Selector */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 py-3.5 border-b border-black/5 dark:border-white/5 items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 py-3.5 border-b border-black/5 dark:border-white/5 items-center font-heading">
         {/* Propulsion Type Buttons */}
         <div className="lg:col-span-8">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#8E8E93] block mb-1.5 font-technical">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#8E8E93] block mb-1.5 font-heading">
             Vehicle Propulsion Architecture
           </span>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -217,7 +217,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                   <span className="text-[11px] font-semibold text-[#080808] dark:text-white truncate">
                     {model.name.replace(' Delivery Van', '')}
                   </span>
-                  <span className="text-[9px] font-mono text-[#777777] dark:text-[#8E8E93]">
+                  <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] font-normal tabular-nums">
                     {model.baseConsumptionPer100km} {model.unitLabel}/100km
                   </span>
                 </button>
@@ -228,7 +228,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
 
         {/* Baseline Selector */}
         <div className="lg:col-span-4 bg-black/[0.02] dark:bg-white/[0.02] p-2.5 sm:p-3 rounded-xl border border-black/5 dark:border-white/5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#8E8E93] block mb-1 font-technical">
+          <label className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#8E8E93] block mb-1 font-heading">
             Comparison Baseline Solver
           </label>
           <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               value={effectiveBaselineId}
               aria-label="Comparison baseline solver"
               onChange={(e) => setCustomBaseline(e.target.value)}
-              className="w-full bg-white dark:bg-[#18181C] border border-black/10 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-[#080808] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#B7FF2A] cursor-pointer"
+              className="w-full bg-white dark:bg-[#18181C] border border-black/10 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-[#080808] dark:text-white focus:outline-none focus:ring-1 focus:ring-[#B7FF2A] cursor-pointer font-heading"
             >
               {items.map((it) => (
                 <option key={it.id} value={it.id}>
@@ -245,7 +245,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               ))}
             </select>
           </div>
-          <p className="text-[9px] text-[#777777] dark:text-[#8E8E93] mt-1 leading-tight">
+          <p className="text-[9px] text-[#777777] dark:text-[#8E8E93] mt-1 leading-tight font-normal">
             Selected route will be evaluated against this baseline.
           </p>
         </div>
@@ -253,7 +253,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
 
       {/* Hero Comparative Resource Savings Banner */}
       {comparison && (
-        <div className="my-4">
+        <div className="my-4 font-heading">
           <div
             className={`p-3.5 sm:p-4 rounded-xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-3 transition-all ${
               isSaving
@@ -283,10 +283,10 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10">
                     {comparison.status_label.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                  <span className="text-[10px] text-[#555555] dark:text-[#A1A1AA] font-normal">
                     vs. {profilesMap[effectiveBaselineId]?.algorithm_name || effectiveBaselineId}
                   </span>
                 </div>
@@ -299,11 +299,11 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
             {/* Savings Quick Metric Pills */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="px-2.5 py-1.5 rounded-lg bg-white/60 dark:bg-black/40 border border-black/5 dark:border-white/5 text-right">
-                <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] uppercase font-mono block">
+                <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] uppercase block font-normal">
                   Energy Delta
                 </span>
                 <span
-                  className={`text-xs font-bold font-mono ${
+                  className={`text-xs font-semibold tabular-nums font-heading ${
                     comparison.delta_energy_kwh > 0
                       ? 'text-emerald-600 dark:text-emerald-400'
                       : comparison.delta_energy_kwh < 0
@@ -317,11 +317,11 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               </div>
 
               <div className="px-2.5 py-1.5 rounded-lg bg-white/60 dark:bg-black/40 border border-black/5 dark:border-white/5 text-right">
-                <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] uppercase font-mono block">
+                <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] uppercase block font-normal">
                   CO₂ Abatement
                 </span>
                 <span
-                  className={`text-xs font-bold font-mono ${
+                  className={`text-xs font-semibold tabular-nums font-heading ${
                     comparison.delta_co2_kg > 0
                       ? 'text-emerald-600 dark:text-emerald-400'
                       : comparison.delta_co2_kg < 0
@@ -335,11 +335,11 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               </div>
 
               <div className="px-2.5 py-1.5 rounded-lg bg-white/60 dark:bg-black/40 border border-black/5 dark:border-white/5 text-right">
-                <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] uppercase font-mono block">
+                <span className="text-[9px] text-[#777777] dark:text-[#8E8E93] uppercase block font-normal">
                   Fleet Cost Saved
                 </span>
                 <span
-                  className={`text-xs font-bold font-mono ${
+                  className={`text-xs font-semibold tabular-nums font-heading ${
                     comparison.delta_cost_usd > 0
                       ? 'text-emerald-600 dark:text-emerald-400'
                       : comparison.delta_cost_usd < 0
@@ -357,26 +357,26 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
       )}
 
       {/* 4 Primary Resource Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 font-heading">
         {/* 1. Thermal & Electrical Energy */}
         <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-technical">
+            <span className="text-[10px] font-medium uppercase tracking-wider font-heading">
               Total Energy Consumption
             </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-amber-500 font-semibold">
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-amber-500 font-semibold">
               ESTIMATED
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold font-mono text-[#080808] dark:text-white">
+            <span className="text-xl sm:text-2xl font-semibold tabular-nums text-[#080808] dark:text-white font-heading">
               {activeProfile.energy_consumption_kwh.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
             </span>
-            <span className="text-[11px] font-semibold text-[#777777] dark:text-[#8E8E93]">kWh</span>
+            <span className="text-[11px] font-normal text-[#777777] dark:text-[#8E8E93]">kWh</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5">
+          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5 font-normal">
             <span>Thermal/Electrical Equivalent</span>
-            <span className="font-mono font-medium">
+            <span className="font-medium tabular-nums">
               {(activeProfile.energy_consumption_kwh * 3.6).toFixed(1)} MJ
             </span>
           </div>
@@ -385,26 +385,26 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
         {/* 2. Fuel Consumption */}
         <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-technical">
+            <span className="text-[10px] font-medium uppercase tracking-wider font-heading">
               {activeModel.fuelType === 'electricity' ? 'Direct Battery Draw' : 'Fuel Consumption'}
             </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-amber-500 font-semibold">
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-amber-500 font-semibold">
               ESTIMATED
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold font-mono text-[#080808] dark:text-white">
+            <span className="text-xl sm:text-2xl font-semibold tabular-nums text-[#080808] dark:text-white font-heading">
               {activeModel.fuelType === 'electricity'
                 ? activeProfile.energy_consumption_kwh.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
                 : activeProfile.fuel_consumption_litres.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-[11px] font-semibold text-[#777777] dark:text-[#8E8E93]">
+            <span className="text-[11px] font-normal text-[#777777] dark:text-[#8E8E93]">
               {activeModel.unitLabel}
             </span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5">
+          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5 font-normal">
             <span>Rate per 100 km</span>
-            <span className="font-mono font-medium">
+            <span className="font-medium tabular-nums">
               {activeProfile.total_distance_km > 0
                 ? (
                     (activeModel.fuelType === 'electricity' ? activeProfile.energy_consumption_kwh : activeProfile.fuel_consumption_litres) /
@@ -419,24 +419,24 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
         {/* 3. CO2 Emissions */}
         <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-technical">
+            <span className="text-[10px] font-medium uppercase tracking-wider font-heading">
               Well-to-Wheel CO₂e
             </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-amber-500 font-semibold">
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-amber-500 font-semibold">
               ESTIMATED
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold font-mono text-[#080808] dark:text-white">
+            <span className="text-xl sm:text-2xl font-semibold tabular-nums text-[#080808] dark:text-white font-heading">
               {activeProfile.total_co2_kg.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            <span className="text-[11px] font-semibold text-[#777777] dark:text-[#8E8E93]">kg CO₂</span>
+            <span className="text-[11px] font-normal text-[#777777] dark:text-[#8E8E93]">kg CO₂</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5">
+          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5 font-normal">
             <span>
               {activeModel.fuelType === 'electricity' ? 'Indirect Grid Gen' : 'Tailpipe Combustion'}
             </span>
-            <span className="font-mono font-medium">
+            <span className="font-medium tabular-nums">
               {activeModel.fuelType === 'electricity'
                 ? `${activeProfile.indirect_grid_co2_kg.toFixed(2)} kg`
                 : `${activeProfile.direct_tailpipe_co2_kg.toFixed(2)} kg`}
@@ -447,22 +447,22 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
         {/* 4. Fleet Operational Cost */}
         <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider font-technical">
+            <span className="text-[10px] font-medium uppercase tracking-wider font-heading">
               Trip Energy Cost
             </span>
-            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-purple-400 font-semibold">
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-purple-400 font-semibold">
               ASSUMED
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold font-mono text-[#080808] dark:text-white">
+            <span className="text-xl sm:text-2xl font-semibold tabular-nums text-[#080808] dark:text-white font-heading">
               {formatUsd(activeProfile.operational_cost_usd)}
             </span>
-            <span className="text-[11px] font-semibold text-[#777777] dark:text-[#8E8E93]">USD</span>
+            <span className="text-[11px] font-normal text-[#777777] dark:text-[#8E8E93]">USD</span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5">
+          <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5 font-normal">
             <span>Tariff Rate</span>
-            <span className="font-mono font-medium">
+            <span className="font-medium tabular-nums">
               ${activeModel.unitCostUsd.toFixed(2)} / {activeModel.unitLabel}
             </span>
           </div>
@@ -470,7 +470,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
       </div>
       {/* Vehicle-wise Breakdown Accordion */}
       {activeProfile.vehicle_breakdowns && activeProfile.vehicle_breakdowns.length > 0 && (
-        <div className="mb-4 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] overflow-hidden">
+        <div className="mb-4 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] overflow-hidden font-heading">
           <button
             onClick={() => setShowAllVehicles(!showAllVehicles)}
             className="w-full flex items-center justify-between p-3 text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer"
@@ -480,7 +480,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               <span className="text-xs font-semibold text-[#080808] dark:text-white font-heading">
                 Vehicle-Specific Resource Schedules ({activeProfile.vehicle_breakdowns.length} Vehicles)
               </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA]">
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA] font-normal">
                 Payload & Congestion Corrected
               </span>
             </div>
@@ -493,9 +493,9 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
 
           {showAllVehicles && (
             <div className="p-3 pt-0 overflow-x-auto">
-              <table className="w-full text-left text-[11px] font-mono">
+              <table className="w-full text-left text-[11px] tabular-nums font-heading">
                 <thead>
-                  <tr className="border-b border-black/5 dark:border-white/5 text-[#777777] dark:text-[#8E8E93] text-[9px] uppercase tracking-wider font-technical">
+                  <tr className="border-b border-black/5 dark:border-white/5 text-[#777777] dark:text-[#8E8E93] text-[9px] uppercase tracking-wider font-semibold">
                     <th className="py-2 px-2.5">Vehicle Profile</th>
                     <th className="py-2 px-2.5">Powertrain</th>
                     <th className="py-2 px-2.5">Distance & Range</th>
@@ -506,7 +506,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                     <th className="py-2 px-2.5">Total Cost</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-black/5 dark:divide-white/5">
+                <tbody className="divide-y divide-black/5 dark:divide-white/5 font-normal">
                   {activeProfile.vehicle_breakdowns.map((vb, idx) => {
                     const vp = vb.vehicle_profile;
                     const pType = vp?.powertrain || vb.propulsion_type || 'diesel';
@@ -521,11 +521,11 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                               {vp?.name || `Vehicle ${vb.vehicle_id}`}
                             </span>
                             <div className="flex items-center gap-1 mt-0.5">
-                              <span className="text-[9px] font-technical px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA] capitalize">
+                              <span className="text-[9px] px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA] capitalize font-normal">
                                 {vp?.condition || 'Good'} condition
                               </span>
                               {!isRangeFeasible && (
-                                <span className="text-[9px] font-technical px-1 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-red-500/15 text-red-500 font-semibold">
                                   Range Exceeded
                                 </span>
                               )}
@@ -533,7 +533,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                           </div>
                         </td>
                         <td className="py-2 px-2.5">
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-technical font-semibold capitalize ${
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold capitalize ${
                             isEv
                               ? 'bg-[#B7FF2A]/15 text-emerald-600 dark:text-[#B7FF2A]'
                               : pType === 'hybrid'
@@ -589,7 +589,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
       )}
 
       {/* Comprehensive Algorithm Resource Comparison Table */}
-      <div className="rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] overflow-hidden">
+      <div className="rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] overflow-hidden font-heading">
         <div className="p-3 border-b border-black/5 dark:border-white/5 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
@@ -597,15 +597,15 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               Fleetwide Resource Comparison ({items.length} Evaluated Solvers)
             </h4>
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#8E8E93]">
-            Propulsion: <strong className="text-[#080808] dark:text-white">{activeModel.name}</strong> · Baseline: <strong className="text-[#080808] dark:text-white">{profilesMap[effectiveBaselineId]?.algorithm_name || effectiveBaselineId}</strong>
+          <span className="text-[10px] text-[#777777] dark:text-[#8E8E93] font-normal">
+            Propulsion: <strong className="text-[#080808] dark:text-white font-semibold">{activeModel.name}</strong> · Baseline: <strong className="text-[#080808] dark:text-white font-semibold">{profilesMap[effectiveBaselineId]?.algorithm_name || effectiveBaselineId}</strong>
           </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[11px] font-mono">
+          <table className="w-full text-left text-[11px] tabular-nums font-heading">
             <thead>
-              <tr className="border-b border-black/5 dark:border-white/5 text-[#777777] dark:text-[#8E8E93] text-[9px] uppercase tracking-wider font-technical bg-black/[0.02] dark:bg-white/[0.02]">
+              <tr className="border-b border-black/5 dark:border-white/5 text-[#777777] dark:text-[#8E8E93] text-[9px] uppercase tracking-wider font-semibold bg-black/[0.02] dark:bg-white/[0.02]">
                 <th className="py-2.5 px-3">Algorithm</th>
                 <th className="py-2.5 px-2.5">Feasibility</th>
                 <th className="py-2.5 px-2.5 text-right">Distance</th>
@@ -616,7 +616,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                 <th className="py-2.5 px-3 text-right">Savings vs Baseline</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-black/5 dark:divide-white/5">
+            <tbody className="divide-y divide-black/5 dark:divide-white/5 font-normal">
               {items.map((it) => {
                 const prof = profilesMap[it.id];
                 if (!prof) return null;
@@ -643,7 +643,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                           {prof.algorithm_name}
                         </span>
                         {it.id === effectiveBaselineId && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[#777777] font-mono">
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 text-[#777777] font-normal">
                             BASELINE
                           </span>
                         )}
@@ -651,7 +651,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                     </td>
                     <td className="py-2.5 px-2.5">
                       {prof.is_feasible ? (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
                           Feasible
                         </span>
                       ) : (

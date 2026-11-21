@@ -253,7 +253,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
   };
 
   return (
-    <div className="space-y-4 pt-5 border-t border-black/10 dark:border-[#29292E]">
+    <div className="space-y-4 pt-5 border-t border-black/10 dark:border-[#29292E] font-heading">
       {/* ─── SECTION HEADER ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -261,11 +261,11 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
             <h2 className="text-base sm:text-[17px] font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
               Algorithm Comparison Scorecard
             </h2>
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
+            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/30">
               Fair Empirical Benchmark
             </span>
           </div>
-          <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5 max-w-2xl leading-normal">
+          <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5 max-w-2xl leading-normal font-normal">
             Side-by-side performance evaluation on identical customer stops, fleet vehicle constraints, and directed OpenStreetMap road network edge matrices.
           </p>
         </div>
@@ -284,21 +284,21 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
       </div>
 
       {/* ─── COMPACT DYNAMIC SUMMARY KPIS (Requirement 5) ────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 font-heading">
         {/* KPI 1: Best Feasible Distance */}
         <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] font-heading">
               Best Feasible Distance
             </span>
             <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
           </div>
-          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1 truncate">
+          <div className="text-base sm:text-lg font-semibold tabular-nums text-[#080808] dark:text-[#F5F5F7] mt-1 truncate font-heading">
             {summaryKPIs.bestDistItem
               ? `${summaryKPIs.bestDistItem.total_distance_km.toFixed(2)} km`
               : 'Evaluating...'}
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate block mt-0.5" title={summaryKPIs.bestDistItem?.name}>
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate block mt-0.5 font-normal" title={summaryKPIs.bestDistItem?.name}>
             {summaryKPIs.bestDistItem ? summaryKPIs.bestDistItem.name : 'Awaiting solver completion'}
           </span>
         </div>
@@ -306,17 +306,17 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         {/* KPI 2: Fastest Feasible Solver */}
         <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] font-heading">
               Fastest Feasible Solver
             </span>
             <Clock className="h-3.5 w-3.5 text-blue-500" />
           </div>
-          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1 truncate">
+          <div className="text-base sm:text-lg font-semibold tabular-nums text-[#080808] dark:text-[#F5F5F7] mt-1 truncate font-heading">
             {summaryKPIs.fastestItem
               ? `${summaryKPIs.fastestItem.execution_time_sec.toFixed(3)}s`
               : 'Evaluating...'}
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate block mt-0.5" title={summaryKPIs.fastestItem?.name}>
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate block mt-0.5 font-normal" title={summaryKPIs.fastestItem?.name}>
             {summaryKPIs.fastestItem ? summaryKPIs.fastestItem.name : 'Awaiting results'}
           </span>
         </div>
@@ -324,7 +324,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         {/* KPI 3: Total Completed Algorithms */}
         <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] font-heading">
               Evaluation Progress
             </span>
             {jobStatus === 'PARTIAL' ? (
@@ -333,10 +333,10 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
             )}
           </div>
-          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1">
+          <div className="text-base sm:text-lg font-semibold tabular-nums text-[#080808] dark:text-[#F5F5F7] mt-1 font-heading">
             {summaryKPIs.completedCount} / {summaryKPIs.totalCount} Solvers
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5 font-normal">
             {jobStatus === 'PARTIAL' ? 'Background comparison running' : '100% Suite Completed'}
           </span>
         </div>
@@ -344,15 +344,15 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         {/* KPI 4: Feasible Solutions */}
         <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] font-heading">
               Feasible Solutions
             </span>
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           </div>
-          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1">
+          <div className="text-base sm:text-lg font-semibold tabular-nums text-[#080808] dark:text-[#F5F5F7] mt-1 font-heading">
             {summaryKPIs.feasibleCount} / {summaryKPIs.totalEvaluated} Feasible
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5 font-normal">
             {summaryKPIs.totalEvaluated > 0
               ? `${Math.round((summaryKPIs.feasibleCount / summaryKPIs.totalEvaluated) * 100)}% adherence rate`
               : 'Calculating...'}
@@ -362,7 +362,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         {/* KPI 5: Total Constraint Violations */}
         <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] font-heading">
               Fleet Violations
             </span>
             {summaryKPIs.totalViolations === 0 ? (
@@ -371,20 +371,20 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
             )}
           </div>
-          <div className={`text-base sm:text-lg font-bold font-mono mt-1 ${summaryKPIs.totalViolations === 0 ? 'text-[#22C55E]' : 'text-amber-500'}`}>
+          <div className={`text-base sm:text-lg font-semibold tabular-nums font-heading mt-1 ${summaryKPIs.totalViolations === 0 ? 'text-[#22C55E]' : 'text-amber-500'}`}>
             {summaryKPIs.totalViolations} Violations
           </div>
-          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
+          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5 font-normal">
             {summaryKPIs.totalViolations === 0 ? 'Zero unserved / capacity breaches' : 'Cumulative violations in fleet'}
           </span>
         </div>
       </div>
 
       {/* ─── CONTROLS BAR: SEARCH, SCOPE FILTER, SORTING (Requirement 6) ─── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs font-heading">
         {/* Left: System Scope Pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] mr-1 hidden sm:inline">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] mr-1 hidden sm:inline font-heading">
             Scope:
           </span>
           <button
@@ -431,7 +431,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               value={feasibilityFilter}
               aria-label="Filter algorithms by feasibility status"
               onChange={(e) => setFeasibilityFilter(e.target.value as FeasibilityFilter)}
-              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px] border-none outline-none cursor-pointer"
+              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px] border-none outline-none cursor-pointer font-heading"
             >
               <option value="all" className="dark:bg-[#18181B]">All Feasibility</option>
               <option value="feasible" className="dark:bg-[#18181B]">Feasible Only</option>
@@ -446,7 +446,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               value={sortField}
               aria-label="Sort comparison table by metric"
               onChange={(e) => setSortField(e.target.value as SortField)}
-              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px] border-none outline-none cursor-pointer"
+              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px] border-none outline-none cursor-pointer font-heading"
             >
               <option value="default" className="dark:bg-[#18181B]">Sort: Research Priority</option>
               <option value="distance" className="dark:bg-[#18181B]">Sort: Distance</option>
@@ -464,7 +464,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               placeholder="Search solver..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-7 pr-2.5 py-1 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px] text-[#080808] dark:text-[#F5F5F7] placeholder-[#777777] dark:placeholder-[#71717A] outline-none focus:border-[#B7FF2A]/50 transition-colors"
+              className="w-full pl-7 pr-2.5 py-1 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px] text-[#080808] dark:text-[#F5F5F7] placeholder-[#777777] dark:placeholder-[#71717A] outline-none focus:border-[#B7FF2A]/50 transition-colors font-heading"
             />
           </div>
         </div>
@@ -585,7 +585,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-[#777777] dark:text-[#71717A] font-mono block mt-0.5">
+                        <span className="text-[10px] text-[#777777] dark:text-[#71717A] block mt-0.5">
                           {badge.hardwareTag}
                         </span>
                       </td>
@@ -629,14 +629,14 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 4. Total Distance */}
-                      <td className="py-2.5 px-3 font-mono font-bold text-[#080808] dark:text-[#F5F5F7] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-semibold tabular-nums text-[#080808] dark:text-[#F5F5F7] whitespace-nowrap">
                         {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
                           ? `${item.total_distance_km.toFixed(2)} km`
                           : (item.status === 'RUNNING' ? 'Computing...' : '—')}
                       </td>
 
                       {/* 5. Estimated Duration */}
-                      <td className="py-2.5 px-3 font-mono text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
+                      <td className="py-2.5 px-3 tabular-nums text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
                         {drivingMin > 0 ? (
                           <div>
                             <span className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
@@ -652,7 +652,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 6. Vehicles Used */}
-                      <td className="py-2.5 px-3 font-mono text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
+                      <td className="py-2.5 px-3 tabular-nums text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
                         {item.vehicles_used ? (
                           <span>
                             <strong className="text-[#080808] dark:text-[#F5F5F7]">{item.vehicles_used}</strong> veh · {item.served_customers} stops
@@ -661,7 +661,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 7. Constraint Violations */}
-                      <td className="py-2.5 px-3 font-mono whitespace-nowrap">
+                      <td className="py-2.5 px-3 tabular-nums whitespace-nowrap">
                         {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
                           <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Execution Error'}>
                             {item.status === 'TIMED_OUT' ? 'Limit Exceeded' : 'Execution Failed'}
@@ -679,7 +679,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 8. Runtime */}
-                      <td className="py-2.5 px-3 font-mono text-[#777777] dark:text-[#A1A1AA] whitespace-nowrap">
+                      <td className="py-2.5 px-3 tabular-nums text-[#777777] dark:text-[#A1A1AA] whitespace-nowrap">
                         {typeof item.execution_time_sec === 'number'
                           ? `${item.execution_time_sec.toFixed(3)}s`
                           : '—'}
@@ -728,7 +728,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                   Technical Telemetry & Solver Parameters: {item.name}
                                 </span>
                               </div>
-                              <span className="text-[10px] font-mono text-[#777777] dark:text-[#71717A]">
+                              <span className="text-[10px] font-medium text-[#777777] dark:text-[#71717A]">
                                 Verified Single Source of Truth
                               </span>
                             </div>
@@ -744,19 +744,19 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                 <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Implied Avg Speed:</span>
-                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">{impliedSpeed.toFixed(1)} km/h</strong>
+                                    <strong className="tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">{impliedSpeed.toFixed(1)} km/h</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Pure Driving Transit:</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{Math.round(drivingMin)} min</span>
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">{Math.round(drivingMin)} min</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Stop Dwell Service:</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{Math.round(serviceMin)} min</span>
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">{Math.round(serviceMin)} min</span>
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Total Mission Time:</span>
-                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">{Math.round(totalDurMin)} min</strong>
+                                    <strong className="tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">{Math.round(totalDurMin)} min</strong>
                                   </div>
                                 </div>
                               </div>
@@ -770,7 +770,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                 <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">CPU Core Utilization:</span>
-                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">
+                                    <strong className="tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">
                                       {item.cpu_core_ratio_percent || item.cpu_utilization_percent
                                         ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(1)}%`
                                         : 'Active'}
@@ -778,13 +778,13 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Process RSS RAM:</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">
                                       {item.process_rss_mb ? `${item.process_rss_mb.toFixed(1)} MB` : '182.4 MB'}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Python Heap (Alloc):</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">
                                       {item.heap_allocated_mb || item.memory_used_mb
                                         ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)} MB`
                                         : '< 1 MB'}
@@ -792,7 +792,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Peak Heap Allocation:</span>
-                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">
+                                    <strong className="tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">
                                       {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)} MB
                                     </strong>
                                   </div>
@@ -808,19 +808,19 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                 <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Worst-Case Time:</span>
-                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">{item.time_complexity || 'O(N²)'}</strong>
+                                    <strong className="tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">{item.time_complexity || 'O(N²)'}</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Space Complexity:</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{item.space_complexity || 'O(N)'}</span>
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">{item.space_complexity || 'O(N)'}</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Execution Runtime:</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}</span>
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">{typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}</span>
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Execution Environment:</span>
-                                    <strong className="font-mono text-[10px] text-[#080808] dark:text-[#F5F5F7] truncate max-w-[130px]">{badge.hardwareTag}</strong>
+                                    <strong className="tabular-nums font-semibold text-[10px] text-[#080808] dark:text-[#F5F5F7] truncate max-w-[130px]">{badge.hardwareTag}</strong>
                                   </div>
                                 </div>
                               </div>
@@ -834,25 +834,25 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                 <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Total Objective Cost:</span>
-                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">
+                                    <strong className="tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">
                                       {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
                                     </strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Penalty Incurred:</span>
-                                    <span className={`font-mono ${item.capacity_violations > 0 ? 'text-red-500 font-bold' : 'text-[#22C55E]'}`}>
+                                    <span className={`tabular-nums ${item.capacity_violations > 0 ? 'text-red-500 font-bold' : 'text-[#22C55E]'}`}>
                                       {item.capacity_violations > 0 ? `${item.capacity_violations * 1000} pts` : '0.00 pts'}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Convergence State:</span>
-                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">
+                                    <span className="tabular-nums text-[#777777] dark:text-[#D4D4D8]">
                                       {item.status === 'COMPLETED' ? 'Converged Optimal' : item.status}
                                     </span>
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Solution Feasibility:</span>
-                                    <strong className={`font-mono text-[10px] ${item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`}>
+                                    <strong className={`tabular-nums text-[10px] ${item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`}>
                                       {item.is_feasible ? 'Verified 100% Feasible' : 'Constraint Penalized'}
                                     </strong>
                                   </div>
@@ -971,7 +971,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                   <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Road Distance
                   </span>
-                  <strong className="text-xs sm:text-[13px] font-mono text-[#080808] dark:text-[#F5F5F7]">
+                  <strong className="text-xs sm:text-[13px] tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">
                     {item.total_distance_km ? `${item.total_distance_km.toFixed(2)} km` : '—'}
                   </strong>
                 </div>
@@ -980,7 +980,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                   <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Driving Duration
                   </span>
-                  <strong className="text-xs sm:text-[13px] font-mono text-[#080808] dark:text-[#F5F5F7]">
+                  <strong className="text-xs sm:text-[13px] tabular-nums font-semibold text-[#080808] dark:text-[#F5F5F7]">
                     {drivingMin ? `${Math.round(drivingMin)} min` : '—'}
                   </strong>
                 </div>
@@ -989,7 +989,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                   <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Vehicles Assigned
                   </span>
-                  <span className="font-mono text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px]">
+                  <span className="tabular-nums text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px]">
                     {item.vehicles_used ? `${item.vehicles_used} veh (${item.served_customers} stops)` : '—'}
                   </span>
                 </div>
@@ -998,7 +998,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                   <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Violations
                   </span>
-                  <span className={`font-mono font-bold text-[11px] ${item.capacity_violations === 0 ? 'text-[#22C55E]' : 'text-red-500'}`}>
+                  <span className={`tabular-nums font-bold text-[11px] ${item.capacity_violations === 0 ? 'text-[#22C55E]' : 'text-red-500'}`}>
                     {item.capacity_violations === 0 ? '0 violations' : `${item.capacity_violations} cap breaches`}
                   </span>
                 </div>
@@ -1007,7 +1007,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                   <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Implied Speed
                   </span>
-                  <span className="font-mono text-[#080808] dark:text-[#F5F5F7] text-[11px]">
+                  <span className="tabular-nums text-[#080808] dark:text-[#F5F5F7] text-[11px]">
                     {impliedSpeed.toFixed(1)} km/h
                   </span>
                 </div>
@@ -1016,7 +1016,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                   <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Runtime
                   </span>
-                  <span className="font-mono text-[#777777] dark:text-[#A1A1AA] text-[11px]">
+                  <span className="tabular-nums text-[#777777] dark:text-[#A1A1AA] text-[11px]">
                     {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
                   </span>
                 </div>
@@ -1051,23 +1051,23 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                 <div className="mt-2.5 pt-2.5 border-t border-black/5 dark:border-[#29292E] space-y-1.5 text-[11px] animate-fadeIn">
                   <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">Time Complexity:</span>
-                    <strong className="font-mono">{item.time_complexity || 'O(N²)'}</strong>
+                    <strong className="tabular-nums font-semibold">{item.time_complexity || 'O(N²)'}</strong>
                   </div>
                   <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">Space Complexity:</span>
-                    <strong className="font-mono">{item.space_complexity || 'O(N)'}</strong>
+                    <strong className="tabular-nums font-semibold">{item.space_complexity || 'O(N)'}</strong>
                   </div>
                   <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">Total Objective Cost:</span>
-                    <strong className="font-mono">{typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}</strong>
+                    <strong className="tabular-nums font-semibold">{typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}</strong>
                   </div>
                   <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">CPU Core Utilization:</span>
-                    <strong className="font-mono">{item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}%` : 'Active'}</strong>
+                    <strong className="tabular-nums font-semibold">{item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}%` : 'Active'}</strong>
                   </div>
                   <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">RAM Heap Allocated:</span>
-                    <strong className="font-mono">{item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)} MB` : '<1 MB'}</strong>
+                    <strong className="tabular-nums font-semibold">{item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)} MB` : '<1 MB'}</strong>
                   </div>
                   <div className="pt-1.5 text-[10px] text-[#777777] dark:text-[#A1A1AA] leading-relaxed">
                     <strong>Compute Architecture:</strong> {badge.hardwareTag}
