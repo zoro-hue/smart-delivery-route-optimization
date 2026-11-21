@@ -87,16 +87,19 @@ def validate_fleet_coverage(
     vehicle_capacities: List[float],
     depot: int = 0,
     distance_matrix: Optional[np.ndarray] = None,
+    vehicle_ranges: Optional[List[float]] = None,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Validates complete fleet route solutions against the Universal Coverage Invariant R == I,
-    vehicle capacity constraints, vehicle fleet limits, and directed road network reachability.
+    vehicle capacity constraints, vehicle range constraints, fleet limits, and road reachability.
     Operates on the entire fleet solution, not individual routes in isolation.
     """
     input_set: Set[int] = set(input_customer_ids)
     visited_multiset: List[int] = []
     vehicle_loads: List[float] = []
     capacity_violations = 0
+    range_violations = 0
     unreachable_edge_violations = 0
     route_details = []
 
@@ -121,6 +124,19 @@ def validate_fleet_coverage(
         if is_over:
             capacity_violations += 1
 
+        # Check vehicle range
+        route_dist = float(route.get("distance_km", 0.0) or 0.0)
+        if distance_matrix is not None and route_dist == 0.0 and len(stops) >= 2:
+            route_dist = sum(float(distance_matrix[stops[k], stops[k + 1]]) for k in range(len(stops) - 1))
+        
+        v_range = None
+        is_over_range = False
+        if vehicle_ranges is not None and r_idx < len(vehicle_ranges):
+            v_range = float(vehicle_ranges[r_idx])
+            if v_range > 0 and route_dist > (v_range + 1e-3):
+                is_over_range = True
+                range_violations += 1
+
         # Check road-graph edge reachability if distance matrix provided
         if distance_matrix is not None and len(stops) >= 2:
             for k in range(len(stops) - 1):
@@ -131,13 +147,20 @@ def validate_fleet_coverage(
                     unreachable_edge_violations += 1
 
         vehicle_loads.append(route_load)
+        v_prof = vehicle_profiles[r_idx] if (vehicle_profiles and r_idx < len(vehicle_profiles)) else route.get("vehicle_profile")
         route_details.append({
             "vehicle_index": r_idx,
+            "vehicle_id": route.get("vehicle_id", r_idx + 1),
+            "vehicle_name": v_prof.get("name") if v_prof else f"Vehicle {r_idx + 1}",
             "stops_count": len(c_stops),
             "load": round(route_load, 2),
             "capacity": round(cap, 2),
             "is_over_capacity": is_over,
-            "excess": round(max(0.0, route_load - cap), 2),
+            "excess_load": round(max(0.0, route_load - cap), 2),
+            "distance_km": round(route_dist, 2),
+            "range_km": round(v_range, 2) if v_range is not None else None,
+            "is_over_range": is_over_range,
+            "excess_range_km": round(max(0.0, route_dist - (v_range or float('inf'))), 2) if is_over_range else 0.0,
         })
 
     visited_set = set(visited_multiset)
@@ -155,13 +178,14 @@ def validate_fleet_coverage(
 
     is_complete = (len(missing_ids) == 0 and len(unknown_ids) == 0 and len(duplicate_ids) == 0)
     capacity_feasible = (capacity_violations == 0)
+    range_feasible = (range_violations == 0)
     fleet_count_feasible = (vehicle_count_violations == 0)
     reachability_feasible = (unreachable_edge_violations == 0)
-    is_valid = is_complete and capacity_feasible and fleet_count_feasible and reachability_feasible
+    is_valid = is_complete and capacity_feasible and range_feasible and fleet_count_feasible and reachability_feasible
 
     status_label = "FEASIBLE" if is_valid else (
         "PARTIAL" if len(missing_ids) > 0 else (
-            "INFEASIBLE" if (unreachable_edge_violations > 0 or vehicle_count_violations > 0) else "PENALIZED"
+            "INFEASIBLE" if (unreachable_edge_violations > 0 or vehicle_count_violations > 0 or not range_feasible) else "PENALIZED"
         )
     )
 
@@ -171,6 +195,8 @@ def validate_fleet_coverage(
         "status": status_label,
         "capacity_feasible": capacity_feasible,
         "capacity_violations": capacity_violations,
+        "range_feasible": range_feasible,
+        "range_violations": range_violations,
         "vehicle_count_violations": vehicle_count_violations,
         "unreachable_edge_violations": unreachable_edge_violations,
         "input_delivery_count": len(input_customer_ids),
@@ -197,6 +223,8 @@ def repair_fleet_coverage(
     traffic_factor: float = 1.0,
     weather_factor: float = 1.0,
     service_time_per_stop_min: float = 0.0,
+    vehicle_ranges: Optional[List[float]] = None,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """
     Deterministically repairs missing delivery stops to guarantee 100% customer coverage.
@@ -283,7 +311,7 @@ def repair_fleet_coverage(
             best_r_idx = None
             best_pos = None
             best_extra_cost = float("inf")
-            best_is_cap_feasible = False
+            best_tier = 0  # 3 = both feasible, 2 = cap feasible, 1 = range feasible, 0 = infeasible
 
             # Search across all vehicles and all edge insertion positions
             for r_idx in range(min(len(repaired_routes), num_vehicles)):
@@ -291,7 +319,10 @@ def repair_fleet_coverage(
                 st = r.get("stops", [depot, depot])
                 current_load = sum(demands[s] if s < len(demands) else 1.0 for s in st if s != depot)
                 v_cap = vehicle_capacities[r_idx] if r_idx < len(vehicle_capacities) else 100.0
-                can_fit = (current_load + u_demand <= v_cap + 1e-4)
+                can_fit_cap = (current_load + u_demand <= v_cap + 1e-4)
+
+                current_dist = sum(float(distance_matrix[st[k], st[k + 1]]) for k in range(len(st) - 1)) if len(st) >= 2 else 0.0
+                v_range = float(vehicle_ranges[r_idx]) if (vehicle_ranges and r_idx < len(vehicle_ranges)) else float("inf")
 
                 for p in range(len(st) - 1):
                     i_node = st[p]
@@ -307,14 +338,23 @@ def repair_fleet_coverage(
                     if math.isinf(d_iu) or math.isinf(d_uj) or math.isnan(extra) or math.isinf(extra):
                         continue
 
-                    # Priority 1: Capacity-feasible insertion with minimal extra distance
-                    # Priority 2: Infeasible insertion with minimal extra distance (only if no vehicle has room)
-                    if can_fit and not best_is_cap_feasible:
-                        best_is_cap_feasible = True
+                    can_fit_rng = (current_dist + extra <= v_range + 1e-4)
+
+                    if can_fit_cap and can_fit_rng:
+                        tier = 3
+                    elif can_fit_cap:
+                        tier = 2
+                    elif can_fit_rng:
+                        tier = 1
+                    else:
+                        tier = 0
+
+                    if tier > best_tier:
+                        best_tier = tier
                         best_extra_cost = extra
                         best_r_idx = r_idx
                         best_pos = p + 1
-                    elif can_fit == best_is_cap_feasible:
+                    elif tier == best_tier:
                         if extra < best_extra_cost:
                             best_extra_cost = extra
                             best_r_idx = r_idx
@@ -342,6 +382,13 @@ def repair_fleet_coverage(
         r["customer_stops"] = c_stops
         r["vehicle_id"] = r_idx
 
+        # Attach vehicle profile if provided
+        v_prof = None
+        if vehicle_profiles and (r_idx - 1) < len(vehicle_profiles):
+            v_prof = vehicle_profiles[r_idx - 1]
+            r["vehicle_profile"] = v_prof
+            r["vehicle_name"] = v_prof.get("name", f"Vehicle {r_idx}")
+
         # Calculate accurate physical distance from physical road network edges
         d_km = sum(float(phys_mat[st[k], st[k + 1]]) for k in range(len(st) - 1))
         r["distance_km"] = round(d_km, 3)
@@ -364,6 +411,10 @@ def repair_fleet_coverage(
         r["load"] = round(sum(demands[s] if s < len(demands) else 1.0 for s in c_stops), 2)
         r["utilization_pct"] = round(r["load"] / v_cap * 100.0, 1) if v_cap > 0 else 0.0
 
+        if vehicle_ranges and (r_idx - 1) < len(vehicle_ranges):
+            r["usable_range_km"] = vehicle_ranges[r_idx - 1]
+            r["is_range_feasible"] = bool(d_km <= vehicle_ranges[r_idx - 1] + 1e-3)
+
     # Prune completely empty trailing routes if vehicle count permits
     non_empty = [r for r in repaired_routes if len(r["customer_stops"]) > 0]
     final_routes = non_empty if non_empty else repaired_routes[:1]
@@ -373,7 +424,14 @@ def repair_fleet_coverage(
         r["vehicle_id"] = i
 
     validation_report = validate_fleet_coverage(
-        final_routes, input_customer_ids, demands, vehicle_capacities, depot, distance_matrix=phys_mat
+        final_routes,
+        input_customer_ids,
+        demands,
+        vehicle_capacities,
+        depot,
+        distance_matrix=phys_mat,
+        vehicle_ranges=vehicle_ranges,
+        vehicle_profiles=vehicle_profiles,
     )
 
     return final_routes, validation_report

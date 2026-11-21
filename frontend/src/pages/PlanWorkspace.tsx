@@ -38,8 +38,12 @@ import {
   Maximize2,
   Minimize2,
   Database,
+  Truck,
+  BatteryCharging,
+  Fuel,
+  Wrench,
 } from 'lucide-react';
-import { OptimizationResponse, VehicleRoute } from '../types';
+import { OptimizationResponse, VehicleRoute, VehicleProfile } from '../types';
 import { api } from '../services/api';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
@@ -430,6 +434,167 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
   // Fleet & Constraints
   const [numVehicles, setNumVehicles] = useState<number>(settings.defaultVehicles);
   const [vehicleCapacity, setVehicleCapacity] = useState<number>(settings.defaultCapacity);
+
+  // Individual Vehicle Condition Profiles
+  const generateDefaultProfiles = (count: number, defaultCap: number): VehicleProfile[] => {
+    const templates = [
+      {
+        name: 'Van 1 (Ford E-Transit BEV)',
+        vehicle_type: 'electric_van',
+        powertrain: 'electric' as const,
+        capacity_kg: Math.round(defaultCap * 1.2),
+        cargo_volume_m3: 12.0,
+        condition: 'excellent' as const,
+        age_years: 1.5,
+        odometer_km: 28000,
+        maintenance_status: 'ok' as const,
+        is_available: true,
+        battery_capacity_kwh: 68.0,
+        battery_soc_percent: 90.0,
+        battery_soh_percent: 97.0,
+        base_consumption_per_100km: 26.0,
+        max_range_km: 210.0,
+        max_operating_hours: 8.0,
+        cost_per_km_usd: 0.24,
+        cost_per_hour_usd: 22.0,
+        fixed_dispatch_cost_usd: 12.0,
+      },
+      {
+        name: 'Van 2 (Mercedes Sprinter Diesel)',
+        vehicle_type: 'van',
+        powertrain: 'diesel' as const,
+        capacity_kg: Math.round(defaultCap * 1.5),
+        cargo_volume_m3: 14.0,
+        condition: 'good' as const,
+        age_years: 3.0,
+        odometer_km: 65000,
+        maintenance_status: 'ok' as const,
+        is_available: true,
+        fuel_tank_capacity_l: 75.0,
+        fuel_level_percent: 80.0,
+        base_consumption_per_100km: 9.5,
+        max_range_km: 280.0,
+        max_operating_hours: 9.0,
+        cost_per_km_usd: 0.38,
+        cost_per_hour_usd: 22.0,
+        fixed_dispatch_cost_usd: 18.0,
+      },
+      {
+        name: 'Van 3 (Ford Transit 3.5L Petrol)',
+        vehicle_type: 'van',
+        powertrain: 'petrol' as const,
+        capacity_kg: Math.round(defaultCap * 1.0),
+        cargo_volume_m3: 10.0,
+        condition: 'average' as const,
+        age_years: 4.5,
+        odometer_km: 92000,
+        maintenance_status: 'service_recommended' as const,
+        is_available: true,
+        fuel_tank_capacity_l: 80.0,
+        fuel_level_percent: 70.0,
+        base_consumption_per_100km: 11.2,
+        max_range_km: 240.0,
+        max_operating_hours: 8.0,
+        cost_per_km_usd: 0.42,
+        cost_per_hour_usd: 20.0,
+        fixed_dispatch_cost_usd: 15.0,
+      },
+      {
+        name: 'Van 4 (Transit Custom PHEV)',
+        vehicle_type: 'van',
+        powertrain: 'hybrid' as const,
+        capacity_kg: Math.round(defaultCap * 1.1),
+        cargo_volume_m3: 11.0,
+        condition: 'good' as const,
+        age_years: 2.0,
+        odometer_km: 42000,
+        maintenance_status: 'ok' as const,
+        is_available: true,
+        battery_capacity_kwh: 14.0,
+        battery_soc_percent: 85.0,
+        battery_soh_percent: 96.0,
+        fuel_tank_capacity_l: 54.0,
+        fuel_level_percent: 85.0,
+        base_consumption_per_100km: 6.8,
+        max_range_km: 300.0,
+        max_operating_hours: 8.5,
+        cost_per_km_usd: 0.32,
+        cost_per_hour_usd: 22.0,
+        fixed_dispatch_cost_usd: 14.0,
+      },
+    ];
+
+    return Array.from({ length: count }, (_, i) => {
+      const tpl = templates[i % templates.length];
+      return {
+        ...tpl,
+        id: `veh-${i + 1}`,
+        name: `Vehicle ${i + 1} ${tpl.name.replace(/^Van \d+ /, '')}`,
+      };
+    });
+  };
+
+  const [vehicleProfiles, setVehicleProfiles] = useState<VehicleProfile[]>(() => {
+    return generateDefaultProfiles(settings.defaultVehicles || 3, settings.defaultCapacity || 100);
+  });
+  const [showVehicleProfiles, setShowVehicleProfiles] = useState<boolean>(false);
+  const [expandedVehicleIdx, setExpandedVehicleIdx] = useState<number | null>(null);
+
+  // Synchronize vehicle profile count whenever numVehicles changes
+  useEffect(() => {
+    setVehicleProfiles((prev) => {
+      if (prev.length === numVehicles) return prev;
+      if (prev.length < numVehicles) {
+        const added = generateDefaultProfiles(numVehicles, vehicleCapacity).slice(prev.length);
+        return [...prev, ...added];
+      }
+      return prev.slice(0, numVehicles);
+    });
+  }, [numVehicles, vehicleCapacity]);
+
+  const applyFleetPreset = (preset: 'mixed' | 'ev' | 'heavy') => {
+    if (preset === 'ev') {
+      setVehicleProfiles((prev) =>
+        prev.map((v, i) => ({
+          ...v,
+          name: `Vehicle ${i + 1} (Ford E-Transit BEV)`,
+          vehicle_type: 'electric_van',
+          powertrain: 'electric',
+          battery_capacity_kwh: 68.0,
+          battery_soc_percent: Math.max(30, 95 - i * 10),
+          battery_soh_percent: Math.max(85, 98 - i),
+          base_consumption_per_100km: 26.0,
+          max_range_km: Math.max(120, 210 - i * 15),
+          cost_per_km_usd: 0.22,
+        }))
+      );
+    } else if (preset === 'heavy') {
+      setVehicleProfiles((prev) =>
+        prev.map((v, i) => ({
+          ...v,
+          name: `Vehicle ${i + 1} (Mercedes Sprinter Heavy Duty)`,
+          vehicle_type: 'truck',
+          powertrain: 'diesel',
+          capacity_kg: Math.round(vehicleCapacity * 1.6),
+          fuel_tank_capacity_l: 90.0,
+          fuel_level_percent: Math.max(40, 85 - i * 5),
+          base_consumption_per_100km: 11.5,
+          max_range_km: 320.0,
+          cost_per_km_usd: 0.45,
+        }))
+      );
+    } else {
+      setVehicleProfiles(generateDefaultProfiles(numVehicles, vehicleCapacity));
+    }
+  };
+
+  const updateVehicleProfile = (idx: number, patch: Partial<VehicleProfile>) => {
+    setVehicleProfiles((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...patch };
+      return next;
+    });
+  };
 
   // Algorithm Selection State
   const [selectionMode, setSelectionMode] = useState<'recommended' | 'custom' | 'compare'>(() => {
@@ -1092,6 +1257,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       num_customers: activeStops.length,
       num_vehicles: Number(numVehicles),
       vehicle_capacity: Number(vehicleCapacity),
+      vehicle_profiles: vehicleProfiles,
       depot_lat: depot.lat,
       depot_lon: depot.lon,
       weight_distance: Number(weightDistance),
@@ -1674,15 +1840,32 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             </div>
 
             {/* 2. Fleet & Capacity Constraints */}
-            <div className="bg-white/70 dark:bg-[#18181B] backdrop-blur-xl border border-white/75 dark:border-[#29292E] p-4 rounded-2xl space-y-3 shadow-[0_4px_16px_rgba(0,0,0,0.03),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block">
-                Fleet & Capacity Constraints
-              </span>
+            <div className="bg-white/70 dark:bg-[#18181B] backdrop-blur-xl border border-white/75 dark:border-[#29292E] p-4 rounded-2xl space-y-3.5 shadow-[0_4px_16px_rgba(0,0,0,0.03),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] flex items-center gap-1.5">
+                    <Truck className="h-3.5 w-3.5 text-[#080808] dark:text-[#B7FF00]" />
+                    <span>Fleet & Vehicle Condition Profiles</span>
+                  </span>
+                  <span className="text-[11px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
+                    Configure heterogeneous fleet parameters, battery SoC/SoH, and maintenance telemetry
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowVehicleProfiles(!showVehicleProfiles)}
+                  className="px-2.5 py-1 text-[11px] font-heading font-semibold rounded-lg bg-black/5 dark:bg-[#29292E]/60 hover:bg-black/10 dark:hover:bg-[#29292E] text-[#080808] dark:text-[#F5F5F7] flex items-center gap-1 transition-colors"
+                >
+                  <span>{showVehicleProfiles ? 'Hide Profiles' : 'Customize Fleet'}</span>
+                  {showVehicleProfiles ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+              </div>
 
+              {/* High-level Fleet Controls */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-[#777777] dark:text-[#A1A1AA] block mb-1">
-                    Vehicles: <strong className="text-[#080808] dark:text-[#F5F5F7] font-technical">{numVehicles}</strong>
+                    Fleet Size: <strong className="text-[#080808] dark:text-[#F5F5F7] font-technical">{numVehicles} Vehicles</strong>
                   </label>
                   <input
                     type="range"
@@ -1700,7 +1883,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
                 <div>
                   <label className="text-xs text-[#777777] dark:text-[#A1A1AA] block mb-1">
-                    Vehicle Capacity (units)
+                    Baseline Capacity (kg)
                   </label>
                   <input
                     type="number"
@@ -1716,6 +1899,307 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   />
                 </div>
               </div>
+
+              {/* Fleet Overview Badges */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-black/5 dark:border-[#29292E]/60 text-[11px]">
+                <span className="px-2 py-0.5 rounded-md bg-black/5 dark:bg-[#17171A] text-[#555555] dark:text-[#A1A1AA] font-technical">
+                  Total Payload: <strong className="text-[#080808] dark:text-[#F5F5F7]">{vehicleProfiles.reduce((acc, v) => acc + (v.is_available ? v.capacity_kg : 0), 0)} kg</strong>
+                </span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-technical font-semibold">
+                  {vehicleProfiles.filter((v) => v.is_available && v.maintenance_status !== 'critical').length}/{vehicleProfiles.length} Dispatchable
+                </span>
+                {vehicleProfiles.some((v) => v.powertrain === 'electric') && (
+                  <span className="px-2 py-0.5 rounded-md bg-[#B7FF00]/15 text-[#080808] dark:text-[#B7FF00] font-technical font-semibold flex items-center gap-1">
+                    <BatteryCharging className="h-3 w-3" />
+                    <span>{vehicleProfiles.filter((v) => v.powertrain === 'electric').length} EV</span>
+                  </span>
+                )}
+                {vehicleProfiles.some((v) => v.powertrain === 'diesel' || v.powertrain === 'petrol') && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 font-technical font-semibold flex items-center gap-1">
+                    <Fuel className="h-3 w-3" />
+                    <span>{vehicleProfiles.filter((v) => v.powertrain === 'diesel' || v.powertrain === 'petrol').length} ICE</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Individual Vehicle Profile Manager (Expandable) */}
+              {showVehicleProfiles && (
+                <div className="space-y-3 pt-2 border-t border-black/5 dark:border-[#29292E]/80">
+                  {/* Fleet Preset Quick Selector */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#777777] dark:text-[#A1A1AA] uppercase font-technical">
+                      Fleet Presets:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => applyFleetPreset('mixed')}
+                        className="px-2 py-0.5 text-[10px] rounded-md font-heading bg-black/5 dark:bg-[#17171A] hover:bg-black/10 dark:hover:bg-[#222227] text-[#080808] dark:text-[#F5F5F7] transition-colors"
+                      >
+                        Mixed Fleet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyFleetPreset('ev')}
+                        className="px-2 py-0.5 text-[10px] rounded-md font-heading bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors"
+                      >
+                        100% Electric EV
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyFleetPreset('heavy')}
+                        className="px-2 py-0.5 text-[10px] rounded-md font-heading bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 transition-colors"
+                      >
+                        Heavy Commercial
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Cards List */}
+                  <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                    {vehicleProfiles.map((veh, idx) => {
+                      const isExpanded = expandedVehicleIdx === idx;
+                      const isEv = veh.powertrain === 'electric';
+                      const isHybrid = veh.powertrain === 'hybrid';
+                      const isDispatchable = veh.is_available && veh.maintenance_status !== 'critical';
+
+                      return (
+                        <div
+                          key={veh.id || idx}
+                          className={`rounded-xl border transition-all ${
+                            !veh.is_available
+                              ? 'bg-black/[0.02] dark:bg-[#121214] border-black/5 dark:border-[#202024] opacity-60'
+                              : veh.maintenance_status === 'critical'
+                              ? 'bg-red-500/5 border-red-500/30 dark:border-red-500/20'
+                              : 'bg-white/85 dark:bg-[#161619] border-black/10 dark:border-[#29292E]'
+                          }`}
+                        >
+                          {/* Card Summary Header */}
+                          <div className="p-2.5 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => updateVehicleProfile(idx, { is_available: !veh.is_available })}
+                                className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                                  veh.is_available
+                                    ? 'bg-[#080808] dark:bg-[#B7FF00] border-transparent text-white dark:text-[#080808]'
+                                    : 'border-black/20 dark:border-white/20'
+                                }`}
+                                title={veh.is_available ? 'Mark out of service' : 'Mark available'}
+                              >
+                                {veh.is_available && <Check className="w-3 h-3 stroke-[3]" />}
+                              </button>
+                              <div className="min-w-0">
+                                <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block truncate">
+                                  {veh.name}
+                                </span>
+                                <div className="flex items-center gap-1.5 text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+                                  <span className="capitalize">{veh.vehicle_type.replace('_', ' ')}</span>
+                                  <span>·</span>
+                                  <span>{veh.capacity_kg} kg</span>
+                                  <span>·</span>
+                                  <span className="capitalize">{veh.condition}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-technical font-semibold capitalize ${
+                                  isEv
+                                    ? 'bg-[#B7FF00]/15 text-[#080808] dark:text-[#B7FF00]'
+                                    : isHybrid
+                                    ? 'bg-teal-500/15 text-teal-600 dark:text-teal-400'
+                                    : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                                }`}
+                              >
+                                {isEv ? '⚡ EV' : isHybrid ? '🌿 Hybrid' : veh.powertrain}
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => setExpandedVehicleIdx(isExpanded ? null : idx)}
+                                className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 text-[#777777] dark:text-[#A1A1AA]"
+                              >
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Expanded Configuration Fields */}
+                          {isExpanded && (
+                            <div className="p-3 pt-0 border-t border-black/5 dark:border-[#29292E]/60 space-y-2.5 text-xs">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                <div>
+                                  <label className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mb-0.5 font-technical">
+                                    Display Name
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={veh.name}
+                                    onChange={(e) => updateVehicleProfile(idx, { name: e.target.value })}
+                                    className="w-full px-2 py-1 text-xs rounded-lg bg-white/80 dark:bg-[#121214] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mb-0.5 font-technical">
+                                    Powertrain
+                                  </label>
+                                  <select
+                                    value={veh.powertrain}
+                                    onChange={(e) => updateVehicleProfile(idx, { powertrain: e.target.value as any })}
+                                    className="w-full px-2 py-1 text-xs rounded-lg bg-white/80 dark:bg-[#121214] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
+                                  >
+                                    <option value="electric">Electric (BEV)</option>
+                                    <option value="diesel">Diesel</option>
+                                    <option value="petrol">Petrol / Gasoline</option>
+                                    <option value="hybrid">Hybrid (PHEV)</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mb-0.5 font-technical">
+                                    Max Payload (kg)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={10}
+                                    max={2000}
+                                    value={veh.capacity_kg}
+                                    onChange={(e) => updateVehicleProfile(idx, { capacity_kg: parseFloat(e.target.value) || 100 })}
+                                    className="w-full px-2 py-1 text-xs font-technical rounded-lg bg-white/80 dark:bg-[#121214] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mb-0.5 font-technical">
+                                    Condition
+                                  </label>
+                                  <select
+                                    value={veh.condition}
+                                    onChange={(e) => updateVehicleProfile(idx, { condition: e.target.value as any })}
+                                    className="w-full px-2 py-1 text-xs rounded-lg bg-white/80 dark:bg-[#121214] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
+                                  >
+                                    <option value="excellent">Excellent</option>
+                                    <option value="good">Good</option>
+                                    <option value="average">Average</option>
+                                    <option value="poor">Poor</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mb-0.5 font-technical">
+                                    Maintenance Status
+                                  </label>
+                                  <select
+                                    value={veh.maintenance_status}
+                                    onChange={(e) => updateVehicleProfile(idx, { maintenance_status: e.target.value as any })}
+                                    className="w-full px-2 py-1 text-xs rounded-lg bg-white/80 dark:bg-[#121214] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
+                                  >
+                                    <option value="ok">OK / Operational</option>
+                                    <option value="service_recommended">Service Recommended</option>
+                                    <option value="overdue">Maintenance Overdue</option>
+                                    <option value="critical">Critical (Do Not Dispatch)</option>
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mb-0.5 font-technical">
+                                    Max Range (km)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min={20}
+                                    max={1000}
+                                    value={veh.max_range_km}
+                                    onChange={(e) => updateVehicleProfile(idx, { max_range_km: parseFloat(e.target.value) || 200 })}
+                                    className="w-full px-2 py-1 text-xs font-technical rounded-lg bg-white/80 dark:bg-[#121214] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* EV Battery Telemetry */}
+                              {(isEv || isHybrid) && (
+                                <div className="p-2 rounded-lg bg-black/[0.02] dark:bg-[#121214] border border-black/5 dark:border-[#202024] grid grid-cols-3 gap-2 text-[11px]">
+                                  <div>
+                                    <label className="text-[9px] text-[#777777] dark:text-[#A1A1AA] block font-technical">Battery (kWh)</label>
+                                    <input
+                                      type="number"
+                                      min={5}
+                                      max={200}
+                                      value={veh.battery_capacity_kwh || 68}
+                                      onChange={(e) => updateVehicleProfile(idx, { battery_capacity_kwh: parseFloat(e.target.value) || 68 })}
+                                      className="w-full px-1.5 py-0.5 text-xs font-technical rounded bg-white/80 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-[#777777] dark:text-[#A1A1AA] block font-technical">Current SoC (%)</label>
+                                    <input
+                                      type="number"
+                                      min={5}
+                                      max={100}
+                                      value={veh.battery_soc_percent || 90}
+                                      onChange={(e) => updateVehicleProfile(idx, { battery_soc_percent: parseFloat(e.target.value) || 90 })}
+                                      className="w-full px-1.5 py-0.5 text-xs font-technical rounded bg-white/80 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-[#777777] dark:text-[#A1A1AA] block font-technical">Battery SoH (%)</label>
+                                    <input
+                                      type="number"
+                                      min={50}
+                                      max={100}
+                                      value={veh.battery_soh_percent || 97}
+                                      onChange={(e) => updateVehicleProfile(idx, { battery_soh_percent: parseFloat(e.target.value) || 97 })}
+                                      className="w-full px-1.5 py-0.5 text-xs font-technical rounded bg-white/80 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E]"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ICE Fuel Telemetry */}
+                              {(!isEv || isHybrid) && (
+                                <div className="p-2 rounded-lg bg-black/[0.02] dark:bg-[#121214] border border-black/5 dark:border-[#202024] grid grid-cols-2 gap-2 text-[11px]">
+                                  <div>
+                                    <label className="text-[9px] text-[#777777] dark:text-[#A1A1AA] block font-technical">Tank Capacity (L)</label>
+                                    <input
+                                      type="number"
+                                      min={20}
+                                      max={300}
+                                      value={veh.fuel_tank_capacity_l || 70}
+                                      onChange={(e) => updateVehicleProfile(idx, { fuel_tank_capacity_l: parseFloat(e.target.value) || 70 })}
+                                      className="w-full px-1.5 py-0.5 text-xs font-technical rounded bg-white/80 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E]"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] text-[#777777] dark:text-[#A1A1AA] block font-technical">Fuel Level (%)</label>
+                                    <input
+                                      type="number"
+                                      min={5}
+                                      max={100}
+                                      value={veh.fuel_level_percent || 80}
+                                      onChange={(e) => updateVehicleProfile(idx, { fuel_level_percent: parseFloat(e.target.value) || 80 })}
+                                      className="w-full px-1.5 py-0.5 text-xs font-technical rounded bg-white/80 dark:bg-[#18181B] border border-black/10 dark:border-[#29292E]"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {!isDispatchable && (
+                                <div className="p-1.5 rounded bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-semibold flex items-center gap-1.5">
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                  <span>Vehicle is ineligible for dispatch ({veh.maintenance_status === 'critical' ? 'critical maintenance' : 'marked unavailable'}) and will be excluded by solvers.</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 3. Optimization Algorithms Selection */}

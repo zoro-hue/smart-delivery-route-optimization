@@ -185,9 +185,25 @@ export function calculateVehicleRouteEnergy(
   }
 
   const totalCo2 = tailpipeCo2 + upstreamCo2;
+  const vp = route.vehicle_profile;
+  const usableRange = vp?.max_range_km || 250.0;
+  const remainingRange = Math.max(0, Math.round((usableRange - distKm) * 10) / 10);
+  const isRangeFeasible = distKm <= usableRange + 0.01;
+
+  let remainingSoc = null;
+  let remainingFuel = null;
+  if (isElectric && vp?.battery_capacity_kwh) {
+    const effCap = vp.battery_capacity_kwh * ((vp.battery_soh_percent || 100) / 100.0);
+    const socConsumed = (energyKwh / Math.max(effCap, 1.0)) * 100.0;
+    remainingSoc = Math.max(0, Math.round(((vp.battery_soc_percent || 100) - socConsumed) * 10) / 10);
+  } else if (!isElectric && vp?.fuel_tank_capacity_l) {
+    const fuelConsumed = (fuelLitres / Math.max(vp.fuel_tank_capacity_l, 1.0)) * 100.0;
+    remainingFuel = Math.max(0, Math.round(((vp.fuel_level_percent || 100) - fuelConsumed) * 10) / 10);
+  }
 
   return {
     vehicle_id: route.vehicle_id || vehicleIdx + 1,
+    vehicle_profile: vp,
     distance_km: Math.round(distKm * 100) / 100,
     duration_min: Math.round(durationMin * 10) / 10,
     stops_count: (route.customer_stops || route.stops || []).length,
@@ -203,6 +219,12 @@ export function calculateVehicleRouteEnergy(
     upstream_well_to_tank_co2_kg: Math.round(upstreamCo2 * 1000) / 1000,
     total_co2_kg: Math.round(totalCo2 * 1000) / 1000,
     operational_cost_usd: Math.round(costUsd * 100) / 100,
+    remaining_soc_pct: remainingSoc,
+    remaining_fuel_pct: remainingFuel,
+    remaining_range_km: remainingRange,
+    is_range_feasible: isRangeFeasible,
+    is_shift_feasible: (durationMin / 60.0) <= (vp?.max_operating_hours || 8.0),
+    is_all_feasible: isRangeFeasible && load <= cap + 0.01,
     unit_label: model.unitLabel,
   };
 }

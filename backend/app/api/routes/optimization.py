@@ -217,6 +217,9 @@ class OptimizationRequest(BaseModel):
     # Optional explicit customer stops from Step 1
     custom_customers: Optional[List[dict]] = None
 
+    # Vehicle Profile & Fleet Condition Modeling
+    vehicle_profiles: Optional[List[dict]] = None
+
     # Reproducibility
     random_seed: int = 42
 
@@ -238,6 +241,7 @@ class EnergyAnalysisRequest(BaseModel):
     baseline_algorithm: Optional[str] = "ortools"
     vehicle_capacity: Optional[float] = 0.0
     traffic_factor: Optional[float] = 1.0
+    vehicle_profiles: Optional[List[dict]] = None
 
 
 # ─── Optimization Endpoints ──────────────────────────────────────
@@ -262,6 +266,7 @@ async def calculate_energy_analysis_endpoint(req: EnergyAnalysisRequest):
             baseline_algo=req.baseline_algorithm or "ortools",
             vehicle_capacity=req.vehicle_capacity or 0.0,
             traffic_factor=req.traffic_factor or 1.0,
+            vehicle_profiles=req.vehicle_profiles,
         )
         return {
             "status": "success",
@@ -357,20 +362,56 @@ def _prepare_optimization_problem(req: OptimizationRequest):
 
     demands_int = [int(d) for d in demands]
     total_cust_demand = sum(demands_int)
-    total_fleet_capacity = req.num_vehicles * int(req.vehicle_capacity)
-    capacities = [int(req.vehicle_capacity)] * req.num_vehicles
+
+    # Heterogeneous Fleet Processing & Individual Vehicle Condition Evaluation
+    usable_vehicle_profiles = []
+    vehicle_ranges = []
+    fleet_capacities = []
+
+    if req.vehicle_profiles and len(req.vehicle_profiles) > 0:
+        for vp in req.vehicle_profiles:
+            is_avail = vp.get("is_available", True)
+            maint = str(vp.get("maintenance_status", "ok")).lower()
+            if is_avail and maint != "critical":
+                usable_vehicle_profiles.append(vp)
+                fleet_capacities.append(int(vp.get("max_payload_kg", req.vehicle_capacity)))
+                usable_range = float(vp.get("usable_range_km", 250.0) or 250.0)
+                vehicle_ranges.append(usable_range)
+            else:
+                road_warnings.append(
+                    f"Vehicle '{vp.get('name', vp.get('vehicle_id'))}' excluded from dispatch: "
+                    f"is_available={is_avail}, maintenance_status='{maint}'."
+                )
+
+        if not usable_vehicle_profiles:
+            road_warnings.append("All configured fleet vehicles were unavailable or in critical maintenance. Reverting to default fleet.")
+            usable_vehicle_profiles = None
+            fleet_capacities = [int(req.vehicle_capacity)] * req.num_vehicles
+            vehicle_ranges = None
+
+    if not usable_vehicle_profiles:
+        usable_vehicle_profiles = None
+        fleet_capacities = [int(req.vehicle_capacity)] * req.num_vehicles
+        vehicle_ranges = None
+        num_dispatch_vehicles = req.num_vehicles
+    else:
+        num_dispatch_vehicles = len(usable_vehicle_profiles)
+
+    total_fleet_capacity = sum(fleet_capacities)
+    capacities = fleet_capacities
 
     if total_cust_demand > total_fleet_capacity:
         road_warnings.append(
             f"Fleet capacity warning: Total customer demand ({total_cust_demand}) exceeds total fleet capacity "
-            f"({total_fleet_capacity} units across {req.num_vehicles} vehicles). Solvers will incur capacity penalties."
+            f"({total_fleet_capacity} units across {num_dispatch_vehicles} vehicles). Solvers will incur capacity penalties."
         )
 
     return (
         locations, demands, n, adjusted_matrix, snapped_node_ids,
         road_warnings, physical_matrix, objective_weights, demands_int,
         total_cust_demand, total_fleet_capacity, capacities,
-        traffic_factor, weather_factor
+        traffic_factor, weather_factor, num_dispatch_vehicles,
+        vehicle_ranges, usable_vehicle_profiles
     )
 
 
@@ -432,6 +473,8 @@ def _solve_single_algo(
     traffic_factor: float = 1.0,
     weather_factor: float = 1.0,
     service_time_per_stop_min: float = 0.0,
+    vehicle_ranges: Optional[List[float]] = None,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Execute a single solver with resource profiling, coverage repair, and waypoint reconstruction."""
     logger.info(f"Executing algorithm '{algo}' on {n} nodes, {num_vehicles} vehicles")
@@ -449,6 +492,8 @@ def _solve_single_algo(
                 objective_weights=objective_weights,
                 locations=locations,
                 seed=random_seed,
+                vehicle_ranges=vehicle_ranges,
+                vehicle_profiles=vehicle_profiles,
             )
             res["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
             res["category"] = "cooperative"
@@ -466,6 +511,8 @@ def _solve_single_algo(
                 vehicle_capacities=capacities,
                 time_limit_sec=effective_time_limit,
                 objective_weights=objective_weights,
+                vehicle_ranges=vehicle_ranges,
+                vehicle_profiles=vehicle_profiles,
             )
             res["algorithm_name"] = "OR-Tools (CVRP)"
             res["category"] = "classical"
@@ -706,6 +753,8 @@ def _solve_single_algo(
         traffic_factor=traffic_factor,
         weather_factor=weather_factor,
         service_time_per_stop_min=service_time_per_stop_min,
+        vehicle_ranges=vehicle_ranges,
+        vehicle_profiles=vehicle_profiles,
     )
 
     for r_idx, route in enumerate(repaired_routes, start=1):
@@ -810,7 +859,8 @@ def _build_comparison_summary(
     results: Dict[str, Any],
     total_cust_demand: int,
     total_fleet_capacity: int,
-    n: int
+    n: int,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build canonical comparison summary items and determine best feasible solution."""
     comparison_items = []
@@ -915,6 +965,7 @@ def _build_comparison_summary(
             default_propulsion="diesel",
             baseline_algo="ortools",
             vehicle_capacity=float(total_fleet_capacity or 0.0),
+            vehicle_profiles=vehicle_profiles,
         )
         summary_data["energy_analysis"] = energy_analysis
 
@@ -1054,6 +1105,8 @@ async def _run_background_solvers_for_job(
     traffic_factor: float = 1.0,
     weather_factor: float = 1.0,
     service_time_per_stop_min: float = 0.0,
+    vehicle_ranges: Optional[List[float]] = None,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ):
     """Progressive background solver worker executing remaining comparison algorithms with guaranteed terminal completion."""
     async with _job_semaphore:
@@ -1089,7 +1142,9 @@ async def _run_background_solvers_for_job(
                                     physical_matrix,
                                     traffic_factor,
                                     weather_factor,
-                                    service_time_per_stop_min
+                                    service_time_per_stop_min,
+                                    vehicle_ranges,
+                                    vehicle_profiles,
                                 ),
                                 timeout=35.0
                             )
@@ -1128,7 +1183,9 @@ async def _run_background_solvers_for_job(
                                     physical_matrix,
                                     traffic_factor,
                                     weather_factor,
-                                    service_time_per_stop_min
+                                    service_time_per_stop_min,
+                                    vehicle_ranges,
+                                    vehicle_profiles,
                                 ),
                                 timeout=45.0
                             )
@@ -1284,7 +1341,8 @@ async def _run_background_solvers_for_job(
 
             try:
                 job["comparison_summary"] = _build_comparison_summary(
-                    to_run, job["results"], total_cust_demand, total_fleet_capacity, n
+                    to_run, job["results"], total_cust_demand, total_fleet_capacity, n,
+                    vehicle_profiles=vehicle_profiles
                 )
             except Exception as final_sum_err:
                 logger.warning(f"Final summary build error: {final_sum_err}")
@@ -1348,7 +1406,8 @@ async def start_optimization_job(
         locations, demands, n, adjusted_matrix, snapped_node_ids,
         road_warnings, physical_matrix, objective_weights, demands_int,
         total_cust_demand, total_fleet_capacity, capacities,
-        traffic_factor, weather_factor
+        traffic_factor, weather_factor, num_dispatch_vehicles,
+        vehicle_ranges, usable_vehicle_profiles
     ) = _prepare_optimization_problem(req)
 
     to_run, mode = _resolve_algorithms_to_run(req, n)
@@ -1367,7 +1426,7 @@ async def start_optimization_job(
         timestamp=now_utc,
         algorithm=",".join(to_run),
         num_customers=req.num_customers,
-        num_vehicles=req.num_vehicles,
+        num_vehicles=num_dispatch_vehicles,
         depot_lat=req.depot_lat,
         depot_lon=req.depot_lon,
         vehicle_capacity=req.vehicle_capacity,
@@ -1400,7 +1459,7 @@ async def start_optimization_job(
 
     # Solve primary algorithm immediately (< 1.5s responsive deadline)
     primary_res = _solve_single_algo(
-        primary_algo, n, req.num_vehicles, req.vehicle_capacity,
+        primary_algo, n, num_dispatch_vehicles, req.vehicle_capacity,
         min(req.classical_time_limit_sec, 1), req.qaoa_depth, req.qaoa_shots,
         req.qaoa_optimizer, req.qaoa_penalty, req.random_seed,
         locations, demands_int, capacities, adjusted_matrix,
@@ -1410,6 +1469,8 @@ async def start_optimization_job(
         traffic_factor,
         weather_factor,
         req.service_time_per_stop_min,
+        vehicle_ranges,
+        usable_vehicle_profiles,
     )
 
     # Immediately persist primary algorithm result to database so it is NEVER missing in DB queries
@@ -1442,7 +1503,8 @@ async def start_optimization_job(
     solver_statuses[primary_algo] = "completed"
 
     initial_summary = _build_comparison_summary(
-        to_run, results, total_cust_demand, total_fleet_capacity, n
+        to_run, results, total_cust_demand, total_fleet_capacity, n,
+        vehicle_profiles=usable_vehicle_profiles
     )
 
     is_single = len(to_run) <= 1
@@ -1450,10 +1512,11 @@ async def start_optimization_job(
 
     problem_dict = {
         "num_customers": n - 1,
-        "num_vehicles": req.num_vehicles,
+        "num_vehicles": num_dispatch_vehicles,
         "depot": {"lat": locations[0][0], "lon": locations[0][1]},
         "traffic_factor": traffic_factor,
         "weather_factor": weather_factor,
+        "vehicle_profiles": usable_vehicle_profiles,
         "locations": [{"lat": l[0], "lon": l[1], "demand": d}
                       for l, d in zip(locations, demands)],
     }
@@ -1486,7 +1549,7 @@ async def start_optimization_job(
         asyncio.create_task(
             _run_background_solvers_for_job(
                 job_id, experiment.id, to_run, primary_algo,
-                n, req.num_vehicles, req.vehicle_capacity,
+                n, num_dispatch_vehicles, req.vehicle_capacity,
                 req.classical_time_limit_sec, req.qaoa_depth, req.qaoa_shots,
                 req.qaoa_optimizer, req.qaoa_penalty, req.random_seed,
                 locations, demands_int, capacities, adjusted_matrix,
@@ -1497,6 +1560,8 @@ async def start_optimization_job(
                 traffic_factor,
                 weather_factor,
                 req.service_time_per_stop_min,
+                vehicle_ranges,
+                usable_vehicle_profiles,
             )
         )
 
@@ -1741,7 +1806,8 @@ async def run_optimization(
         locations, demands, n, adjusted_matrix, snapped_node_ids,
         road_warnings, physical_matrix, objective_weights, demands_int,
         total_cust_demand, total_fleet_capacity, capacities,
-        traffic_factor, weather_factor
+        traffic_factor, weather_factor, num_dispatch_vehicles,
+        vehicle_ranges, usable_vehicle_profiles
     ) = _prepare_optimization_problem(req)
 
     to_run, mode = _resolve_algorithms_to_run(req, n)
@@ -1754,7 +1820,7 @@ async def run_optimization(
         timestamp=now_utc,
         algorithm=",".join(to_run),
         num_customers=req.num_customers,
-        num_vehicles=req.num_vehicles,
+        num_vehicles=num_dispatch_vehicles,
         depot_lat=req.depot_lat,
         depot_lon=req.depot_lon,
         vehicle_capacity=req.vehicle_capacity,
@@ -1783,7 +1849,7 @@ async def run_optimization(
         for a in to_run:
             try:
                 results[a] = _solve_single_algo(
-                    a, n, req.num_vehicles, req.vehicle_capacity,
+                    a, n, num_dispatch_vehicles, req.vehicle_capacity,
                     req.classical_time_limit_sec, req.qaoa_depth, req.qaoa_shots,
                     req.qaoa_optimizer, req.qaoa_penalty, req.random_seed,
                     locations, demands_int, capacities, adjusted_matrix,
@@ -1793,6 +1859,8 @@ async def run_optimization(
                     traffic_factor,
                     weather_factor,
                     req.service_time_per_stop_min,
+                    vehicle_ranges,
+                    usable_vehicle_profiles,
                 )
             except Exception as exc:
                 logger.error(f"Solver for {a} raised: {exc}")
@@ -1845,7 +1913,8 @@ async def run_optimization(
                 logger.warning(f"Could not persist experiment result for '{a_name}': {db_err}")
 
         summary = _build_comparison_summary(
-            to_run, results, total_cust_demand, total_fleet_capacity, n
+            to_run, results, total_cust_demand, total_fleet_capacity, n,
+            vehicle_profiles=usable_vehicle_profiles
         )
 
         if "ortools" in results and "classical" not in results:

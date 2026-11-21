@@ -496,47 +496,91 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
               <table className="w-full text-left text-xs font-mono">
                 <thead>
                   <tr className="border-b border-black/5 dark:border-white/5 text-[#777777] dark:text-[#8E8E93] text-[10px] uppercase font-technical">
-                    <th className="py-2.5 px-3">Vehicle</th>
-                    <th className="py-2.5 px-3">Distance</th>
+                    <th className="py-2.5 px-3">Vehicle Profile</th>
+                    <th className="py-2.5 px-3">Powertrain</th>
+                    <th className="py-2.5 px-3">Distance & Range</th>
+                    <th className="py-2.5 px-3">Remaining Energy / Fuel</th>
                     <th className="py-2.5 px-3">Payload (Demand)</th>
-                    <th className="py-2.5 px-3">Load Factor</th>
                     <th className="py-2.5 px-3">Energy (kWh)</th>
-                    <th className="py-2.5 px-3">Fuel / Power</th>
                     <th className="py-2.5 px-3">CO₂ (kg)</th>
-                    <th className="py-2.5 px-3">Operating Cost</th>
+                    <th className="py-2.5 px-3">Total Cost</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5 dark:divide-white/5">
-                  {activeProfile.vehicle_breakdowns.map((vb, idx) => (
-                    <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
-                      <td className="py-2.5 px-3 font-bold text-[#080808] dark:text-white">
-                        Vehicle {vb.vehicle_id}
-                      </td>
-                      <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
-                        {vb.distance_km} km
-                      </td>
-                      <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
-                        {vb.load} / {vb.capacity} ({vb.utilization_pct}%)
-                      </td>
-                      <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
-                        {vb.load_factor.toFixed(3)}x
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold text-emerald-600 dark:text-emerald-400">
-                        {vb.energy_consumption_kwh} kWh
-                      </td>
-                      <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
-                        {activeModel.fuelType === 'electricity'
-                          ? `${vb.energy_consumption_kwh} kWh`
-                          : `${vb.fuel_consumption_litres} L`}
-                      </td>
-                      <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
-                        {vb.total_co2_kg} kg
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold text-[#080808] dark:text-white">
-                        {formatUsd(vb.operational_cost_usd)}
-                      </td>
-                    </tr>
-                  ))}
+                  {activeProfile.vehicle_breakdowns.map((vb, idx) => {
+                    const vp = vb.vehicle_profile;
+                    const pType = vp?.powertrain || vb.propulsion_type || 'diesel';
+                    const isEv = pType === 'electric';
+                    const isRangeFeasible = vb.is_range_feasible ?? (vb.remaining_range_km === undefined || (vb.remaining_range_km !== undefined && vb.remaining_range_km >= 0));
+
+                    return (
+                      <tr key={idx} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02]">
+                        <td className="py-2.5 px-3">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-[#080808] dark:text-white">
+                              {vp?.name || `Vehicle ${vb.vehicle_id}`}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[9px] font-technical px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[#777777] dark:text-[#A1A1AA] capitalize">
+                                {vp?.condition || 'Good'} condition
+                              </span>
+                              {!isRangeFeasible && (
+                                <span className="text-[9px] font-technical px-1.5 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
+                                  Range Exceeded
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-technical font-semibold capitalize ${
+                            isEv
+                              ? 'bg-[#B7FF2A]/15 text-emerald-600 dark:text-[#B7FF2A]'
+                              : pType === 'hybrid'
+                              ? 'bg-teal-500/15 text-teal-600 dark:text-teal-400'
+                              : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          }`}>
+                            {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
+                          <div>{vb.distance_km} km</div>
+                          {vb.remaining_range_km !== undefined && (
+                            <div className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                              {vb.remaining_range_km} km left
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
+                          {isEv && vb.remaining_soc_pct !== null && vb.remaining_soc_pct !== undefined ? (
+                            <div className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                              <BatteryCharging className="w-3.5 h-3.5" />
+                              <span>{vb.remaining_soc_pct}% SoC</span>
+                            </div>
+                          ) : vb.remaining_fuel_pct !== null && vb.remaining_fuel_pct !== undefined ? (
+                            <div className="flex items-center gap-1.5 font-bold text-amber-500">
+                              <Fuel className="w-3.5 h-3.5" />
+                              <span>{vb.remaining_fuel_pct}% Fuel</span>
+                            </div>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
+                          {vb.load} / {vb.capacity} ({vb.utilization_pct}%)
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-emerald-600 dark:text-emerald-400">
+                          {vb.energy_consumption_kwh} kWh
+                        </td>
+                        <td className="py-2.5 px-3 text-[#555555] dark:text-[#A1A1AA]">
+                          {vb.total_co2_kg} kg
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-[#080808] dark:text-white">
+                          {formatUsd(vb.operational_cost_usd)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

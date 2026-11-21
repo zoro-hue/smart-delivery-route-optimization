@@ -70,6 +70,8 @@ class CooperativeVRPSolver:
         strategy_override: Optional[str] = None,
         seed: int = 42,
         incumbent_solution: Optional[Dict[str, Any]] = None,
+        vehicle_ranges: Optional[List[float]] = None,
+        vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Solves CVRP cooperatively using Hybrid Big Data + Classical + Quantum Pipeline:
@@ -131,6 +133,8 @@ class CooperativeVRPSolver:
                 time_limit_sec=effective_limit,
                 objective_weights=objective_weights,
                 travel_time_matrix=travel_time_matrix,
+                vehicle_ranges=vehicle_ranges,
+                vehicle_profiles=vehicle_profiles,
             )
 
         if not incumbent_res.get("success") or not incumbent_res.get("routes"):
@@ -152,6 +156,8 @@ class CooperativeVRPSolver:
             vehicle_capacities,
             num_vehicles,
             depot,
+            vehicle_ranges=vehicle_ranges,
+            vehicle_profiles=vehicle_profiles,
         )
 
         if not incumbent_routes:
@@ -521,6 +527,8 @@ class CooperativeVRPSolver:
             vehicle_capacities,
             num_vehicles,
             depot,
+            vehicle_ranges=vehicle_ranges,
+            vehicle_profiles=vehicle_profiles,
         )
 
         repaired_dist = float(sum(r.get("distance_km", 0.0) for r in routes))
@@ -543,6 +551,9 @@ class CooperativeVRPSolver:
             r["total_distance_km"] = r.get("distance_km", 0.0)
             if "travel_time_min" not in r:
                 r["travel_time_min"] = round(r["distance_km"] / 40.0 * 60.0, 1)
+            if vehicle_profiles and (v_idx - 1) < len(vehicle_profiles):
+                r["vehicle_profile"] = vehicle_profiles[v_idx - 1]
+                r["vehicle_name"] = vehicle_profiles[v_idx - 1].get("name", f"Vehicle {v_idx}")
 
         final_total_time = float(
             sum(r.get("travel_time_min", r.get("distance_km", 0.0) / 40.0 * 60.0) for r in routes)

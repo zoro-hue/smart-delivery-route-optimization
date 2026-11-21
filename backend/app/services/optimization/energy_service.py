@@ -163,55 +163,155 @@ def compute_vehicle_route_energy(
     propulsion_type: str = "diesel",
     vehicle_capacity: float = 0.0,
     traffic_factor: float = 1.0,
+    vehicle_profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Calculate energy, fuel, carbon emissions, and operational cost for an individual vehicle route.
+    Supports individual vehicle condition profiles (battery SoC/SoH, fuel tank level, maintenance wear,
+    odometer, hourly & per-km operating costs, and range/shift feasibility).
     """
-    model = PROPULSION_MODELS.get(propulsion_type, PROPULSION_MODELS["diesel"])
+    vp = vehicle_profile or route_data.get("vehicle_profile") or {}
+    
+    # Resolve powertrain & propulsion model
+    p_type = vp.get("powertrain", propulsion_type)
+    if p_type not in PROPULSION_MODELS:
+        p_type = propulsion_type if propulsion_type in PROPULSION_MODELS else "diesel"
+    model = PROPULSION_MODELS.get(p_type, PROPULSION_MODELS["diesel"])
+    
     dist_km = float(route_data.get("distance_km", 0.0) or 0.0)
     duration_min = float(route_data.get("total_duration_min", route_data.get("driving_time_min", 0.0)) or 0.0)
+    duration_hours = duration_min / 60.0
     load = float(route_data.get("load", 0.0) or 0.0)
-    cap = float(route_data.get("capacity", vehicle_capacity) or vehicle_capacity)
+    cap = float(vp.get("max_payload_kg", route_data.get("capacity", vehicle_capacity)) or vehicle_capacity or 100.0)
 
     f_load = compute_route_load_factor(load, cap, model.get("load_sensitivity", 0.15))
     f_traffic = compute_route_traffic_factor(traffic_factor, model.get("traffic_sensitivity", 0.20))
     adjustment_multiplier = f_load * f_traffic
 
-    base_rate = model["base_consumption_per_100km"]
+    # Baseline rate from model, or custom rate from vehicle profile if specified
     is_electric = model["fuel_type"] == "electricity"
+    if is_electric and vp.get("ev_efficiency_kwh_per_100km"):
+        base_rate = float(vp["ev_efficiency_kwh_per_100km"])
+    elif not is_electric and vp.get("fuel_consumption_l_per_100km"):
+        base_rate = float(vp["fuel_consumption_l_per_100km"])
+    else:
+        base_rate = model["base_consumption_per_100km"]
+
+    # Condition & Age efficiency penalty: older/poor condition vehicles consume slightly more
+    condition = str(vp.get("overall_condition", "good")).lower()
+    condition_multiplier = 1.0
+    if condition == "excellent":
+        condition_multiplier = 0.97
+    elif condition == "good":
+        condition_multiplier = 1.00
+    elif condition == "average":
+        condition_multiplier = 1.05
+    elif condition == "poor":
+        condition_multiplier = 1.12
+    
+    total_consumption_multiplier = adjustment_multiplier * condition_multiplier
 
     if is_electric:
         fuel_litres = 0.0
-        energy_kwh = dist_km * (base_rate / 100.0) * adjustment_multiplier
+        energy_kwh = dist_km * (base_rate / 100.0) * total_consumption_multiplier
         tailpipe_co2_kg = 0.0
         upstream_co2_kg = energy_kwh * model["upstream_co2_kg_per_unit"]
         total_co2_kg = upstream_co2_kg
-        operational_cost_usd = energy_kwh * model["unit_cost_usd"]
+        fuel_energy_cost_usd = energy_kwh * model["unit_cost_usd"]
     else:
-        fuel_litres = dist_km * (base_rate / 100.0) * adjustment_multiplier
+        fuel_litres = dist_km * (base_rate / 100.0) * total_consumption_multiplier
         energy_kwh = fuel_litres * model["energy_density_kwh_per_unit"]
         tailpipe_co2_kg = fuel_litres * model["direct_tailpipe_co2_kg_per_unit"]
         upstream_co2_kg = fuel_litres * model["upstream_co2_kg_per_unit"]
         total_co2_kg = tailpipe_co2_kg + upstream_co2_kg
-        operational_cost_usd = fuel_litres * model["unit_cost_usd"]
+        fuel_energy_cost_usd = fuel_litres * model["unit_cost_usd"]
+
+    # Vehicle-Specific Range & Battery/Fuel Remaining Calculation
+    stops_count = len(route_data.get("customer_stops", route_data.get("stops", [])))
+    has_activity = stops_count > 0 and dist_km > 0.0
+
+    battery_capacity_kwh = float(vp.get("battery_capacity_kwh", 60.0) or 60.0)
+    battery_soc_pct = float(vp.get("battery_soc_pct", 100.0) if vp.get("battery_soc_pct") is not None else 100.0)
+    battery_soh_pct = float(vp.get("battery_soh_pct", 100.0) if vp.get("battery_soh_pct") is not None else 100.0)
+
+    fuel_tank_capacity_l = float(vp.get("fuel_tank_capacity_l", 60.0) or 60.0)
+    fuel_level_pct = float(vp.get("fuel_level_pct", 100.0) if vp.get("fuel_level_pct") is not None else 100.0)
+
+    usable_range_km = float(vp.get("usable_range_km", 250.0) or 250.0)
+    max_shift_hours = float(vp.get("max_shift_hours", 8.0) or 8.0)
+    cost_per_km_usd = float(vp.get("cost_per_km_usd", 0.35) or 0.35)
+    cost_per_hour_usd = float(vp.get("cost_per_hour_usd", 22.0) or 22.0)
+    fixed_dispatch_cost_usd = float(vp.get("fixed_dispatch_cost_usd", 15.0) or 15.0)
+
+    # Battery State of Charge (SoC) remaining
+    if is_electric and battery_capacity_kwh > 0:
+        effective_capacity = battery_capacity_kwh * (battery_soh_pct / 100.0)
+        soc_consumed_pct = (energy_kwh / max(effective_capacity, 1.0)) * 100.0
+        remaining_soc_pct = max(0.0, round(battery_soc_pct - soc_consumed_pct, 1))
+    else:
+        remaining_soc_pct = battery_soc_pct
+
+    # Fuel level remaining
+    if not is_electric and fuel_tank_capacity_l > 0:
+        fuel_consumed_pct = (fuel_litres / max(fuel_tank_capacity_l, 1.0)) * 100.0
+        remaining_fuel_pct = max(0.0, round(fuel_level_pct - fuel_consumed_pct, 1))
+    else:
+        remaining_fuel_pct = fuel_level_pct
+
+    remaining_range_km = max(0.0, round(usable_range_km - dist_km, 1))
+    is_range_feasible = dist_km <= (usable_range_km + 1e-3)
+    is_shift_feasible = duration_hours <= (max_shift_hours + 1e-3)
+    is_capacity_feasible = load <= (cap + 1e-3)
+
+    # Comprehensive Operational Costing
+    maintenance_wear_cost = dist_km * cost_per_km_usd
+    driver_labor_cost = duration_hours * cost_per_hour_usd
+    dispatch_cost = fixed_dispatch_cost_usd if has_activity else 0.0
+    total_operational_cost = fuel_energy_cost_usd + maintenance_wear_cost + driver_labor_cost + dispatch_cost
 
     return {
         "vehicle_id": route_data.get("vehicle_id", vehicle_idx + 1),
+        "vehicle_profile": {
+            "vehicle_id": vp.get("vehicle_id", f"V{vehicle_idx + 1}"),
+            "name": vp.get("name", f"Fleet Vehicle {vehicle_idx + 1}"),
+            "vehicle_type": vp.get("vehicle_type", "van"),
+            "powertrain": p_type,
+            "overall_condition": condition,
+            "battery_soc_pct": battery_soc_pct,
+            "battery_soh_pct": battery_soh_pct,
+            "fuel_level_pct": fuel_level_pct,
+            "usable_range_km": usable_range_km,
+            "max_shift_hours": max_shift_hours,
+            "maintenance_status": vp.get("maintenance_status", "ok"),
+        } if vp else None,
+        "propulsion_type": p_type,
         "distance_km": round(dist_km, 2),
         "duration_min": round(duration_min, 1),
-        "stops_count": len(route_data.get("customer_stops", route_data.get("stops", []))),
+        "stops_count": stops_count,
         "load": round(load, 1),
         "capacity": round(cap, 1),
         "utilization_pct": round((load / cap * 100.0), 1) if cap > 0 else 0.0,
         "load_factor": round(f_load, 3),
         "traffic_factor": round(f_traffic, 3),
+        "condition_multiplier": round(condition_multiplier, 3),
         "fuel_consumption_litres": round(fuel_litres, 3),
         "energy_consumption_kwh": round(energy_kwh, 2),
         "direct_tailpipe_co2_kg": round(tailpipe_co2_kg, 3),
         "indirect_grid_co2_kg": round(upstream_co2_kg, 3) if is_electric else 0.0,
         "upstream_well_to_tank_co2_kg": round(upstream_co2_kg, 3),
         "total_co2_kg": round(total_co2_kg, 3),
-        "operational_cost_usd": round(operational_cost_usd, 2),
+        "fuel_energy_cost_usd": round(fuel_energy_cost_usd, 2),
+        "maintenance_wear_cost_usd": round(maintenance_wear_cost, 2),
+        "driver_labor_cost_usd": round(driver_labor_cost, 2),
+        "dispatch_cost_usd": round(dispatch_cost, 2),
+        "operational_cost_usd": round(total_operational_cost, 2),
+        "remaining_soc_pct": remaining_soc_pct if is_electric else None,
+        "remaining_fuel_pct": remaining_fuel_pct if not is_electric else None,
+        "remaining_range_km": remaining_range_km,
+        "is_range_feasible": is_range_feasible,
+        "is_shift_feasible": is_shift_feasible,
+        "is_capacity_feasible": is_capacity_feasible,
+        "is_all_feasible": is_range_feasible and is_shift_feasible and is_capacity_feasible,
         "unit_label": model["unit_label"],
     }
 
@@ -222,11 +322,11 @@ def compute_algorithm_energy_profile(
     propulsion_type: str = "diesel",
     vehicle_capacity: float = 0.0,
     traffic_factor: float = 1.0,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
-    Calculate aggregated energy and environmental profile for an algorithm across all assigned vehicles.
+    Calculate aggregated energy, environmental profile, and fleet condition feasibility for an algorithm.
     """
-    model = PROPULSION_MODELS.get(propulsion_type, PROPULSION_MODELS["diesel"])
     routes = algo_data.get("routes", []) or []
 
     vehicle_breakdowns: List[Dict[str, Any]] = []
@@ -235,16 +335,26 @@ def compute_algorithm_energy_profile(
     total_tailpipe_co2 = 0.0
     total_upstream_co2 = 0.0
     total_cost_usd = 0.0
+    total_fuel_energy_cost_usd = 0.0
+    all_ranges_feasible = True
+    all_shifts_feasible = True
 
     # If routes list is provided, calculate per-vehicle route
     if routes:
         for idx, route in enumerate(routes):
+            v_prof = None
+            if vehicle_profiles and idx < len(vehicle_profiles):
+                v_prof = vehicle_profiles[idx]
+            elif route.get("vehicle_profile"):
+                v_prof = route["vehicle_profile"]
+
             v_res = compute_vehicle_route_energy(
                 route,
                 vehicle_idx=idx,
                 propulsion_type=propulsion_type,
                 vehicle_capacity=vehicle_capacity,
                 traffic_factor=traffic_factor,
+                vehicle_profile=v_prof,
             )
             vehicle_breakdowns.append(v_res)
             total_fuel_l += v_res["fuel_consumption_litres"]
@@ -252,10 +362,16 @@ def compute_algorithm_energy_profile(
             total_tailpipe_co2 += v_res["direct_tailpipe_co2_kg"]
             total_upstream_co2 += v_res["upstream_well_to_tank_co2_kg"]
             total_cost_usd += v_res["operational_cost_usd"]
+            total_fuel_energy_cost_usd += v_res["fuel_energy_cost_usd"]
+            if not v_res["is_range_feasible"]:
+                all_ranges_feasible = False
+            if not v_res["is_shift_feasible"]:
+                all_shifts_feasible = False
         total_dist_km = sum(v["distance_km"] for v in vehicle_breakdowns)
         total_duration_min = sum(v["duration_min"] for v in vehicle_breakdowns)
     else:
         # Fallback if routes are not detailed: compute from aggregate distance
+        model = PROPULSION_MODELS.get(propulsion_type, PROPULSION_MODELS["diesel"])
         total_dist_km = float(algo_data.get("total_distance_km", 0.0) or 0.0)
         total_duration_min = float(algo_data.get("total_duration_min", algo_data.get("total_travel_time_min", 0.0)) or 0.0)
         f_traffic = compute_route_traffic_factor(traffic_factor, model.get("traffic_sensitivity", 0.20))
@@ -274,27 +390,37 @@ def compute_algorithm_energy_profile(
             total_tailpipe_co2 = total_fuel_l * model["direct_tailpipe_co2_kg_per_unit"]
             total_upstream_co2 = total_fuel_l * model["upstream_co2_kg_per_unit"]
             total_cost_usd = total_fuel_l * model["unit_cost_usd"]
+        total_fuel_energy_cost_usd = total_cost_usd
 
     total_co2_kg = total_tailpipe_co2 + total_upstream_co2
-    is_feasible = bool(algo_data.get("is_feasible", False)) and algo_data.get("capacity_violations", 0) == 0
+    is_feasible = (
+        bool(algo_data.get("is_feasible", False))
+        and algo_data.get("capacity_violations", 0) == 0
+        and all_ranges_feasible
+    )
+
+    primary_model = PROPULSION_MODELS.get(propulsion_type, PROPULSION_MODELS["diesel"])
 
     return {
         "algorithm_id": algo_key,
         "algorithm_name": algo_data.get("algorithm_name", algo_key.upper()),
         "category": algo_data.get("category", "classical"),
         "is_feasible": is_feasible,
+        "is_range_feasible": all_ranges_feasible,
+        "is_shift_feasible": all_shifts_feasible,
         "propulsion_type": propulsion_type,
-        "propulsion_name": model["name"],
-        "unit_label": model["unit_label"],
+        "propulsion_name": primary_model["name"] if not vehicle_profiles else "Heterogeneous Fleet Profile",
+        "unit_label": primary_model["unit_label"],
         "total_distance_km": round(total_dist_km, 2),
         "total_duration_min": round(total_duration_min, 1),
         "vehicles_count": len(vehicle_breakdowns) or len(routes) or 1,
         "fuel_consumption_litres": round(total_fuel_l, 3),
         "energy_consumption_kwh": round(total_energy_kwh, 2),
         "direct_tailpipe_co2_kg": round(total_tailpipe_co2, 3),
-        "indirect_grid_co2_kg": round(total_upstream_co2, 3) if model["fuel_type"] == "electricity" else 0.0,
+        "indirect_grid_co2_kg": round(total_upstream_co2, 3) if total_fuel_l == 0 else 0.0,
         "upstream_well_to_tank_co2_kg": round(total_upstream_co2, 3),
         "total_co2_kg": round(total_co2_kg, 3),
+        "fuel_energy_cost_usd": round(total_fuel_energy_cost_usd, 2),
         "operational_cost_usd": round(total_cost_usd, 2),
         "vehicle_breakdowns": vehicle_breakdowns,
         "data_tags": DATA_TAGS,
@@ -386,9 +512,11 @@ def compute_full_energy_analysis(
     baseline_algo: str = "ortools",
     vehicle_capacity: float = 0.0,
     traffic_factor: float = 1.0,
+    vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Generate comprehensive energy, fuel, carbon, and economic analysis across all solved algorithms.
+    Supports individual vehicle condition profiles when provided.
     Precomputes metrics for all 4 vehicle propulsion types so the frontend can switch instantly.
     """
     valid_algos = [k for k, v in results.items() if isinstance(v, dict) and v.get("success", False)]
@@ -418,6 +546,7 @@ def compute_full_energy_analysis(
                 propulsion_type=p_type,
                 vehicle_capacity=vehicle_capacity,
                 traffic_factor=traffic_factor,
+                vehicle_profiles=vehicle_profiles,
             )
         profiles_by_propulsion[p_type] = p_dict
 

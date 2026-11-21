@@ -45,6 +45,8 @@ class ClassicalVRPSolver:
         travel_time_matrix: Optional[np.ndarray] = None,
         algorithm: str = "ortools",
         locations: Optional[List[Tuple[float, float]]] = None,
+        vehicle_ranges: Optional[List[float]] = None,
+        vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Solve CVRP using specified classical algorithm.
@@ -82,7 +84,8 @@ class ClassicalVRPSolver:
         else:
             return self.solve_ortools(
                 distance_matrix, num_vehicles, depot, demands, vehicle_capacities,
-                time_limit_sec, objective_weights, travel_time_matrix
+                time_limit_sec, objective_weights, travel_time_matrix,
+                vehicle_ranges=vehicle_ranges, vehicle_profiles=vehicle_profiles
             )
 
     def solve_ortools(
@@ -96,6 +99,8 @@ class ClassicalVRPSolver:
         objective_weights: Optional[Dict[str, float]] = None,
         travel_time_matrix: Optional[np.ndarray] = None,
         time_limit_ms: Optional[int] = None,
+        vehicle_ranges: Optional[List[float]] = None,
+        vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Solve CVRP using OR-Tools.
@@ -174,6 +179,23 @@ class ClassicalVRPSolver:
             'Capacity'
         )
 
+        # Distance / Range constraint dimension
+        if vehicle_ranges is not None and len(vehicle_ranges) >= num_vehicles:
+            max_dist_scaled = int(np.max(int_dist_matrix) * (n + 2))
+            routing.AddDimension(
+                transit_callback_index,
+                0,  # no slack
+                max_dist_scaled,
+                True,  # start cumul to zero
+                'Distance'
+            )
+            dist_dim = routing.GetDimensionOrDie('Distance')
+            for v_idx in range(num_vehicles):
+                v_rng = vehicle_ranges[v_idx]
+                if v_rng is not None and v_rng > 0:
+                    v_max_int = int(round(v_rng * 1000))
+                    dist_dim.CumulVar(routing.End(v_idx)).SetRange(0, v_max_int)
+
         # Allow dropping nodes with penalty if capacity is strictly constrained
         penalty = 1000000
         for node in range(1, n):
@@ -234,7 +256,8 @@ class ClassicalVRPSolver:
             route_nodes.append(depot)
 
             if len(route_nodes) > 2:  # More than just depot-depot
-                routes.append({
+                v_prof = vehicle_profiles[vehicle_id] if (vehicle_profiles and vehicle_id < len(vehicle_profiles)) else None
+                r_entry = {
                     "vehicle_id": vehicle_id,
                     "stops": route_nodes,
                     "customer_stops": [n for n in route_nodes if n != depot],
@@ -242,7 +265,11 @@ class ClassicalVRPSolver:
                     "load": route_load,
                     "capacity": vehicle_capacities[vehicle_id],
                     "utilization_pct": round(route_load / vehicle_capacities[vehicle_id] * 100, 1) if vehicle_capacities[vehicle_id] > 0 else 0,
-                })
+                }
+                if v_prof:
+                    r_entry["vehicle_profile"] = v_prof
+                    r_entry["vehicle_name"] = v_prof.get("name", f"Vehicle {vehicle_id + 1}")
+                routes.append(r_entry)
                 total_distance += route_distance
                 total_load += route_load
 

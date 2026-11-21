@@ -1084,10 +1084,16 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 const color = activeRouteColors[idx % activeRouteColors.length];
                 const driverNumber = idx + 1;
                 const stopsArr = route.stops ?? [];
+                const vp = route.vehicle_profile;
+                const pType = vp?.powertrain || 'diesel';
+                const isEv = pType === 'electric';
+                const isRangeFeasible = route.is_range_feasible ?? (route.usable_range_km ? route.distance_km <= route.usable_range_km : true);
+                const remainingRange = route.usable_range_km ? Math.max(0, Math.round((route.usable_range_km - route.distance_km) * 10) / 10) : null;
+
                 return (
                   <div
                     key={`schedule-driver-${driverNumber}-${idx}`}
-                    className="py-2.5 px-3 rounded-xl bg-white/70 dark:bg-[#18181B] backdrop-blur-md border border-black/5 dark:border-[#29292E] space-y-1.5 transition-colors"
+                    className="py-2.5 px-3 rounded-xl bg-white/70 dark:bg-[#18181B] backdrop-blur-md border border-black/5 dark:border-[#29292E] space-y-2 transition-colors"
                   >
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
@@ -1095,24 +1101,42 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                           className="h-3 w-3 rounded-full shrink-0"
                           style={{ backgroundColor: color }}
                         />
-                        <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">Driver #{driverNumber}</span>
-                        <span className="text-[11px] text-[#777777] dark:text-[#A1A1AA]">
-                          ({Math.max(0, stopsArr.length - 2)} stops)
+                        <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
+                          {vp?.name || `Driver #${driverNumber}`}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded font-technical font-semibold capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
+                          {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}
                         </span>
                       </div>
-                      <span className="font-technical font-bold text-[#080808] dark:text-[#B7FF00]">
-                        {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-technical font-bold text-[#080808] dark:text-[#B7FF00]">
+                          {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
+                        </span>
+                        {!isRangeFeasible && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
+                            Range Overdue
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-[#777777] dark:text-[#A1A1AA] font-technical">
-                      <span className="truncate max-w-[280px]">
-                        Stop sequence: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')}
+                      <span className="truncate max-w-[260px]">
+                        Stops: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')} ({Math.max(0, stopsArr.length - 2)} stops)
                       </span>
                       <span className="font-mono text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 font-semibold">
-                        ⚡ {((route.distance_km || 0) * 0.95).toFixed(1)} kWh
+                        Load: {route.load ?? 0} / {route.capacity ?? 100} kg ({route.utilization_pct ?? 0}%)
                       </span>
                     </div>
+
+                    {remainingRange !== null && (
+                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-black/5 dark:border-white/5 font-technical text-[#777777] dark:text-[#A1A1AA]">
+                        <span>Usable Range: {route.usable_range_km} km</span>
+                        <span className={`font-semibold ${isRangeFeasible ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                          {remainingRange} km remaining
+                        </span>
+                      </div>
+                    )}
                   </div>
                 );
               })}

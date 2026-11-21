@@ -40,8 +40,36 @@ export interface RouteWaypoint {
   index: number;
 }
 
+export interface VehicleProfile {
+  id: string;
+  name: string;
+  vehicle_type: 'car' | 'van' | 'truck' | 'electric_van' | string;
+  powertrain: 'diesel' | 'petrol' | 'hybrid' | 'electric';
+  capacity_kg: number;
+  cargo_volume_m3?: number;
+  condition: 'excellent' | 'good' | 'average' | 'poor';
+  age_years: number;
+  odometer_km: number;
+  maintenance_status: 'ok' | 'service_recommended' | 'overdue' | 'critical';
+  is_available: boolean;
+  battery_capacity_kwh?: number;
+  battery_soc_percent?: number;
+  battery_soh_percent?: number;
+  fuel_tank_capacity_l?: number;
+  fuel_level_percent?: number;
+  base_consumption_per_100km?: number;
+  max_range_km: number;
+  average_speed_kmh?: number;
+  max_operating_hours?: number;
+  cost_per_km_usd?: number;
+  cost_per_hour_usd?: number;
+  fixed_dispatch_cost_usd?: number;
+}
+
 export interface VehicleRoute {
   vehicle_id: number;
+  vehicle_profile?: VehicleProfile;
+  vehicle_name?: string;
   stops: number[];
   customer_stops: number[];
   distance_km: number;
@@ -53,6 +81,8 @@ export interface VehicleRoute {
   load?: number;
   capacity?: number;
   utilization_pct?: number;
+  usable_range_km?: number;
+  is_range_feasible?: boolean;
   waypoints?: RouteWaypoint[];
 }
 
@@ -192,6 +222,8 @@ export type VehiclePropulsionType = 'diesel' | 'petrol' | 'hybrid' | 'electric';
 
 export interface VehicleRouteEnergy {
   vehicle_id: number;
+  vehicle_profile?: VehicleProfile;
+  propulsion_type?: string;
   distance_km: number;
   duration_min: number;
   stops_count: number;
@@ -207,6 +239,12 @@ export interface VehicleRouteEnergy {
   upstream_well_to_tank_co2_kg: number;
   total_co2_kg: number;
   operational_cost_usd: number;
+  remaining_soc_pct?: number | null;
+  remaining_fuel_pct?: number | null;
+  remaining_range_km?: number;
+  is_range_feasible?: boolean;
+  is_shift_feasible?: boolean;
+  is_all_feasible?: boolean;
   unit_label: string;
 }
 
@@ -321,6 +359,7 @@ export interface OptimizationResponse {
     num_customers: number;
     num_vehicles: number;
     vehicle_capacity?: number;
+    vehicle_profiles?: VehicleProfile[];
     depot: { lat: number; lon: number };
     traffic_factor: number;
     weather_factor: number;
