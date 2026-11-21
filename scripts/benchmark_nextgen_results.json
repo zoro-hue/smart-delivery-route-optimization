@@ -1,0 +1,453 @@
+{
+  "summary": [
+    {
+      "Model": "ORTools_Alone",
+      "Mean_Distance_km": 181.57,
+      "Std_Distance_km": 45.45,
+      "Mean_Runtime_ms": 516.1,
+      "Improvement_vs_ORTools_pct": 0.0,
+      "Cohens_d_Effect_Size": 0.0,
+      "p_value_paired": 1.0
+    },
+    {
+      "Model": "ORTools_VND",
+      "Mean_Distance_km": 181.57,
+      "Std_Distance_km": 45.45,
+      "Mean_Runtime_ms": 521.7,
+      "Improvement_vs_ORTools_pct": 0.0,
+      "Cohens_d_Effect_Size": 0.0,
+      "p_value_paired": 0.1084
+    },
+    {
+      "Model": "ORTools_Tabu_VND",
+      "Mean_Distance_km": 181.57,
+      "Std_Distance_km": 45.45,
+      "Mean_Runtime_ms": 521.8,
+      "Improvement_vs_ORTools_pct": 0.0,
+      "Cohens_d_Effect_Size": 0.0,
+      "p_value_paired": 0.1084
+    },
+    {
+      "Model": "Baseline_Cooperative",
+      "Mean_Distance_km": 179.43,
+      "Std_Distance_km": 42.97,
+      "Mean_Runtime_ms": 1604.0,
+      "Improvement_vs_ORTools_pct": 1.18,
+      "Cohens_d_Effect_Size": 0.048,
+      "p_value_paired": 0.1819
+    },
+    {
+      "Model": "NextGen_No_QAOA",
+      "Mean_Distance_km": 181.26,
+      "Std_Distance_km": 46.12,
+      "Mean_Runtime_ms": 1236.7,
+      "Improvement_vs_ORTools_pct": 0.17,
+      "Cohens_d_Effect_Size": 0.007,
+      "p_value_paired": 0.8004
+    },
+    {
+      "Model": "NextGen_No_QIGA",
+      "Mean_Distance_km": 181.26,
+      "Std_Distance_km": 46.12,
+      "Mean_Runtime_ms": 1263.0,
+      "Improvement_vs_ORTools_pct": 0.17,
+      "Cohens_d_Effect_Size": 0.007,
+      "p_value_paired": 0.8004
+    },
+    {
+      "Model": "NextGen_No_Exchange",
+      "Mean_Distance_km": 181.26,
+      "Std_Distance_km": 46.12,
+      "Mean_Runtime_ms": 841.2,
+      "Improvement_vs_ORTools_pct": 0.17,
+      "Cohens_d_Effect_Size": 0.007,
+      "p_value_paired": 0.8004
+    },
+    {
+      "Model": "NextGen_No_MAB",
+      "Mean_Distance_km": 181.26,
+      "Std_Distance_km": 46.12,
+      "Mean_Runtime_ms": 1044.0,
+      "Improvement_vs_ORTools_pct": 0.17,
+      "Cohens_d_Effect_Size": 0.007,
+      "p_value_paired": 0.8004
+    },
+    {
+      "Model": "Full_Proposed_NextGen",
+      "Mean_Distance_km": 179.31,
+      "Std_Distance_km": 42.77,
+      "Mean_Runtime_ms": 1219.2,
+      "Improvement_vs_ORTools_pct": 1.24,
+      "Cohens_d_Effect_Size": 0.051,
+      "p_value_paired": 0.1862
+    }
+  ],
+  "instance_logs": [
+    {
+      "instance": "NYC_12_Nodes_3Veh",
+      "n": 12,
+      "k": 3,
+      "d_ortools": 128.157,
+      "d_legacy": 128.157,
+      "d_nextgen": 128.157,
+      "improvement_pct_vs_ortools": 0.0,
+      "improvement_pct_vs_legacy": 0.0,
+      "nextgen_origin": "SUPREMACY_IMPROVED",
+      "mab_performance": {
+        "OP_SPARK_POLAR_SWEEP": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4371
+        },
+        "OP_CLARKE_WRIGHT_SAVINGS": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_ORTOOLS_LOCAL_REPAIR": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3425
+        },
+        "OP_QAOA_SUBPROBLEM": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4289
+        },
+        "OP_QIGA_QUANTUM_GENETIC": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4479
+        },
+        "OP_TABU_SEARCH_EXCHANGE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_DEEP_VND_REFINE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_ALNS_RUIN_RECREATE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        }
+      }
+    },
+    {
+      "instance": "NYC_15_Nodes_3Veh",
+      "n": 15,
+      "k": 3,
+      "d_ortools": 126.097,
+      "d_legacy": 126.097,
+      "d_nextgen": 126.097,
+      "improvement_pct_vs_ortools": 0.0,
+      "improvement_pct_vs_legacy": 0.0,
+      "nextgen_origin": "SUPREMACY_IMPROVED",
+      "mab_performance": {
+        "OP_SPARK_POLAR_SWEEP": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4371
+        },
+        "OP_CLARKE_WRIGHT_SAVINGS": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4574
+        },
+        "OP_ORTOOLS_LOCAL_REPAIR": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3425
+        },
+        "OP_QAOA_SUBPROBLEM": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4438
+        },
+        "OP_QIGA_QUANTUM_GENETIC": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3901
+        },
+        "OP_TABU_SEARCH_EXCHANGE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_DEEP_VND_REFINE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_ALNS_RUIN_RECREATE": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3905
+        }
+      }
+    },
+    {
+      "instance": "NYC_18_Nodes_3Veh",
+      "n": 18,
+      "k": 3,
+      "d_ortools": 185.258,
+      "d_legacy": 185.258,
+      "d_nextgen": 185.258,
+      "improvement_pct_vs_ortools": 0.0,
+      "improvement_pct_vs_legacy": 0.0,
+      "nextgen_origin": "INDEPENDENT_EQUAL_ORTOOLS",
+      "mab_performance": {
+        "OP_SPARK_POLAR_SWEEP": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.436
+        },
+        "OP_CLARKE_WRIGHT_SAVINGS": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3734
+        },
+        "OP_ORTOOLS_LOCAL_REPAIR": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4362
+        },
+        "OP_QAOA_SUBPROBLEM": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.2265
+        },
+        "OP_QIGA_QUANTUM_GENETIC": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3897
+        },
+        "OP_TABU_SEARCH_EXCHANGE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_DEEP_VND_REFINE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_ALNS_RUIN_RECREATE": {
+          "invocations": 3,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3553
+        }
+      }
+    },
+    {
+      "instance": "NYC_20_Nodes_4Veh",
+      "n": 20,
+      "k": 4,
+      "d_ortools": 201.677,
+      "d_legacy": 196.328,
+      "d_nextgen": 196.328,
+      "improvement_pct_vs_ortools": 2.65,
+      "improvement_pct_vs_legacy": 0.0,
+      "nextgen_origin": "SUPREMACY_IMPROVED",
+      "mab_performance": {
+        "OP_SPARK_POLAR_SWEEP": {
+          "invocations": 1,
+          "successes": 1,
+          "success_rate": 1.0,
+          "q_value": 0.5027
+        },
+        "OP_CLARKE_WRIGHT_SAVINGS": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3713
+        },
+        "OP_ORTOOLS_LOCAL_REPAIR": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3585
+        },
+        "OP_QAOA_SUBPROBLEM": {
+          "invocations": 2,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.2266
+        },
+        "OP_QIGA_QUANTUM_GENETIC": {
+          "invocations": 3,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3855
+        },
+        "OP_TABU_SEARCH_EXCHANGE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4462
+        },
+        "OP_DEEP_VND_REFINE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_ALNS_RUIN_RECREATE": {
+          "invocations": 2,
+          "successes": 1,
+          "success_rate": 0.5,
+          "q_value": 0.3861
+        }
+      }
+    },
+    {
+      "instance": "NYC_25_Nodes_4Veh",
+      "n": 25,
+      "k": 4,
+      "d_ortools": 189.258,
+      "d_legacy": 189.257,
+      "d_nextgen": 189.258,
+      "improvement_pct_vs_ortools": 0.0,
+      "improvement_pct_vs_legacy": -0.0,
+      "nextgen_origin": "INDEPENDENT_EQUAL_ORTOOLS",
+      "mab_performance": {
+        "OP_SPARK_POLAR_SWEEP": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.444
+        },
+        "OP_CLARKE_WRIGHT_SAVINGS": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.3578
+        },
+        "OP_ORTOOLS_LOCAL_REPAIR": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4362
+        },
+        "OP_QAOA_SUBPROBLEM": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_QIGA_QUANTUM_GENETIC": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4371
+        },
+        "OP_TABU_SEARCH_EXCHANGE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4375
+        },
+        "OP_DEEP_VND_REFINE": {
+          "invocations": 1,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.4374
+        },
+        "OP_ALNS_RUIN_RECREATE": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        }
+      }
+    },
+    {
+      "instance": "NYC_30_Nodes_5Veh",
+      "n": 30,
+      "k": 5,
+      "d_ortools": 258.946,
+      "d_legacy": 251.473,
+      "d_nextgen": 250.761,
+      "improvement_pct_vs_ortools": 3.16,
+      "improvement_pct_vs_legacy": 0.28,
+      "nextgen_origin": "SUPREMACY_IMPROVED",
+      "mab_performance": {
+        "OP_SPARK_POLAR_SWEEP": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_CLARKE_WRIGHT_SAVINGS": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_ORTOOLS_LOCAL_REPAIR": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_QAOA_SUBPROBLEM": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_QIGA_QUANTUM_GENETIC": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_TABU_SEARCH_EXCHANGE": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_DEEP_VND_REFINE": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        },
+        "OP_ALNS_RUIN_RECREATE": {
+          "invocations": 0,
+          "successes": 0,
+          "success_rate": 0.0,
+          "q_value": 0.5
+        }
+      }
+    }
+  ]
+}
