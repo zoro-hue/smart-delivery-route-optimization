@@ -1,0 +1,16 @@
+\section{Big Data Ingestion and Congestion Modeling}
+\label{sec:big_data}
+Enterprise-scale routing requires ingesting millions of historical and real-time trip records.
+
+\subsection{Apache Spark Ingestion Pipeline}
+ROUTE/IQ-NextGen incorporates Apache Spark 4.2.0~\cite{zaharia2016apache}. High-volume delivery batches ($>10,000$ points) are ingested into Spark RDDs partitioned using spatial bounding boxes~\cite{yu2015geospark}. A polar sweep partitioner~\cite{gillett1974sweep} computes centroid angles $\theta_i = \arctan2(y_i - y_0, x_i - x_0)$ to group customer stops into spatially coherent wedges before downstream routing.
+
+\subsection{BPR Traffic Congestion Latency Function}
+Dynamic traffic effects on urban arc travel times are computed using the empirical Bureau of Public Roads (BPR) formulation~\cite{bpr1964traffic}:
+\begin{equation}
+t_{ij}(V) = t_{ij}^{(0)} \left[ 1 + \alpha \left(\frac{V_{ij}}{C_{ij}}\right)^\beta \right]
+\end{equation}
+where $t_{ij}^{(0)}$ is free-flow travel time, $V_{ij}$ is real-time vehicle flow rate, $C_{ij}$ is nominal road capacity, $\alpha = 0.15$, and $\beta = 4.0$. 
+
+\subsection{Operational Architecture Boundary}
+Our forensic analysis revealed that for interactive operational routing ($N \le 100$ stops), the JVM initialization overhead of local PySpark contexts (typically $1.5\text{--}2.5\text{ s}$) exceeds the routing computation itself. Consequently, ROUTE/IQ-NextGen implements a dual-path engine: single-machine vectorized NumPy/SciPy execution for real-time dispatch, and distributed Spark RDD processing for batch historical data transformations.

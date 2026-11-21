@@ -1,0 +1,9 @@
+\section{Limitations and Honest Scientific Disclosures}
+\label{sec:limitations}
+In adherence to academic integrity, we document the following research limitations:
+\begin{enumerate}
+    \item \textbf{Classical Simulation of Quantum Circuits:} All QAOA circuits were simulated classically using Qiskit Aer statevectors on CPU. We make no claims of physical quantum advantage or quantum supremacy.
+    \item \textbf{Small-Instance Classical Dominance:} For instances with $N \le 15$ delivery stops, Google OR-Tools alone discovers the optimal solution in $< 150\text{ ms}$. The overhead of cooperative co-evolution is justified only when $N \ge 20$.
+    \item \textbf{PySpark Startup Overhead:} PySpark context initialization incurs $1.5\text{--}2.5\text{ s}$ of JVM latency, making it unviable for sub-second real-time single-trip queries, though highly effective for offline batch processing.
+    \item \textbf{Static Arc Travel Times:} Traffic congestion is modeled using deterministic BPR formulas rather than stochastic dynamic micro-simulations.
+\end{enumerate}

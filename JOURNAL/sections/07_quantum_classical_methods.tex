@@ -1,0 +1,24 @@
+\section{Quantum and Quantum-Inspired Operators}
+\label{sec:quantum_classical}
+ROUTE/IQ-NextGen integrates variational quantum computing and quantum-inspired algorithms as domain-specific operators within the cooperative pool.
+
+\subsection{Simulated QAOA Subproblem Operator}
+Directly mapping a complete CVRP graph ($N \ge 30$) to a QAOA Hamiltonian requires hundreds of qubits, far exceeding current NISQ hardware limits~\cite{preskill2018quantum,mcclean2018barren}. ROUTE/IQ-NextGen bypasses this limitation through a targeted subproblem operator:
+\begin{enumerate}
+    \item \textbf{Boundary Detection:} Identifies two vehicle routes sharing an adjacent spatial boundary.
+    \item \textbf{Conflict Node Extraction:} Extracts up to $K_{\text{sub}} \le 8$ boundary customer stops exhibiting the highest cross-route assignment ambiguity.
+    \item \textbf{QUBO Formulation:} Formulates a 2-route partitioning Quadratic Unconstrained Binary Optimization (QUBO) problem:
+    \begin{equation}
+    H_C = \sum_{i=1}^{K_{\text{sub}}} h_i Z_i + \sum_{1 \le i < j \le K_{\text{sub}}} J_{ij} Z_i Z_j
+    \end{equation}
+    where $Z_i \in \{-1, +1\}$ denotes Pauli-$Z$ operators corresponding to binary route assignment, and $J_{ij}$ penalizes capacity imbalance and geometric cross-overs~\cite{lucas2014ising}.
+    \item \textbf{Variational Execution:} Executes a depth $p=1$ QAOA circuit on classical CPU via Qiskit Aer statevector simulation~\cite{qiskit2024}.
+    \item \textbf{Post-Tour Reconstruction:} Re-sequences each partitioned sub-route using deterministic 2-opt~\cite{croes1958method} and deposits the resulting candidate back into the shared pool.
+\end{enumerate}
+
+\subsection{Quantum-Inspired Genetic Algorithm (QIGA)}
+The QIGA operator represents customer assignments as quantum probability vectors $|\psi_i\rangle = \alpha_{i0} |0\rangle + \alpha_{i1} |1\rangle$, where $|\alpha_{i0}|^2 + |\alpha_{i1}|^2 = 1$. Quantum rotation gates $U(\Delta \theta)$ update amplitudes dynamically toward the elite incumbent candidate:
+\begin{equation}
+\begin{bmatrix} \alpha'_{i0} \\ \alpha'_{i1} \end{bmatrix} = \begin{bmatrix} \cos(\Delta \theta_i) & -\sin(\Delta \theta_i) \\ \sin(\Delta \theta_i) & \cos(\Delta \theta_i) \end{bmatrix} \begin{bmatrix} \alpha_{i0} \\ \alpha_{i1} \end{bmatrix}
+\end{equation}
+This allows rapid exploration of combinatorial neighborhoods while maintaining high population diversity.

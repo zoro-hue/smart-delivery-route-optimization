@@ -1,0 +1,46 @@
+\begin{table*}[t]
+\centering
+\caption{Taxonomic Classification and Comparative Audit of the 27 Foundational Research Papers}
+\label{tab:lit_review_27}
+\scriptsize
+\begin{tabular}{lp{3.5cm}p{2.8cm}p{3.2cm}p{2.2cm}p{2.8cm}}
+\toprule
+\textbf{Paradigm} & \textbf{Authors \& Year} & \textbf{Core Methodology} & \textbf{Target Problem / Scope} & \textbf{Quantum / Sim} & \textbf{Identified Literature Gap} \\
+\midrule
+\multirow{9}{*}{\textbf{Classical OR \& VRP}}
+& Toth \& Vigo (2014) \cite{toth2014vehicle} & Exact \& heuristic branch-and-cut & Canonical CVRP/VRPTW & None & Nominal fleet; no battery degradation. \\
+& Clarke \& Wright (1964) \cite{clarke1964scheduling} & Edge savings matrix combination & Vehicle dispatching & None & Greedy; susceptible to local entrapment. \\
+& Croes (1958) \cite{croes1958method} & 2-opt edge-exchange inversion & Symmetric TSP & None & Single-route only; lacks fleet balancing. \\
+& Kuhn (1955) \cite{kuhn1955hungarian} & Primal-dual bipartite matching & Linear Assignment Problem & None & Polynomial for assignment, not routing. \\
+& Gillett \& Miller (1974) \cite{gillett1974sweep} & Polar coordinate sweep clustering & Cluster-first route-second CVRP & None & Sensitive to depot eccentricity. \\
+& Glover (1986) \cite{glover1986future} & Memory-based recency/frequency tabu & General Integer Programming & None & Deterministic tabu list tenure tuning. \\
+& Voudouris \& Tsang (1999) \cite{voudouris1999guided} & Penalty-augmented objective search & Guided Local Search for TSP & None & Static feature penalty escalation. \\
+& Hansen \& Mladenovic (2001) \cite{hansen2001variable} & Systematic neighborhood change & Variable Neighborhood Search & None & Lacks multi-algorithm co-evolution. \\
+& BPR (1964) \cite{bpr1964traffic} & Volume-delay congestion function & Highway Traffic Assignment & None & Static volume assumption; no fleet EVs. \\
+\midrule
+\multirow{2}{*}{\textbf{Big Data \& Spatial}}
+& Zaharia et al. (2016) \cite{zaharia2016apache} & Resilient Distributed Datasets (RDD) & Cluster Big Data Processing & None & High JVM startup for real-time $<1 tasks. \\
+& Yu et al. (2015) \cite{yu2015geospark} & Spatial RDDs \& R-tree indexing & In-memory geospatial queries & None & Spatial indexing only; no solver integration. \\
+\midrule
+\multirow{12}{*}{\textbf{Quantum Algorithms}}
+& Farhi et al. (2014) \cite{farhi2014qaoa} & Variational adiabatic approximation & Max-Cut / Combinatorial QAOA & Statevector Sim & Graph cut focus; non-trivial for CVRP constraints. \\
+& Hadfield et al. (2019) \cite{hadfield2019qaoa} & Quantum Alternating Operator Ansatz & Constrained optimization ($ mixer) & Statevector Sim & High circuit depth; qubit overhead. \\
+& Feld et al. (2019) \cite{feld2019hybrid} & D-Wave Quantum Annealing QUBO & 2-phase CVRP clustering & Physical Annealer & Severe embedding overhead on Chimera/Pegasus. \\
+& Harwood et al. (2021) \cite{harwood2021formulating} & Penalty vs Mixer QAOA formulations & Constrained combinatorial problems & Statevector Sim & Penalty tuning disrupts ground-state search. \\
+& Azad et al. (2022) \cite{azad2022solving} & Variational QAOA for small VRP & 4--8 node symmetric VRP & Statevector Sim & Toy scale only; no Big Data/fleet integration. \\
+& Glos et al. (2022) \cite{glos2022space} & Space-efficient binary encodings & Constrained optimization on NISQ & Statevector Sim & Logarithmic encoding increases circuit depth. \\
+& Preskill (2018) \cite{preskill2018quantum} & NISQ-era architectural principles & Noisy Intermediate-Scale Quantum & Theoretical & Explicit warning on gate noise \& decoherence. \\
+& McClean et al. (2018) \cite{mcclean2018barren} & Vanishing gradient analysis & Parameterized quantum circuits & Theoretical & Random initialization causes barren plateaus. \\
+& Wang et al. (2020) \cite{wang2020xy} & $-mixer preservation of subspaces & Constrained QAOA with hard gates & Statevector Sim & Requires multi-qubit controlled exchange gates. \\
+& Borowski et al. (2020) \cite{borowski2020new} & Hybrid quantum-classical clustering & VRP node partitioning & D-Wave Annealer & Independent solver; no adaptive co-evolution. \\
+& Qiskit Contributors (2024) \cite{qiskit2024} & Open-source quantum SDK & Variational algorithm execution & Aer Simulation & Software framework; requires classical orchestration. \\
+& Lucas (2014) \cite{lucas2014ising} & NP-complete Ising formulations & General binary formulations & Theoretical & Quadratic penalty explosion for inequality bounds. \\
+\midrule
+\multirow{4}{*}{\textbf{Cooperative Systems}}
+& Auer et al. (2002) \cite{auer2002finite} & UCB-1 Multi-Armed Bandit & Exploration-exploitation regret bound & None & Oblivious to continuous fleet state dynamics. \\
+& Toulouse \& Crainic (2004) \cite{toulouse2004cooperative} & Centralized/asynchronous blackboard & Cooperative search metaheuristics & None & Lacks topological diversity guards. \\
+& Talbi (2009) \cite{talbi2009metaheuristics} & Taxonomy of hybrid metaheuristics & Combinatorial Optimization & None & Focuses on classical algorithmic hybridization. \\
+& Burke et al. (2013) \cite{burke2013hyper} & Hyper-heuristic search classification & Automated heuristic design & None & Evaluates isolated heuristic choices without guardrails. \\
+\bottomrule
+\end{tabular}
+\end{table*}

@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\centering
+\caption{Empirical Benchmark Performance Across 9 Experimental Configurations ( \in [12, 30]$ Nodes, Mixed Heterogeneous Fleet)}
+\label{tab:benchmark_detailed}
+\small
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Configuration / Solver Pipeline} & \textbf{Mean Dist (km)} & \textbf{Std Dev (km)} & \textbf{Mean Time (ms)} & \textbf{Gap vs OR-Tools} & \textbf{Cohen's $} & \textbf{Feasibility} \\
+\midrule
+1. Google OR-Tools Baseline & 181.57 & 45.45 & 516.1 & 0.00\% (Ref) & 0.000 & 100.0\% \\
+2. OR-Tools + Deep VND Post-Repair & 181.57 & 45.45 & 521.7 & 0.00\% & 0.000 & 100.0\% \\
+3. OR-Tools + Tabu Search + Deep VND & 181.57 & 45.45 & 521.8 & 0.00\% & 0.000 & 100.0\% \\
+4. Legacy Cooperative Engine (Phase 5) & 179.43 & 42.97 & 1604.0 & -1.18\% & 0.048 & 100.0\% \\
+5. Ablation 1: Next-Gen without QAOA Operator & 181.26 & 46.12 & 1236.7 & -0.17\% & 0.007 & 100.0\% \\
+6. Ablation 2: Next-Gen without QIGA Operator & 181.26 & 46.12 & 1263.0 & -0.17\% & 0.007 & 100.0\% \\
+7. Ablation 3: Next-Gen without Candidate Exchange & 181.26 & 46.12 & 841.2 & -0.17\% & 0.007 & 100.0\% \\
+8. Ablation 4: Next-Gen without Adaptive MAB (Uniform) & 181.26 & 46.12 & 1044.0 & -0.17\% & 0.007 & 100.0\% \\
+\textbf{9. Full Proposed Next-Gen Cooperative Engine} & \textbf{179.31} & \textbf{42.77} & \textbf{1219.2} & \textbf{-1.24\%} & \textbf{0.051} & \textbf{100.0\%} \\
+\bottomrule
+\end{tabular}
+\end{table*}

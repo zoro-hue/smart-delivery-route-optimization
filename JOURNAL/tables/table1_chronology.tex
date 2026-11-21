@@ -1,0 +1,27 @@
+\begin{table*}[t]
+\centering
+\caption{ROUTE/IQ Project Chronological Development Milestones: From Inception to Next-Generation Framework}
+\label{tab:chronology}
+\small
+\begin{tabular}{p{2.2cm}p{4.2cm}p{5.5cm}p{4.0cm}}
+\toprule
+\textbf{Project Phase} & \textbf{Primary Focus \& Architecture} & \textbf{Key Technical Implementations} & \textbf{Forensic Findings \& Outcome} \\
+\midrule
+Phase 1: Inception & Classical CVRP on NYC Open Data & Clarke-Wright savings, naive greedy heuristic, Leaflet map & Established spatial baseline; high route overlaps ($>22\%$). \\
+\addlinespace
+Phase 2: Big Data Integration & Scalable Spatial Ingestion with PySpark & Apache Spark 4.2.0, RDD transformations, BPR traffic latency & Enabled batch ingestion; JVM startup latency identified for small $. \\
+\addlinespace
+Phase 3: Quantum Exploration & Variational QAOA Formulation & Qiskit Aer statevector simulation, QUBO partition, 2-opt post-tour & Proved feasibility on $\le 8$ stops; runtime exponential beyond 12 qubits. \\
+\addlinespace
+Phase 4: Quantum-Inspired Search & QIGA Evolutionary Optimization & Q-bit probability amplitudes, rotation gate mutation schedules & Demonstrated rapid exploration; occasionally trapped in local minima. \\
+\addlinespace
+Phase 5: Baseline Cooperative Engine & Multi-Algorithm Candidate Generation & Independent execution of OR-Tools, QAOA, QIGA, Tabu, VND & Forensic audit revealed pseudo-cooperation: isolated execution without exchange. \\
+\addlinespace
+Phase 6: Next-Gen Formulation & Theoretical HFVRP-VC Formulation & Battery SoH/SoC range limits, multi-objective scalarization & Formulated usable energy bounds ({\text{usable}} = B_{\text{nom}} \cdot \text{SoH}$). \\
+\addlinespace
+Phase 7: Next-Gen Implementation & Shared Blackboard \& Contextual MAB & Candidate pool, Jaccard edge diversity, UCB-1 with 4-pillar reward & Realized true bidirectional co-evolution and operator cooperation. \\
+\addlinespace
+Phase 8: Guardrail \& Validation & Certified Non-Degradation Guardrail & Proposition 1 conditional fallback, full NYC benchmark suite & Verified distance reduction ($-1.24\%$ mean, $-3.16\%$ at =30$), .0\%$ speedup. \\
+\bottomrule
+\end{tabular}
+\end{table*}

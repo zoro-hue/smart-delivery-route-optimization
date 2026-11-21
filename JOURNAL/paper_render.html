@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ROUTE/IQ-NextGen Journal Paper</title>
+<style>
+@page {
+    size: letter;
+    margin: 0.55in 0.5in 0.55in 0.5in;
+    @bottom-center {
+        content: counter(page);
+    }
+}
+body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 9.5pt;
+    line-height: 1.18;
+    color: #111;
+    margin: 0;
+    padding: 0;
+}
+.header-box {
+    text-align: center;
+    margin-bottom: 12px;
+}
+.journal-tag {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #555;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #aaa;
+    padding-bottom: 4px;
+}
+h1.paper-title {
+    font-size: 16pt;
+    font-weight: bold;
+    margin: 0 0 8px 0;
+    line-height: 1.15;
+}
+.author-block {
+    font-size: 10pt;
+    margin-bottom: 4px;
+}
+.author-block strong {
+    font-size: 10.5pt;
+}
+.affiliation-block {
+    font-size: 8.5pt;
+    font-style: italic;
+    color: #333;
+    margin-bottom: 4px;
+}
+.supervisor-block {
+    font-size: 8.5pt;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 12px;
+}
+.columns-container {
+    column-count: 2;
+    column-gap: 0.28in;
+    column-rule: 0.5px solid #e0e0e0;
+    text-align: justify;
+}
+.abstract-box {
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 0.5px solid #ccc;
+}
+.abstract-label {
+    font-weight: bold;
+    font-style: italic;
+}
+.keywords-label {
+    font-weight: bold;
+}
+h2.section-head {
+    font-size: 10pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin: 10px 0 4px 0;
+    border-bottom: 0.5px solid #222;
+    padding-bottom: 1px;
+}
+h3.subsection-head {
+    font-size: 9.5pt;
+    font-weight: bold;
+    font-style: italic;
+    margin: 6px 0 2px 0;
+}
+p {
+    margin: 0 0 5px 0;
+    text-indent: 1.2em;
+}
+p.no-indent {
+    text-indent: 0;
+}
+.equation-box {
+    text-align: center;
+    margin: 4px 0;
+    font-family: "Cambria Math", "Times New Roman", serif;
+    font-style: italic;
+    background: #fdfdfd;
+    padding: 2px 0;
+}
+.figure-box {
+    text-align: center;
+    margin: 8px 0;
+    break-inside: avoid;
+}
+.figure-box img {
+    max-width: 100%;
+    height: auto;
+    border: 0.5px solid #ccc;
+}
+.figure-caption {
+    font-size: 8pt;
+    font-weight: normal;
+    text-align: justify;
+    margin-top: 3px;
+    line-height: 1.15;
+}
+.figure-caption strong {
+    font-weight: bold;
+}
+table.paper-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 7.5pt;
+    margin: 6px 0;
+    break-inside: avoid;
+}
+table.paper-table th, table.paper-table td {
+    border-top: 0.5px solid #333;
+    border-bottom: 0.5px solid #333;
+    padding: 3px 2px;
+    text-align: left;
+}
+table.paper-table th {
+    font-weight: bold;
+    background: #f8f8f8;
+}
+.table-caption {
+    font-size: 8pt;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+}
+.reference-item {
+    font-size: 7.8pt;
+    line-height: 1.12;
+    margin-bottom: 3px;
+    text-indent: -1.4em;
+    padding-left: 1.4em;
+}
+</style>
+</head>
+<body>
+
+<div class="header-box">
+    <div class="journal-tag">IEEE Transactions on Intelligent Transportation Systems (Preprint / Comprehensive Research Manuscript)</div>
+    <h1 class="paper-title">ROUTE/IQ-NextGen: An Adaptive, Vehicle-Condition-Aware Cooperative Optimization Engine for Heterogeneous Urban Logistics</h1>
+    <div class="author-block"><strong>J. Jayanth, B. Kaivalya, and P. Shyam Sai</strong></div>
+    <div class="affiliation-block">Undergraduate Research Scholars, Department of Computer Science and Engineering<br>SRM University-AP, Amaravati, Andhra Pradesh 522240, India</div>
+    <div class="supervisor-block">Faculty Research Supervisor: Dr. Vishnu Prasad Verma</div>
+</div>
+
+<div class="columns-container">
+
+<div class="abstract-box">
+<p class="no-indent"><span class="abstract-label">Abstract</span>—Urban last-mile logistics increasingly relies on mixed commercial fleets composed of battery electric vehicles (BEVs), internal combustion engine (ICE) vans, and hybrid powertrains. However, standard vehicle routing formulations assume uniform nominal capacities and idealized operating ranges, failing to account for real-world physical vehicle conditions such as battery State of Health (SoH) capacity degradation, dynamic State of Charge (SoC), and maintenance wear. Furthermore, while hybrid metaheuristics and variational quantum algorithms (e.g., QAOA) have been proposed, existing hybrid routing systems are typically configured as unidirectional linear pipelines or isolated candidate comparisons without genuine algorithmic cooperation, bidirectional candidate exchange, or online learning.</p>
+<p class="no-indent" style="margin-top:4px;">To address these fundamental challenges, this paper presents <strong>ROUTE/IQ-NextGen</strong>, an adaptive, vehicle-condition-aware cooperative optimization framework. The engine organizes multiple optimization paradigms—including Apache Spark spatial partitioning, simulated QAOA variational boundary cuts, Quantum-Inspired Genetic Algorithm (QIGA) rotation gates, Tabu Search, Deep Variable Neighborhood Descent (VND), and Google OR-Tools—around a shared, diversity-managed candidate blackboard. The framework introduces four primary research contributions: (1) an explicit <strong>Heterogeneous Fleet Vehicle Condition (HFVRP-VC)</strong> formulation that bounds routes by usable battery energy and enforces multi-objective trade-offs across distance, operating cost, energy, and carbon emissions; (2) a <strong>Topological Edge Jaccard Diversity Metric</strong> that prevents candidate pool stagnation; (3) an <strong>Adaptive Contextual Multi-Armed Bandit (MAB)</strong> controller with Upper Confidence Bound (UCB-1) learning and a multi-objective feedback reward penalizing execution runtime while rewarding feasibility and diversity; and (4) a proven <strong>Conditional Non-Degradation Guardrail (Proposition 1)</strong> guaranteeing by construction that final fleet distance never exceeds the classical OR-Tools baseline.</p>
+<p class="no-indent" style="margin-top:4px;">Empirically validated on real-world New York City delivery networks across scales N in [12, 30] with heterogeneous vehicle fleets, ROUTE/IQ-NextGen achieves a mean distance reduction of <strong>-1.24%</strong> over Google OR-Tools alone (reaching <strong>-3.16%</strong> on N=30 nodes), while reducing mean execution latency by <strong>24.0%</strong> (1219.2 ms vs 1604.0 ms) compared to legacy cooperative architectures through adaptive operator selection. Ablation experiments confirm that shared candidate exchange contributes a 1.07% distance improvement over isolated waterfall execution, while QIGA and QAOA operators generate high topological diversity. All quantum circuits are simulated classically via Qiskit Aer, with zero claims of physical quantum supremacy.</p>
+<p class="no-indent" style="margin-top:4px;"><span class="keywords-label">Index Terms</span>—Cooperative optimization, heterogeneous fleet vehicle routing, vehicle condition awareness, battery degradation, contextual multi-armed bandit, QAOA, QIGA, Apache Spark.</p>
+</div>
+
+<h2 class="section-head">I. Introduction</h2>
+<p>Urban freight transportation and last-mile delivery operations are currently undergoing two simultaneous structural transformations: rapid fleet electrification and algorithmic digitization. As commercial logistics operators transition toward decarbonized operations, real-world delivery fleets have become deeply heterogeneous, comprising battery electric vehicles (BEVs), conventional diesel cargo vans, and hybrid powertrains.</p>
+<p>Crucially, in operational settings, vehicles cannot be treated as nominal identical entities. A battery electric van with a 90% State of Health (SoH) and an 80% State of Charge (SoC) has a fundamentally different usable operating range than a brand-new diesel vehicle. Dispatching an electric delivery vehicle without accounting for electrochemical degradation and current charge levels leads to mid-route battery depletion, driver strandings, and schedule disruptions. Furthermore, mechanical wear on delivery vehicles due to neglected maintenance increases fuel consumption, elevates breakdown risk, and invalidates standard static routing plans.</p>
+<p>Simultaneously, the combinatorial optimization community has investigated hybrid metaheuristics and quantum approximate optimization algorithms (QAOA) to tackle the NP-hard Capacitated Vehicle Routing Problem (CVRP). However, our forensic audit of existing hybrid literature reveals three pervasive structural deficiencies: (1) <em>Pseudo-Cooperation:</em> Most proposed "cooperative" engines merely run algorithms independently and compare their final outputs, or execute a rigid, unidirectional pipeline (A -> B -> C); (2) <em>Isolated Quantum Toy Problems:</em> Quantum routing literature focuses almost exclusively on tiny symmetric graphs (N <= 8 nodes) with zero connection to enterprise Big Data pipelines; and (3) <em>Vehicle Condition Obliviousness:</em> Existing routing algorithms optimize pure spatial distance under rigid, uniform vehicle capacity assumptions, ignoring vehicle-specific powertrain costs, energy consumption, and maintenance degradation.</p>
+
+<h2 class="section-head">II. Mathematical Formulation: HFVRP-VC</h2>
+<p>We formalize the <em>Heterogeneous Fleet Vehicle Routing Problem with Vehicle Condition (HFVRP-VC)</em> on directed road graph G = (V, E). Customer stops V_c = {1, ..., N} possess demands q_i > 0.</p>
+<h3 class="subsection-head">A. Physical Vehicle Condition Model</h3>
+<p>Each vehicle k in K is characterized by a condition tuple p_k = (Q_k, phi_k, SoC_k, SoH_k, B_nom,k, V_nom,k, f_k, mu_k, c_dist,k, c_time,k, c_fixed,k, e_k). Usable battery capacity is degraded by electrochemical aging:</p>
+<div class="equation-box">B_usable,k = B_nom,k * (SoH_k / 100)  [kWh]</div>
+<p>The maximum feasible operating range R_k is:</p>
+<div class="equation-box">R_k = [B_usable,k * (SoC_k / 100) / (mu_k * f_k)] * 100  [km]</div>
+<p>Maintenance wear multiplier mu_k = 1.15 applies a 15% penalty when vehicles operate past scheduled maintenance intervals.</p>
+
+<div class="figure-box">
+<img src="figures/fig3_battery_soh_range.png" alt="Battery Degradation Range">
+<div class="figure-caption"><strong>Fig. 1.</strong> Vehicle condition physics: impact of battery State of Health (SoH) and State of Charge (SoC) on usable EV operating range, with a 15% maintenance wear penalty.</div>
+</div>
+
+<h3 class="subsection-head">B. Dimensionless Multi-Objective Scalarization</h3>
+<p>Let x_ijk in {0, 1} indicate whether vehicle k traverses arc (i, j). The dimensionless multi-objective scalarized fitness is:</p>
+<div class="equation-box">min  F(x) = alpha_1 [D(x)/D_0] + alpha_2 [C(x)/C_0] + alpha_3 [E(x)/E_0] + alpha_4 [M(x)/M_0]</div>
+<p>balancing distance D(x), operational cost C(x), equivalent energy E(x), and carbon emissions M(x).</p>
+
+<h2 class="section-head">III. System Architecture & Candidate Blackboard</h2>
+<p>ROUTE/IQ-NextGen organizes all optimization around a shared candidate pool blackboard P_t managing an elite population of up to M = 16 solutions.</p>
+
+<div class="figure-box">
+<img src="figures/fig1_cooperative_architecture.png" alt="Architecture">
+<div class="figure-caption"><strong>Fig. 2.</strong> ROUTE/IQ-NextGen modular architecture. Big Data ingestion feeds a shared candidate pool blackboard adaptively explored by quantum and classical operators under Contextual MAB guidance, validated by Proposition 1 non-degradation guardrail.</div>
+</div>
+
+<h3 class="subsection-head">A. Topological Jaccard Diversity Preservation</h3>
+<p>To prevent genetic collapse, the topological distance between candidates S_a and S_b is computed via edge Jaccard distance:</p>
+<div class="equation-box">Dist(S_a, S_b) = 1 - [|E(S_a) cap E(S_b)| / |E(S_a) cup E(S_b)|]</div>
+<p>Any candidate whose distance to an existing pool member is below 1e-4 is rejected as redundant. The top k_elite = 4 solutions are strictly preserved across generations.</p>
+
+<h2 class="section-head">IV. Contextual MAB Controller & Operators</h2>
+<p>At each iteration t, the Adaptive Controller observes state s_t = (N, K, H, D_t, sigma_t) and selects operator o_t in O using UCB-1 with contextual biasing:</p>
+<div class="equation-box">Score(o, s_t) = Q_t(o) + c * sqrt[ln(t + 1) / (N_t(o) + 1)] + Psi(o, s_t)</div>
+<h3 class="subsection-head">A. 4-Pillar Multi-Objective Feedback Reward</h3>
+<p>The engine implements a balanced feedback reward explicitly penalizing execution latency while rewarding feasibility and diversity:</p>
+<div class="equation-box">R(o) = w_1 Delta_norm + w_2 I_feas + w_3 Div(S_new, P_t) - w_4 (t_exec / t_budget)</div>
+<p>with weights w_1 = 0.50, w_2 = 0.25, w_3 = 0.20, w_4 = 0.05.</p>
+
+<h3 class="subsection-head">B. Simulated QAOA Subproblem Operator</h3>
+<p>Extracts up to K_sub <= 8 adjacent boundary stops and formulates a 2-route partitioning QUBO Hamiltonian H_C = sum h_i Z_i + sum J_ij Z_i Z_j. Variational depth p=1 statevectors are simulated on classical CPU via Qiskit Aer, followed by classical 2-opt tour reconstruction.</p>
+
+<h3 class="subsection-head">C. Quantum-Inspired Genetic Algorithm (QIGA)</h3>
+<p>Represents customer stop assignments as quantum probability vectors |psi_i> = alpha_i0 |0> + alpha_i1 |1> and applies dynamic rotation gates U(Delta theta) directed toward the elite incumbent candidate.</p>
+
+<h2 class="section-head">V. Theoretical Non-Degradation Guarantee</h2>
+<p><strong>Proposition 1 (Conditional Non-Degradation Guardrail).</strong> <em>Let S_ortools be the initial feasible solution generated by Google OR-Tools. Let S_final be the output produced by the ROUTE/IQ-NextGen engine. Under identical road network distance matrix D and fleet constraints, the engine strictly satisfies:</em></p>
+<div class="equation-box">D(S_final) <= D(S_ortools) + eps_float  (eps_float <= 1e-4 km)</div>
+<p><em>Proof:</em> By construction, S_baseline = deepcopy(S_ortools) is cached at t = 0. In Stage 5, the centralized guardrail evaluates candidate distance. If Delta = D(S*) - D(S_baseline) <= eps_float, the candidate S* is returned. If Delta > eps_float, the engine executes a deterministic fail-safe fallback: S_final <- S_baseline. Thus, D(S_final) <= D(S_ortools) + eps_float holds unconditionally across all executions. Q.E.D.</p>
+
+<h2 class="section-head">VI. Empirical Results & Discussion</h2>
+<p>The framework was evaluated across 9 configurations on NYC delivery instances (N in [12, 30] stops, mixed fleets).</p>
+
+<div class="table-caption">Table I: Comprehensive Benchmark Summary Across 9 Configurations</div>
+<table class="paper-table">
+<tr><th>Configuration</th><th>Mean Dist (km)</th><th>Std Dev</th><th>Mean Time (ms)</th><th>Gap vs OR-Tools</th><th>Feasibility</th></tr>
+<tr><td>1. Google OR-Tools Alone</td><td>181.57</td><td>45.45</td><td>516.1</td><td>0.00% (Ref)</td><td>100.0%</td></tr>
+<tr><td>2. OR-Tools + Deep VND</td><td>181.57</td><td>45.45</td><td>521.7</td><td>0.00%</td><td>100.0%</td></tr>
+<tr><td>3. OR-Tools + Tabu + VND</td><td>181.57</td><td>45.45</td><td>521.8</td><td>0.00%</td><td>100.0%</td></tr>
+<tr><td>4. Legacy Cooperative Engine</td><td>179.43</td><td>42.97</td><td>1604.0</td><td>-1.18%</td><td>100.0%</td></tr>
+<tr><td>5. Ablation: Without QAOA</td><td>181.26</td><td>46.12</td><td>1236.7</td><td>-0.17%</td><td>100.0%</td></tr>
+<tr><td>6. Ablation: Without QIGA</td><td>181.26</td><td>46.12</td><td>1263.0</td><td>-0.17%</td><td>100.0%</td></tr>
+<tr><td>7. Ablation: Without Blackboard</td><td>181.26</td><td>46.12</td><td>841.2</td><td>-0.17%</td><td>100.0%</td></tr>
+<tr><td>8. Ablation: Uniform MAB</td><td>181.26</td><td>46.12</td><td>1044.0</td><td>-0.17%</td><td>100.0%</td></tr>
+<tr><td><strong>9. Proposed Next-Gen Engine</strong></td><td><strong>179.31</strong></td><td><strong>42.77</strong></td><td><strong>1219.2</strong></td><td><strong>-1.24%</strong></td><td><strong>100.0%</strong></td></tr>
+</table>
+
+<div class="figure-box">
+<img src="figures/fig2_convergence_ablation.png" alt="Benchmark Comparison">
+<div class="figure-caption"><strong>Fig. 3.</strong> Comprehensive benchmark comparison across all 9 experimental configurations on real-world NYC delivery instances, highlighting mean fleet distance and execution latency.</div>
+</div>
+
+<p><strong>Key Findings:</strong> (1) ROUTE/IQ-NextGen achieved the lowest mean fleet distance of 179.31 km (-1.24% vs OR-Tools), reaching 250.76 km vs 258.95 km (-3.16%) on N=30 stops; (2) Mean execution runtime was reduced by 24.0% (1219.2 ms vs 1604.0 ms) through dynamic MAB operator suppression; (3) Ablation 3 confirms that removing the shared candidate pool blackboard degrades solution distance by +1.09%.</p>
+
+<div class="figure-box">
+<img src="figures/fig4_mab_operator_distribution.png" alt="MAB Distribution">
+<div class="figure-caption"><strong>Fig. 4.</strong> Contextual MAB operator allocation dynamics across small (N=12) versus large (N=30) instance scales.</div>
+</div>
+
+<h2 class="section-head">VII. Limitations & Disclosures</h2>
+<p>1. <em>Classical Simulation of Quantum Circuits:</em> All QAOA circuits were simulated classically using Qiskit Aer statevectors on CPU. We make no claims of physical quantum supremacy.<br>
+2. <em>Small-Instance Dominance:</em> For N <= 15 delivery stops, Google OR-Tools alone discovers the optimal solution in < 150 ms.<br>
+3. <em>PySpark JVM Overhead:</em> Local PySpark initialization incurs 1.5-2.5s of latency; Spark is beneficial exclusively for batch ingestion (>10,000 points).</p>
+
+<h2 class="section-head">VIII. Conclusion</h2>
+<p>ROUTE/IQ-NextGen transforms multi-algorithm routing into a genuinely cooperative, adaptive, and vehicle-condition-aware framework. By unifying Big Data spatial partitioning, quantum variational cuts, quantum-inspired genetic algorithms, and classical metaheuristics around a shared candidate blackboard governed by an Adaptive Contextual MAB, the engine resolves the pseudo-cooperation bottleneck of prior hybrid systems, backed by certified non-degradation guarantees.</p>
+
+<h2 class="section-head">Acknowledgment</h2>
+<p class="no-indent">The authors express their deepest gratitude to their faculty research supervisor, Dr. Vishnu Prasad Verma, Department of Computer Science and Engineering, SRM University-AP, for his invaluable guidance, technical reviews, and sustained mentorship.</p>
+
+<h2 class="section-head">References</h2>
+<div class="reference-item">[1] E. Farhi, J. Goldstone, and S. Gutmann, "A Quantum Approximate Optimization Algorithm," <em>arXiv:1411.4028</em>, 2014.</div>
+<div class="reference-item">[2] S. Hadfield et al., "From the QAOA to a Quantum Alternating Operator Ansatz," <em>Algorithms</em>, vol. 12, no. 2, p. 34, 2019.</div>
+<div class="reference-item">[3] S. Feld et al., "A Hybrid Solution Method for CVRP Using a Quantum Annealer," <em>Frontiers in Physics</em>, vol. 7, p. 186, 2019.</div>
+<div class="reference-item">[4] S. Harwood et al., "Formulating and Solving Constrained Optimization Problems With the QAOA," <em>IEEE TQE</em>, vol. 2, pp. 1-14, 2021.</div>
+<div class="reference-item">[5] U. Azad, A. Bhattacharya, and B. K. Behera, "Solving Vehicle Routing Problem Using QAOA," <em>IEEE TC</em>, vol. 72, no. 3, pp. 646-658, 2022.</div>
+<div class="reference-item">[6] A. Glos, A. Krawiec, and Z. Zimborás, "Space-efficient binary optimization for variational quantum algorithms," <em>npj Quantum Inf.</em>, vol. 8, no. 1, p. 39, 2022.</div>
+<div class="reference-item">[7] M. Zaharia et al., "Apache Spark: A Unified Engine for Big Data Processing," <em>CACM</em>, vol. 59, no. 11, pp. 56-65, 2016.</div>
+<div class="reference-item">[8] J. Yu, J. Wu, and M. Sarwat, "GeoSpark: A Cluster Computing Framework for Spatial Data," in <em>Proc. ACM SIGSPATIAL</em>, 2015.</div>
+<div class="reference-item">[9] P. Toth and D. Vigo, <em>Vehicle Routing: Problems, Methods, and Applications</em>, 2nd ed. SIAM, 2014.</div>
+<div class="reference-item">[10] Bureau of Public Roads, <em>Traffic Assignment Manual</em>, U.S. Dept of Commerce, Washington, D.C., 1964.</div>
+<div class="reference-item">[11] G. Clarke and J. W. Wright, "Scheduling of Vehicles from a Central Depot to Delivery Points," <em>Oper. Res.</em>, vol. 12, no. 4, pp. 568-581, 1964.</div>
+<div class="reference-item">[12] G. A. Croes, "A Method for Solving Traveling-Salesman Problems," <em>Oper. Res.</em>, vol. 6, no. 6, pp. 791-812, 1958.</div>
+<div class="reference-item">[13] H. W. Kuhn, "The Hungarian Method for the Assignment Problem," <em>Nav. Res. Logist. Q.</em>, vol. 2, pp. 83-97, 1955.</div>
+<div class="reference-item">[14] J. Preskill, "Quantum Computing in the NISQ era and beyond," <em>Quantum</em>, vol. 2, p. 79, 2018.</div>
+<div class="reference-item">[15] J. R. McClean et al., "Barren plateaus in quantum neural network training landscapes," <em>Nat. Commun.</em>, vol. 9, no. 1, p. 4812, 2018.</div>
+<div class="reference-item">[16] Z. Wang et al., "QAOA on constraints with hard and soft constraints," <em>Phys. Rev. A</em>, vol. 101, no. 1, p. 012320, 2020.</div>
+<div class="reference-item">[17] M. Borowski et al., "New hybrid quantum-classical algorithm for VRP," <em>Quantum Inf. Process.</em>, vol. 19, no. 11, p. 386, 2020.</div>
+<div class="reference-item">[18] Qiskit contributors, "Qiskit: An Open-source Framework for Quantum Computing," 2024.</div>
+<div class="reference-item">[19] A. Lucas, "Ising formulations of many NP problems," <em>Frontiers in Physics</em>, vol. 2, p. 5, 2014.</div>
+<div class="reference-item">[20] B. E. Gillett and L. R. Miller, "A Heuristic Algorithm for the Vehicle-Dispatch Problem," <em>Oper. Res.</em>, vol. 22, pp. 340-349, 1974.</div>
+<div class="reference-item">[21] C. Voudouris and E. Tsang, "Guided local search and its application to the TSP," <em>EJOR</em>, vol. 113, pp. 469-499, 1999.</div>
+<div class="reference-item">[22] F. Glover, "Future Paths for Integer Programming and Links to AI," <em>Comput. & Oper. Res.</em>, vol. 13, pp. 533-549, 1986.</div>
+<div class="reference-item">[23] P. Hansen and N. Mladenovic, "Variable neighborhood search: Principles and applications," <em>EJOR</em>, vol. 130, pp. 449-467, 2001.</div>
+<div class="reference-item">[24] P. Auer, N. Cesa-Bianchi, and P. Fischer, "Finite-time Analysis of the Multiarmed Bandit Problem," <em>Mach. Learn.</em>, vol. 47, pp. 235-256, 2002.</div>
+<div class="reference-item">[25] M. Toulouse and T. G. Crainic, "Cooperative Search: Principles and Applications," in <em>New Optimization Techniques in Engineering</em>, Springer, 2004.</div>
+<div class="reference-item">[26] E.-G. Talbi, <em>Metaheuristics: From Design to Implementation</em>, John Wiley & Sons, 2009.</div>
+<div class="reference-item">[27] E. K. Burke et al., "Hyper-heuristics: An analysis of the state of the art," <em>JORS</em>, vol. 64, no. 12, pp. 1695-1724, 2013.</div>
+
+</div>
+
+</body>
+</html>

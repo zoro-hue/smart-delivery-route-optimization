@@ -1,0 +1,21 @@
+\section{Experimental Methodology}
+\label{sec:methodology}
+\subsection{Hardware and Software Testbed}
+All experiments were performed on a dedicated x86-64 host running Windows 11, equipped with an AMD Ryzen multi-core processor (3.20 GHz) and 16 GB RAM. The software environment utilized Python 3.10, PySpark 4.2.0, Qiskit 1.x with Qiskit Aer 0.14, Google OR-Tools 9.9, and NumPy/SciPy.
+
+\subsection{Benchmark Dataset Generation}
+Evaluation instances were synthesized from real-world New York City delivery coordinates across Manhattan, Brooklyn, and Queens. Instances were generated across stop scales $N \in \{12, 16, 20, 24, 28, 30\}$, paired with heterogeneous fleets of $K \in \{3, 4, 5\}$ vehicles containing varied proportions of BEVs (nominal 75 kWh, SoH $\in [78\%, 96\%]$, SoC $\in [45\%, 90\%]$), diesel vans (nominal 80L tank), and hybrid delivery vehicles.
+
+\subsection{Comparative Baselines and Configurations}
+Nine distinct configurations were benchmarked under identical seeds:
+\begin{enumerate}
+    \item Google OR-Tools alone (Guided Local Search baseline).
+    \item OR-Tools + Deep VND post-repair.
+    \item OR-Tools + Tabu Search + Deep VND.
+    \item Legacy ROUTE/IQ Cooperative Engine (Phase 5 baseline).
+    \item Ablation 1: Next-Gen without QAOA operator.
+    \item Ablation 2: Next-Gen without QIGA operator.
+    \item Ablation 3: Next-Gen without Candidate Exchange blackboard.
+    \item Ablation 4: Next-Gen with uniform random operator selection (no MAB).
+    \item Full Proposed ROUTE/IQ-NextGen Cooperative Engine.
+\end{enumerate}
