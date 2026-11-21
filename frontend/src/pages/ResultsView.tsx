@@ -39,6 +39,15 @@ import { EnergyResourceAnalysis } from '../components/EnergyResourceAnalysis';
 import { AlgorithmComparisonScorecard } from '../components/AlgorithmComparisonScorecard';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  ALGORITHM_COLOR_FAMILIES,
+  getVehicleRouteStyle,
+  getContrastTextColor,
+  normalizeAlgorithmId,
+  getAlgorithmDisplayName,
+  AlgorithmColorDefinition,
+  VehicleRouteStyle,
+} from '../utils/routeColors';
 
 const getDepotIcon = (isDark: boolean) =>
   L.divIcon({
@@ -64,104 +73,23 @@ export interface AlgorithmVisualTheme {
   darkVehicleColors: string[];
 }
 
-export const ALGORITHM_THEMES: Record<string, AlgorithmVisualTheme> = {
-  routeiq_cooperative: {
-    primary: '#8B5CF6',
-    badgeBg: 'bg-purple-500/15',
-    badgeText: 'text-purple-600 dark:text-purple-400',
-    border: 'border-purple-500/40',
-    lightVehicleColors: ['#7C3AED', '#9333EA', '#6D28D9', '#A855F7', '#5B21B6', '#C084FC'],
-    darkVehicleColors: ['#A78BFA', '#C4B5FD', '#8B5CF6', '#DDD6FE', '#7C3AED', '#EDE9FE'],
-  },
-  ortools: {
-    primary: '#10B981',
-    badgeBg: 'bg-emerald-500/15',
-    badgeText: 'text-emerald-600 dark:text-emerald-400',
-    border: 'border-emerald-500/40',
-    lightVehicleColors: ['#059669', '#047857', '#10B981', '#065F46', '#34D399', '#022C22'],
-    darkVehicleColors: ['#10B981', '#34D399', '#6EE7B7', '#059669', '#A7F3D0', '#047857'],
-  },
-  classical: {
-    primary: '#10B981',
-    badgeBg: 'bg-emerald-500/15',
-    badgeText: 'text-emerald-600 dark:text-emerald-400',
-    border: 'border-emerald-500/40',
-    lightVehicleColors: ['#059669', '#047857', '#10B981', '#065F46', '#34D399', '#022C22'],
-    darkVehicleColors: ['#10B981', '#34D399', '#6EE7B7', '#059669', '#A7F3D0', '#047857'],
-  },
-  clarke_wright: {
-    primary: '#F59E0B',
-    badgeBg: 'bg-amber-500/15',
-    badgeText: 'text-amber-600 dark:text-amber-400',
-    border: 'border-amber-500/40',
-    lightVehicleColors: ['#D97706', '#B45309', '#F59E0B', '#92400E', '#FBBF24', '#78350F'],
-    darkVehicleColors: ['#F59E0B', '#FBBF24', '#FCD34D', '#D97706', '#FEF3C7', '#B45309'],
-  },
-  two_opt: {
-    primary: '#06B6D4',
-    badgeBg: 'bg-cyan-500/15',
-    badgeText: 'text-cyan-600 dark:text-cyan-400',
-    border: 'border-cyan-500/40',
-    lightVehicleColors: ['#0891B2', '#0E7490', '#06B6D4', '#155E75', '#22D3EE', '#164E63'],
-    darkVehicleColors: ['#06B6D4', '#22D3EE', '#67E8F9', '#0891B2', '#A5F3FC', '#0E7490'],
-  },
-  dijkstra: {
-    primary: '#3B82F6',
-    badgeBg: 'bg-blue-500/15',
-    badgeText: 'text-blue-600 dark:text-blue-400',
-    border: 'border-blue-500/40',
-    lightVehicleColors: ['#2563EB', '#1D4ED8', '#3B82F6', '#1E40AF', '#60A5FA', '#172554'],
-    darkVehicleColors: ['#3B82F6', '#60A5FA', '#93C5FD', '#2563EB', '#BFDBFE', '#1D4ED8'],
-  },
-  astar: {
-    primary: '#14B8A6',
-    badgeBg: 'bg-teal-500/15',
-    badgeText: 'text-teal-600 dark:text-teal-400',
-    border: 'border-teal-500/40',
-    lightVehicleColors: ['#0D9488', '#0F766E', '#14B8A6', '#115E59', '#2DD4BF', '#134E4A'],
-    darkVehicleColors: ['#14B8A6', '#2DD4BF', '#5EEAD4', '#0D9488', '#99F6E4', '#0F766E'],
-  },
-  tabu_search: {
-    primary: '#F97316',
-    badgeBg: 'bg-orange-500/15',
-    badgeText: 'text-orange-600 dark:text-orange-400',
-    border: 'border-orange-500/40',
-    lightVehicleColors: ['#EA580C', '#C2410C', '#F97316', '#9A3412', '#FB923C', '#7C2D12'],
-    darkVehicleColors: ['#F97316', '#FB923C', '#FDBA74', '#EA580C', '#FED7AA', '#C2410C'],
-  },
-  kernighan_lin: {
-    primary: '#F43F5E',
-    badgeBg: 'bg-rose-500/15',
-    badgeText: 'text-rose-600 dark:text-rose-400',
-    border: 'border-rose-500/40',
-    lightVehicleColors: ['#E11D48', '#BE123C', '#F43F5E', '#9F1239', '#FB7185', '#881337'],
-    darkVehicleColors: ['#F43F5E', '#FB7185', '#FDA4AF', '#E11D48', '#FECDD3', '#BE123C'],
-  },
-  vnd: {
-    primary: '#EC4899',
-    badgeBg: 'bg-pink-500/15',
-    badgeText: 'text-pink-600 dark:text-pink-400',
-    border: 'border-pink-500/40',
-    lightVehicleColors: ['#DB2777', '#BE185D', '#EC4899', '#9D174D', '#F472B6', '#831843'],
-    darkVehicleColors: ['#EC4899', '#F472B6', '#F472B6', '#DB2777', '#FBCFE8', '#BE185D'],
-  },
-  qaoa: {
-    primary: '#B7FF2A',
-    badgeBg: 'bg-lime-500/15',
-    badgeText: 'text-lime-600 dark:text-[#B7FF2A]',
-    border: 'border-lime-500/40',
-    lightVehicleColors: ['#65A30D', '#4D7C0F', '#84CC16', '#3F6212', '#A3E635', '#1A2E05'],
-    darkVehicleColors: ['#B7FF2A', '#CCFF00', '#D9F99D', '#A3E635', '#BEF264', '#65A30D'],
-  },
-  qiga: {
-    primary: '#D946EF',
-    badgeBg: 'bg-fuchsia-500/15',
-    badgeText: 'text-fuchsia-600 dark:text-fuchsia-400',
-    border: 'border-fuchsia-500/40',
-    lightVehicleColors: ['#C026D3', '#A21CAF', '#D946EF', '#86198F', '#E879F9', '#701A75'],
-    darkVehicleColors: ['#D946EF', '#E879F9', '#F0ABFC', '#C026D3', '#F5D0FE', '#A21CAF'],
-  },
-};
+/**
+ * Standardized Algorithm Themes backed by centralized routeColors system.
+ * Guaranteed 1:1 match with ALGORITHM_COLOR_FAMILIES.
+ */
+export const ALGORITHM_THEMES: Record<string, AlgorithmVisualTheme> = Object.fromEntries(
+  Object.entries(ALGORITHM_COLOR_FAMILIES).map(([k, v]) => [
+    k,
+    {
+      primary: v.baseColor,
+      badgeBg: v.badgeBg,
+      badgeText: v.badgeText,
+      border: v.border,
+      lightVehicleColors: v.lightShades,
+      darkVehicleColors: v.darkShades,
+    },
+  ])
+);
 
 function getRouteIdentityDiagnostics(
   summaryDiag?: RouteIdentityDiagnostics,
@@ -334,14 +262,12 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   };
 
 const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) => {
-  const isLime = color.toUpperCase() === '#B7FF2A';
+  const textColor = getContrastTextColor(color);
   return L.divIcon({
     className: 'custom-vehicle-pin',
     html: `<div style="background-color: ${color}; border: 2px solid ${
       isDark ? '#000000' : '#FFFFFF'
-    }; color: ${
-      isLime ? '#080808' : '#FFFFFF'
-    }; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
+    }; color: ${textColor}; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
     iconSize: [36, 24],
     iconAnchor: [18, 12],
     popupAnchor: [0, -14],
@@ -364,8 +290,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       : algoKeys[0] || 'classical';
 
   const [activeAlgo, setActiveAlgo] = useState<string>(initialAlgo);
+  const [showComparativeOverlay, setShowComparativeOverlay] = useState<boolean>(false);
+  const activeFamily = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(activeAlgo)] || ALGORITHM_COLOR_FAMILIES.ortools;
   const currentTheme = ALGORITHM_THEMES[activeAlgo] || ALGORITHM_THEMES.ortools;
-  const activeRouteColors = isDark ? currentTheme.darkVehicleColors : currentTheme.lightVehicleColors;
+  const activeRouteColors = isDark ? activeFamily.darkShades : activeFamily.lightShades;
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [showAdvancedTabs, setShowAdvancedTabs] = useState<boolean>(false);
   const lastExperimentIdRef = useRef<string | null>(result?.experiment_id || null);
@@ -396,6 +324,37 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
   const currentResult = resultsMap[activeAlgo] || resultsMap[initialAlgo] || Object.values(resultsMap)[0];
   const problemLocations = result?.problem?.locations || [];
+
+  // Determine comparative baseline algorithm for overlay
+  const compareAlgoKey = useMemo(() => {
+    if (activeAlgo === 'routeiq_cooperative') {
+      return resultsMap.ortools ? 'ortools' : resultsMap.classical ? 'classical' : null;
+    }
+    return resultsMap.routeiq_cooperative ? 'routeiq_cooperative' : (resultsMap.ortools ? 'ortools' : null);
+  }, [activeAlgo, resultsMap]);
+
+  const compareResult = compareAlgoKey ? resultsMap[compareAlgoKey] : null;
+
+  const compareRoutePositionsList = useMemo(() => {
+    if (!compareResult?.routes) return [];
+    return compareResult.routes.map((route) => {
+      if (route.waypoints && route.waypoints.length > 1) {
+        return route.waypoints.map((w) => [w.lat, w.lon] as [number, number]);
+      }
+      if (route.stops && route.stops.length > 1 && problemLocations.length > 0) {
+        return route.stops
+          .filter((s) => s >= 0 && s < problemLocations.length)
+          .map((s) => [problemLocations[s].lat, problemLocations[s].lon] as [number, number]);
+      }
+      if (route.customer_stops && route.customer_stops.length > 0 && problemLocations.length > 0) {
+        const fullStops = [0, ...route.customer_stops, 0];
+        return fullStops
+          .filter((s) => s >= 0 && s < problemLocations.length)
+          .map((s) => [problemLocations[s].lat, problemLocations[s].lon] as [number, number]);
+      }
+      return [] as [number, number][];
+    });
+  }, [compareResult, problemLocations]);
 
   const routePositionsList = useMemo(() => {
     return (currentResult?.routes ?? []).map((route) => {
@@ -721,7 +680,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                   const data = resultsMap[key];
                   const isSelected = activeAlgo === key;
                   const isBest = key === bestAlgoId;
-                  const algoName = data?.algorithm_name || key.toUpperCase();
+                  const algoName = getAlgorithmDisplayName(key, data?.algorithm_name);
+                  const family = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(key)] || ALGORITHM_COLOR_FAMILIES.ortools;
 
                   return (
                     <button
@@ -733,6 +693,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                           : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
                       }`}
                     >
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0 shadow-2xs"
+                        style={{ backgroundColor: family.baseColor }}
+                        title={`${family.familyName} Color Family`}
+                      />
                       <span>{algoName}</span>
                       <span className="text-[9px] opacity-75 font-normal tabular-nums">
                         {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
@@ -778,7 +743,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     const isSelected = activeAlgo === key;
                     const isBest = key === bestAlgoId;
                     const isOrtools = key === 'ortools' || key === 'classical';
-                    const algoName = data?.algorithm_name || key.toUpperCase();
+                    const algoName = getAlgorithmDisplayName(key, data?.algorithm_name);
+                    const family = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(key)] || ALGORITHM_COLOR_FAMILIES.ortools;
 
                     return (
                       <button
@@ -790,6 +756,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                             : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
                         }`}
                       >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: family.baseColor }}
+                          title={`${family.familyName} Color Family`}
+                        />
                         <span>{algoName}</span>
                         {isOrtools && (
                           <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold">
@@ -998,9 +969,29 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               );
             })}
 
-            {/* Vehicle Routes Polylines & Driver Badges (V1, V2...) */}
+            {/* Optional Comparative Overlay Routes (Reduced Opacity, Preserves Comparative Color Family) */}
+            {showComparativeOverlay && compareAlgoKey && compareResult && (
+              compareResult.routes.map((route, cIdx) => {
+                const positions = compareRoutePositionsList[cIdx] || [];
+                const style = getVehicleRouteStyle(compareAlgoKey, cIdx, isDark, compareResult.routes.length);
+                return positions.length > 1 ? (
+                  <Polyline
+                    key={`compare-overlay-${compareAlgoKey}-v${cIdx + 1}-${positions.length}`}
+                    positions={positions}
+                    color={style.color}
+                    weight={2.5}
+                    opacity={0.35}
+                    dashArray="5, 5"
+                  />
+                ) : null;
+              })
+            )}
+
+            {/* Selected Active Algorithm Vehicle Routes Polylines & Driver Badges (V1, V2...) */}
             {(currentResult?.routes ?? []).map((route, rIdx) => {
-              const color = activeRouteColors[rIdx % activeRouteColors.length];
+              const totalVehicles = (currentResult?.routes ?? []).length;
+              const routeStyle = getVehicleRouteStyle(activeAlgo, rIdx, isDark, totalVehicles);
+              const color = routeStyle.color;
               const driverNumber = rIdx + 1;
               const positions = routePositionsList[rIdx] || [];
               const midPoint = positions.length > 2 ? positions[Math.floor(positions.length / 2)] : positions[0];
@@ -1014,7 +1005,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       color={color}
                       weight={4.5}
                       opacity={0.95}
-                      dashArray={rIdx % 2 === 1 ? '5, 5' : undefined}
+                      dashArray={routeStyle.dashArray}
                     />
                   )}
                   {midPoint && (
@@ -1024,14 +1015,28 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       icon={createVehicleIcon(driverNumber, color, isDark)}
                     >
                       <Popup>
-                        <div className="text-xs font-heading space-y-0.5">
-                          <strong className="text-[#080808] dark:text-[#F5F5F7]">Fleet Vehicle Driver V{driverNumber} ({currentResult?.algorithm_name || activeAlgo})</strong>
-                          <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km</span>
-                          <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Load: {Math.round(route.load || 0)} units</span>
-                          <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Waypoints: {positions.length} coordinates</span>
+                        <div className="text-xs font-heading space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                            <strong className="text-[#080808] dark:text-[#F5F5F7]">
+                              Fleet Vehicle Driver V{driverNumber}
+                            </strong>
+                          </div>
+                          <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                            Algorithm: <strong className="text-[#080808] dark:text-white">{getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</strong>
+                          </div>
+                          <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                            Assigned Shade: <span className="font-semibold" style={{ color }}>{routeStyle.shadeName}</span> ({routeStyle.familyName} Family)
+                          </div>
+                          <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
+                            Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
+                          </div>
+                          <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
+                            Load: {Math.round(route.load || 0)} units
+                          </div>
+                          <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
+                            Waypoints: {positions.length} coordinates
+                          </div>
                         </div>
                       </Popup>
                     </Marker>
@@ -1043,67 +1048,158 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           {/* Floating Selected Algorithm Badge Header */}
           <div className="absolute top-4 left-4 z-[1000] glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] px-3.5 py-2.5 rounded-2xl shadow-lg backdrop-blur-xl flex items-center gap-3 pointer-events-auto">
-            <span className="h-3 w-3 rounded-full bg-[#B7FF2A] ring-2 ring-black/20 animate-pulse" />
+            <span
+              className="h-3 w-3 rounded-full ring-2 ring-black/20 animate-pulse"
+              style={{ backgroundColor: activeFamily.baseColor }}
+            />
             <div className="text-xs">
-              <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-semibold">
-                {currentResult?.algorithm_name || activeAlgo}
-              </strong>
+              <div className="flex items-center gap-1.5">
+                <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-semibold">
+                  {getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}
+                </strong>
+                <span
+                  className="text-[9px] px-1.5 py-0.2 rounded font-bold"
+                  style={{
+                    backgroundColor: `${activeFamily.baseColor}20`,
+                    color: activeFamily.baseColor,
+                  }}
+                >
+                  {activeFamily.familyName}
+                </span>
+              </div>
               <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-normal tabular-nums">
                 {currentResult?.total_distance_km ? `${currentResult.total_distance_km.toFixed(1)} km` : '0.0 km'} · {activeRoutesCount} Active Driver{activeRoutesCount !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
 
-          {/* Fit To Route Button */}
-          <button
-            type="button"
-            onClick={() => setFitTrigger((t) => t + 1)}
-            className="absolute top-4 right-4 z-[1000] px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold pointer-events-auto"
-            title="Fit Map to Selected Algorithm Route"
-          >
-            <Maximize2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
-            <span className="hidden sm:inline">Fit Route</span>
-          </button>
+          {/* Map Control Buttons: Fit Route & Compare Overlay */}
+          <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2 pointer-events-auto">
+            {compareAlgoKey && (
+              <button
+                type="button"
+                onClick={() => setShowComparativeOverlay(!showComparativeOverlay)}
+                className={`px-3 py-2 rounded-2xl text-xs font-semibold shadow-lg backdrop-blur-xl transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  showComparativeOverlay
+                    ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] border-black dark:border-[#B7FF2A]/50 ring-1 ring-[#B7FF2A]/30'
+                    : 'bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border-black/10 dark:border-[#29292E] hover:scale-105'
+                }`}
+                title={showComparativeOverlay ? 'Hide Comparative Overlay' : `Overlay ${resultsMap[compareAlgoKey]?.algorithm_name || compareAlgoKey} Baseline`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {showComparativeOverlay ? 'Hide Overlay' : `Overlay ${activeAlgo === 'routeiq_cooperative' ? 'OR-Tools' : 'Cooperative'}`}
+                </span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setFitTrigger((t) => t + 1)}
+              className="px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+              title="Fit Map to Selected Algorithm Route"
+            >
+              <Maximize2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
+              <span className="hidden sm:inline">Fit Route</span>
+            </button>
+          </div>
 
           {/* Geometry Missing / Error Notice */}
           {hasNoGeometry && (
             <div className="absolute top-18 left-4 z-[1000] bg-amber-500/20 border border-amber-500/50 text-amber-800 dark:text-amber-300 px-3.5 py-2 rounded-2xl text-xs font-semibold shadow-lg backdrop-blur-xl flex items-center gap-2 pointer-events-auto">
               <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>No road geometry available for {currentResult?.algorithm_name || activeAlgo}</span>
+              <span>No road geometry available for {getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</span>
             </div>
           )}
 
           {/* Floating Map Legend Overlay */}
-          <div className="absolute bottom-4 left-4 glass-overlay bg-white/80 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg backdrop-blur-xl flex-wrap">
-            <span className="flex items-center gap-1.5 font-semibold text-[#080808] dark:text-[#B7FF2A] border-r border-black/10 dark:border-white/10 pr-3">
-              <Route className="h-3.5 w-3.5 text-[#B7FF2A]" />
-              <span>{currentResult?.algorithm_name || activeAlgo}</span>
-            </span>
-            <span className="font-semibold text-[#080808] dark:text-[#F5F5F7]">Legend:</span>
-            <span className="flex items-center gap-1.5 font-normal text-[#171717] dark:text-[#F5F5F7]">
-              <span className="h-3 w-3 rounded-full bg-[#B7FF00] border border-black flex items-center justify-center text-[7px] font-bold text-black">
-                D
+          <div className="absolute bottom-4 left-4 glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-3.5 py-2.5 rounded-2xl text-[11px] z-[1000] shadow-lg backdrop-blur-xl flex flex-col gap-2 max-w-[94vw] sm:max-w-xl pointer-events-auto">
+            {/* Top row: Algorithm Name & Base Color Family Badge */}
+            <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 pb-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                <Route className="h-3.5 w-3.5" style={{ color: activeFamily.baseColor }} />
+                <span>{getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</span>
+                <span
+                  className="text-[10px] px-2 py-0.2 rounded-full font-bold ml-1 border"
+                  style={{
+                    backgroundColor: `${activeFamily.baseColor}20`,
+                    color: activeFamily.baseColor,
+                    borderColor: `${activeFamily.baseColor}50`,
+                  }}
+                >
+                  {activeFamily.familyName} Family
+                </span>
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] tabular-nums">
+                {activeRoutesCount} Active Vehicle Route{activeRoutesCount !== 1 ? 's' : ''}
               </span>
-              <span>Origin Hub</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-normal text-[#171717] dark:text-[#F5F5F7]">
-              <span className="h-3 w-3 rounded-full bg-[#080808] dark:bg-[#141418] border border-white dark:border-[#B7FF00] flex items-center justify-center text-[7px] font-bold text-white dark:text-[#B7FF00]">
-                #
+            </div>
+
+            {/* Middle row: Vehicle Route Swatches (V1, V2, V3...) with their distinct shades */}
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+              <span className="text-[#777777] dark:text-[#71717A] font-semibold uppercase text-[9px] tracking-wider shrink-0">
+                Vehicle Shades:
               </span>
-              <span>Customer Stops (1, 2, 3...)</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-normal text-[#171717] dark:text-[#F5F5F7]">
-              <span className="px-1.5 py-0.5 rounded-full bg-[#080808] text-[#B7FF00] border border-[#B7FF00] text-[9px] font-semibold">
-                V1..Vn
+              {(currentResult?.routes ?? []).map((_, rIdx) => {
+                const totalVehicles = (currentResult?.routes ?? []).length;
+                const style = getVehicleRouteStyle(activeAlgo, rIdx, isDark, totalVehicles);
+                const driverNumber = rIdx + 1;
+                return (
+                  <div
+                    key={`legend-v-${activeAlgo}-${driverNumber}`}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10"
+                    title={`Vehicle ${driverNumber}: ${style.shadeName} (${style.familyName} Family)`}
+                  >
+                    <span
+                      className="h-2.5 w-3.5 rounded-xs shrink-0"
+                      style={{
+                        backgroundColor: style.color,
+                        border: style.dashArray ? '1px dashed currentColor' : 'none',
+                      }}
+                    />
+                    <strong className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                      V{driverNumber}
+                    </strong>
+                    <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] hidden md:inline">
+                      ({style.shadeName})
+                    </span>
+                  </div>
+                );
+              })}
+              {(currentResult?.routes ?? []).length === 0 && (
+                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] italic">No active vehicle routes</span>
+              )}
+            </div>
+
+            {/* Bottom row: Standard Markers (Depot, Customer stops, Unvisited) & Overlay status */}
+            <div className="flex items-center gap-3 pt-1 border-t border-black/5 dark:border-white/5 text-[10px] text-[#555555] dark:text-[#A1A1AA] flex-wrap">
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#B7FF00] border border-black text-[6px] font-bold text-black flex items-center justify-center">
+                  D
+                </span>
+                <span>Origin Hub</span>
               </span>
-              <span>Fleet Vehicles</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
-              <span className="h-3 w-3 rounded-full bg-red-100 dark:bg-red-950 border border-dashed border-red-500 flex items-center justify-center text-[7px] font-bold text-red-500">
-                !
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#080808] dark:bg-[#141418] border border-white dark:border-[#B7FF00] text-[6px] font-bold text-white dark:text-[#B7FF00] flex items-center justify-center">
+                  #
+                </span>
+                <span>Customer Stops</span>
               </span>
-              <span>Unvisited</span>
-            </span>
+              {currentVisitedIndices.size < Math.max(0, (result.problem?.locations?.length || 1) - 1) && (
+                <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-100 dark:bg-red-950 border border-dashed border-red-500 text-[6px] font-bold text-red-500 flex items-center justify-center">
+                    !
+                  </span>
+                  <span>Unvisited</span>
+                </span>
+              )}
+              {showComparativeOverlay && compareAlgoKey && (
+                <span className="ml-auto flex items-center gap-1 text-[9px] font-semibold text-blue-500">
+                  <span className="h-1.5 w-3 border-b-2 border-dashed border-current" />
+                  <span>Overlay: {getAlgorithmDisplayName(compareAlgoKey, resultsMap[compareAlgoKey]?.algorithm_name)} (35% Opacity)</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1112,12 +1208,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           {/* Driver Schedule Sequences */}
           <div className="space-y-2.5 pb-4 border-b border-black/10 dark:border-[#29292E]">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
-              Driver Vehicle Schedules ({currentResult?.algorithm_name || activeAlgo})
+              Driver Vehicle Schedules ({getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)})
             </span>
 
             <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
               {(currentResult?.routes ?? []).map((route: VehicleRoute, idx: number) => {
-                const color = activeRouteColors[idx % activeRouteColors.length];
+                const totalVehicles = (currentResult?.routes ?? []).length;
+                const routeStyle = getVehicleRouteStyle(activeAlgo, idx, isDark, totalVehicles);
+                const color = routeStyle.color;
                 const driverNumber = idx + 1;
                 const stopsArr = route.stops ?? [];
                 const vp = route.vehicle_profile;
@@ -1136,9 +1234,16 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         <div
                           className="h-2.5 w-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: color }}
+                          title={`Color: ${routeStyle.shadeName}`}
                         />
                         <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7]">
                           {vp?.name || `Driver #${driverNumber}`}
+                        </span>
+                        <span
+                          className="text-[9px] px-1.5 py-0.2 rounded font-normal"
+                          style={{ backgroundColor: `${color}20`, color: color }}
+                        >
+                          {routeStyle.shadeName}
                         </span>
                         <span className="text-[9px] px-1.5 py-0.2 rounded font-normal capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
                           {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}
