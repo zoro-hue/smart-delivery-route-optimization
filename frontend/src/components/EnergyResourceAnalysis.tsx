@@ -743,7 +743,7 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                   <strong>Traffic Slowdown:</strong> F_traffic = 1.0 + 0.20 × (Traffic_Factor - 1.0). Accounts for urban stop-and-go idling and braking losses.
                 </li>
                 <li>
-                  <strong>Scientific Data Tags:</strong> Distance = <code>MEASURED</code>; Duration, Fuel & Energy = <code>ESTIMATED</code>; Vehicle specs, Fuel prices & Grid carbon = <code>ASSUMED</code>.
+                  <strong>Scientific Data Provenance:</strong> Distance = <code>COMPUTED</code> (verified road network graph paths); Duration, Fuel & Energy = <code>ESTIMATED</code> (physical models & traffic factors); QAOA = <code>SIMULATED</code> (classical CPU statevector emulation); Vehicle specs, Fuel prices & Grid carbon = <code>ASSUMED</code>.
                 </li>
               </ul>
             </div>

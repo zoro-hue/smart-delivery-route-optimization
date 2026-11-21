@@ -120,7 +120,18 @@ class ClassicalVRPSolver:
         """
         routing_enums_pb2, pywrapcp = _try_import_ortools()
         if pywrapcp is None:
-            return self._fallback_solver(distance_matrix, num_vehicles, depot, demands, vehicle_capacities)
+            logger.error("OR-Tools library is not installed in the Python environment")
+            return {
+                "success": False,
+                "algorithm": "ortools",
+                "algorithm_name": "Google OR-Tools",
+                "category": "classical",
+                "status": "FAILED",
+                "error": "Google OR-Tools library is not installed in the environment.",
+                "routes": [],
+                "total_distance_km": 0.0,
+                "is_feasible": False,
+            }
 
         t0 = time.time()
         n = len(distance_matrix)
@@ -225,13 +236,24 @@ class ClassicalVRPSolver:
         solution = routing.SolveWithParameters(search_params)
         exec_time = time.time() - t0
 
-        # If OR-Tools failed or timed out, fallback
+        # If OR-Tools failed or timed out, report honest failure
         if not solution:
             status_name = self._get_status_name(routing.status())
-            log_lines.append(f"OR-Tools status: {status_name}. Falling back to heuristic solver.")
-            fallback = self._fallback_solver(distance_matrix, num_vehicles, depot, demands, vehicle_capacities)
-            fallback["solver_log"] = "\n".join(log_lines) + "\n" + fallback.get("solver_log", "")
-            return fallback
+            log_lines.append(f"OR-Tools status: {status_name}. No feasible route found.")
+            return {
+                "success": False,
+                "algorithm": "ortools",
+                "algorithm_name": "Google OR-Tools",
+                "category": "classical",
+                "status": "FAILED",
+                "error": f"OR-Tools solver failed ({status_name}): No feasible route satisfies capacity/range constraints.",
+                "routes": [],
+                "total_distance_km": 0.0,
+                "total_load": 0,
+                "execution_time_sec": round(exec_time, 3),
+                "is_feasible": False,
+                "solver_log": "\n".join(log_lines),
+            }
 
         # Extract solution
         routes = []
@@ -277,12 +299,23 @@ class ClassicalVRPSolver:
         for r_i, r in enumerate(routes, start=1):
             r["vehicle_id"] = r_i
 
-        # If OR-Tools produced 0 routes (all customers dropped), fallback
+        # If OR-Tools produced 0 routes (all customers dropped), report honest failure
         if len(routes) == 0:
-            log_lines.append("OR-Tools produced 0 routes (all customers dropped). Falling back to heuristic.")
-            fallback = self._fallback_solver(distance_matrix, num_vehicles, depot, demands, vehicle_capacities)
-            fallback["solver_log"] = "\n".join(log_lines) + "\n" + fallback.get("solver_log", "")
-            return fallback
+            log_lines.append("OR-Tools produced 0 routes (no customers served).")
+            return {
+                "success": False,
+                "algorithm": "ortools",
+                "algorithm_name": "Google OR-Tools",
+                "category": "classical",
+                "status": "FAILED",
+                "error": "OR-Tools produced 0 valid routes.",
+                "routes": [],
+                "total_distance_km": 0.0,
+                "total_load": 0,
+                "execution_time_sec": round(exec_time, 3),
+                "is_feasible": False,
+                "solver_log": "\n".join(log_lines),
+            }
 
         # Guarantee 100% customer coverage: greedily insert any dropped/unserved nodes
         served_nodes = set()

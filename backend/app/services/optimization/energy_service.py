@@ -231,11 +231,14 @@ def compute_vehicle_route_energy(
     has_activity = stops_count > 0 and dist_km > 0.0
 
     battery_capacity_kwh = float(vp.get("battery_capacity_kwh", 60.0) or 60.0)
-    battery_soc_pct = float(vp.get("battery_soc_pct", 100.0) if vp.get("battery_soc_pct") is not None else 100.0)
-    battery_soh_pct = float(vp.get("battery_soh_pct", 100.0) if vp.get("battery_soh_pct") is not None else 100.0)
+    battery_soc_raw = vp.get("battery_soc_percent") if vp.get("battery_soc_percent") is not None else vp.get("battery_soc_pct")
+    battery_soc_pct = float(battery_soc_raw if battery_soc_raw is not None else 100.0)
+    battery_soh_raw = vp.get("battery_soh_percent") if vp.get("battery_soh_percent") is not None else vp.get("battery_soh_pct")
+    battery_soh_pct = float(battery_soh_raw if battery_soh_raw is not None else 100.0)
 
     fuel_tank_capacity_l = float(vp.get("fuel_tank_capacity_l", 60.0) or 60.0)
-    fuel_level_pct = float(vp.get("fuel_level_pct", 100.0) if vp.get("fuel_level_pct") is not None else 100.0)
+    fuel_level_raw = vp.get("fuel_tank_level_percent") if vp.get("fuel_tank_level_percent") is not None else vp.get("fuel_level_pct")
+    fuel_level_pct = float(fuel_level_raw if fuel_level_raw is not None else 100.0)
 
     usable_range_km = float(vp.get("usable_range_km", 250.0) or 250.0)
     max_shift_hours = float(vp.get("max_shift_hours", 8.0) or 8.0)

@@ -267,7 +267,7 @@ export interface AlgorithmEnergyProfile {
   total_co2_kg: number;
   operational_cost_usd: number;
   vehicle_breakdowns: VehicleRouteEnergy[];
-  data_tags?: Record<string, 'MEASURED' | 'ESTIMATED' | 'ASSUMED' | 'UNAVAILABLE'>;
+  data_tags?: Record<string, 'MEASURED' | 'COMPUTED' | 'ESTIMATED' | 'ASSUMED' | 'SIMULATED' | 'UNAVAILABLE' | 'INVALID'>;
 }
 
 export interface EnergyComparison {

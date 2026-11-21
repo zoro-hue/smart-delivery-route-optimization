@@ -117,7 +117,7 @@ export const PROPULSION_MODELS_FRONTEND: Record<VehiclePropulsionType, Propulsio
 };
 
 export const SCIENTIFIC_DATA_TAGS = {
-  distance: 'MEASURED' as const,
+  distance: 'COMPUTED' as const,
   duration: 'ESTIMATED' as const,
   fuel_consumption: 'ESTIMATED' as const,
   energy_consumption: 'ESTIMATED' as const,
@@ -126,6 +126,7 @@ export const SCIENTIFIC_DATA_TAGS = {
   vehicle_propulsion_model: 'ASSUMED' as const,
   fuel_and_electricity_prices: 'ASSUMED' as const,
   grid_carbon_intensity: 'ASSUMED' as const,
+  qaoa_circuit_simulation: 'SIMULATED' as const,
 };
 
 export function computeRouteLoadFactor(
