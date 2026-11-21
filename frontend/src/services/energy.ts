@@ -19,9 +19,7 @@ import {
   VehicleRouteEnergy,
   AlgorithmEnergyProfile,
   EnergyComparison,
-  FullEnergyAnalysis,
   VehicleRoute,
-  ComparisonItem,
 } from '../types';
 
 export interface PropulsionModelConfig {

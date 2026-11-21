@@ -426,6 +426,20 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
     return visited;
   }, [currentResult]);
 
+  // Hook 8: Unconditionally compute route identity diagnostics before any conditional return
+  const routeDiagnostics = useMemo(() => {
+    return getRouteIdentityDiagnostics(
+      result?.comparison_summary?.route_identity_diagnostics,
+      resultsMap.routeiq_cooperative,
+      resultsMap.ortools || resultsMap.classical
+    );
+  }, [
+    result?.comparison_summary?.route_identity_diagnostics,
+    resultsMap.routeiq_cooperative,
+    resultsMap.ortools,
+    resultsMap.classical,
+  ]);
+
   if (!result || algoKeys.length === 0) {
     return (
       <div className="py-20 text-center space-y-4">
@@ -442,17 +456,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       </div>
     );
   }
+
   const comparisonItems = result.comparison_summary?.items || [];
   const bestAlgoId = result.best_feasible_algorithm || result.comparison_summary?.best_algorithm;
   const bestAlgoItem = comparisonItems.find((it) => it.id === bestAlgoId);
-
-  const routeDiagnostics = useMemo(() => {
-    return getRouteIdentityDiagnostics(
-      result.comparison_summary?.route_identity_diagnostics,
-      resultsMap.routeiq_cooperative,
-      resultsMap.ortools || resultsMap.classical
-    );
-  }, [result.comparison_summary?.route_identity_diagnostics, resultsMap.routeiq_cooperative, resultsMap.ortools, resultsMap.classical]);
 
   // Handle Export CSV
   const handleExportCSV = () => {
