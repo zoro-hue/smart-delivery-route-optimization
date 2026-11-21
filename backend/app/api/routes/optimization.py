@@ -869,6 +869,10 @@ def _build_comparison_summary(
             continue
         algo_data = results[algo_key]
         res_m = algo_data.get("resource_metrics", {})
+        val = algo_data.get("validation", {})
+        is_feas = algo_data.get("is_feasible", val.get("is_feasible", algo_data.get("success", False)))
+        cap_viol = algo_data.get("capacity_violations", val.get("capacity_violations", 0))
+        unserved = algo_data.get("unserved_customers", val.get("unserved_count", 0))
         comparison_items.append({
             "id": algo_key,
             "name": algo_data.get("algorithm_name", algo_key.upper()),
@@ -888,10 +892,10 @@ def _build_comparison_summary(
             "operational_speed_kmh": algo_data.get("operational_speed_kmh", 40.0),
             "speed_model": algo_data.get("speed_model", {}),
             "total_objective_cost": algo_data.get("total_objective_cost", 0.0),
-            "is_feasible": algo_data.get("is_feasible", False),
-            "capacity_violations": algo_data.get("capacity_violations", 0),
-            "unserved_customers": algo_data.get("unserved_customers", 0),
-            "served_customers": algo_data.get("served_customers", (n - 1) - algo_data.get("unserved_customers", 0)),
+            "is_feasible": is_feas,
+            "capacity_violations": cap_viol,
+            "unserved_customers": unserved,
+            "served_customers": algo_data.get("served_customers", (n - 1) - unserved),
             "vehicles_used": len(algo_data.get("routes", [])),
             "convergence_info": algo_data.get("convergence_info", {}),
             "cpu_utilization_percent": res_m.get("cpu_utilization_percent", 0.0),
@@ -909,10 +913,13 @@ def _build_comparison_summary(
 
     def _comparison_rank_key(item: Dict[str, Any]) -> Tuple:
         is_feas = (
-            item.get("status") in ("SUCCESS", "FEASIBLE") and
-            item["is_feasible"] and
-            item["capacity_violations"] == 0 and
-            item["unserved_customers"] == 0
+            item.get("status") not in ("FAILED", "TIMED_OUT", "CANCELLED", "ERROR", "TIMEOUT") and
+            not item.get("error") and
+            item.get("is_feasible", False) and
+            item.get("capacity_violations", 0) == 0 and
+            item.get("unserved_customers", 0) == 0 and
+            item.get("total_distance_km", 0.0) > 0.0 and
+            item.get("vehicles_used", 0) > 0
         )
         feas_rank = 0 if is_feas else 1
         flagship_pref = 0 if item["id"] == "routeiq_cooperative" else 1
@@ -928,24 +935,47 @@ def _build_comparison_summary(
 
     comparison_items.sort(key=_comparison_rank_key)
 
-    best_item = comparison_items[0] if comparison_items else None
-    if best_item and (best_item["is_feasible"] and best_item["capacity_violations"] == 0 and best_item["unserved_customers"] == 0):
+    valid_items = [
+        it for it in comparison_items
+        if (
+            it.get("status") not in ("FAILED", "TIMED_OUT", "CANCELLED", "ERROR", "TIMEOUT") and
+            not it.get("error") and
+            it.get("is_feasible", False) and
+            it.get("capacity_violations", 0) == 0 and
+            it.get("unserved_customers", 0) == 0 and
+            it.get("total_distance_km", 0.0) > 0.0 and
+            it.get("vehicles_used", 0) > 0
+        )
+    ]
+
+    if valid_items:
+        valid_items.sort(key=lambda x: (
+            x["total_distance_km"],
+            0 if x["id"] == "routeiq_cooperative" else 1,
+            x["execution_time_sec"]
+        ))
+        best_item = valid_items[0]
         best_item["is_best"] = True
         best_reason = f"Lowest route distance ({best_item['total_distance_km']} km) with 100% stop coverage and 0 constraint violations"
-    elif best_item:
-        best_item["is_best"] = False
+        has_feasible = True
+    elif comparison_items:
+        best_item = None
+        has_feasible = False
         if total_cust_demand > total_fleet_capacity:
-            best_reason = f"Mathematically infeasible fleet: total customer demand ({total_cust_demand}) exceeds total fleet capacity ({total_fleet_capacity}). Solutions incur {best_item['capacity_violations']} capacity violation(s)."
+            best_reason = f"Mathematically infeasible fleet: total customer demand ({total_cust_demand}) exceeds total fleet capacity ({total_fleet_capacity})."
         else:
-            best_reason = f"Infeasible solution: {best_item['capacity_violations']} capacity violation(s), {best_item['unserved_customers']} unserved stop(s)."
+            best_reason = "No feasible solution found among evaluated algorithms. All requested solvers failed or timed out."
     else:
+        best_item = None
+        has_feasible = False
         best_reason = "No solutions evaluated"
 
     summary_data = {
-        "best_algorithm": best_item["id"] if best_item else "ortools",
-        "best_algorithm_name": best_item["name"] if best_item else "OR-Tools",
+        "best_algorithm": best_item["id"] if best_item else None,
+        "best_algorithm_name": best_item["name"] if best_item else None,
         "best_reason": best_reason,
-        "best_feasible_distance_km": best_item["total_distance_km"] if best_item else 0.0,
+        "best_feasible_distance_km": best_item["total_distance_km"] if best_item else None,
+        "has_feasible_solution": has_feasible,
         "items": comparison_items,
     }
 
@@ -1022,34 +1052,56 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
         job["completed_at"] = now
         job["updated_at"] = now
 
-    completed_count = sum(
-        1 for a in to_run
-        if solver_statuses.get(a) in (
-            "completed", "success", "COMPLETED", "SUCCESS",
-            "penalized", "PENALIZED", "feasible", "FEASIBLE"
-        )
-    )
-    failed_count = sum(1 for a in to_run if solver_statuses.get(a) in ("failed", "error", "FAILED", "ERROR"))
-    timed_out_count = sum(1 for a in to_run if solver_statuses.get(a) in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
-    running_count = sum(1 for a in to_run if solver_statuses.get(a) in ("running", "RUNNING"))
-    pending_count = sum(1 for a in to_run if solver_statuses.get(a) in ("pending", "PENDING", "queued", "QUEUED"))
-
-    completed_algorithms = sum(1 for a in to_run if a in job.get("results", {}))
-
-    parts = []
-    if completed_count > 0:
-        parts.append(f"{completed_count}/{total} completed")
-    if running_count > 0:
-        parts.append(f"{running_count} running")
-    if pending_count > 0:
-        parts.append(f"{pending_count} queued")
-    if timed_out_count > 0:
-        parts.append(f"{timed_out_count} timed out")
-    if failed_count > 0:
-        parts.append(f"{failed_count} failed")
-    progress_label = " · ".join(parts) if parts else f"0/{total} queued"
-
     results_to_send = dict(job.get("results", {}))
+
+    # Canonical status counts
+    successful_count = sum(
+        1 for a in to_run
+        if (
+            solver_statuses.get(a) in ("SUCCESS", "success", "completed", "COMPLETED", "feasible", "FEASIBLE", "supremacy_winner", "SUPREMACY_WINNER", "optimal", "OPTIMAL")
+            or (a in results_to_send and results_to_send[a].get("success") and results_to_send[a].get("is_feasible") and len(results_to_send[a].get("routes", [])) > 0)
+        )
+        and solver_statuses.get(a) not in ("FAILED", "failed", "TIMED_OUT", "timed_out", "TIMEOUT", "timeout", "CANCELLED", "cancelled", "ERROR", "error")
+        and not results_to_send.get(a, {}).get("error")
+    )
+    failed_count = sum(
+        1 for a in to_run
+        if solver_statuses.get(a) in ("FAILED", "failed", "ERROR", "error")
+        or (a in results_to_send and not results_to_send[a].get("success", True) and results_to_send[a].get("status") != "TIMED_OUT")
+    )
+    timed_out_count = sum(
+        1 for a in to_run
+        if solver_statuses.get(a) in ("TIMED_OUT", "timed_out", "TIMEOUT", "timeout")
+        or (a in results_to_send and results_to_send[a].get("status") == "TIMED_OUT")
+    )
+    running_count = sum(1 for a in to_run if solver_statuses.get(a) in ("RUNNING", "running"))
+    queued_count = sum(1 for a in to_run if solver_statuses.get(a) in ("QUEUED", "queued", "pending", "PENDING", None) and a not in results_to_send)
+    evaluated_count = successful_count + failed_count + timed_out_count
+
+    # Non-contradictory progress label
+    if running_count > 0 or queued_count > 0:
+        parts = [f"{successful_count}/{total} successful"]
+        if running_count > 0:
+            parts.append(f"{running_count} running")
+        if queued_count > 0:
+            parts.append(f"{queued_count} queued")
+        if failed_count > 0:
+            parts.append(f"{failed_count} failed")
+        if timed_out_count > 0:
+            parts.append(f"{timed_out_count} timed out")
+        progress_label = f"Evaluating: {' · '.join(parts)}"
+    else:
+        if failed_count == 0 and timed_out_count == 0:
+            progress_label = f"All {total} algorithms completed successfully."
+        elif successful_count > 0:
+            fail_details = []
+            if failed_count > 0:
+                fail_details.append(f"{failed_count} failed")
+            if timed_out_count > 0:
+                fail_details.append(f"{timed_out_count} timed out")
+            progress_label = f"Evaluation completed: {successful_count} successful, {', '.join(fail_details)}."
+        else:
+            progress_label = f"Evaluation failed: All {total} algorithms failed or timed out."
 
     return {
         "job_id": job["job_id"],
@@ -1058,13 +1110,16 @@ def _format_job_status_response(job: Dict[str, Any]) -> Dict[str, Any]:
         "selection_mode": job.get("selection_mode", "compare"),
         "selected_algorithms": to_run,
         "primary_algorithm": job.get("primary_algorithm", "ortools"),
-        "completed_algorithms": completed_algorithms,
+        "completed_algorithms": successful_count,
         "total_algorithms": total,
-        "completed_count": completed_count,
+        "successful_count": successful_count,
+        "completed_count": successful_count,
+        "evaluated_count": evaluated_count,
         "failed_count": failed_count,
         "timed_out_count": timed_out_count,
         "running_count": running_count,
-        "pending_count": pending_count,
+        "queued_count": queued_count,
+        "pending_count": queued_count,
         "progress_label": progress_label,
         "solver_statuses": solver_statuses,
         "solver_errors": job.get("solver_errors", {}),
@@ -1210,13 +1265,15 @@ async def _run_background_solvers_for_job(
 
                     job["results"][algo] = algo_res
                     if algo_res.get("status") == "TIMED_OUT":
-                        job["solver_statuses"][algo] = "timeout"
+                        job["solver_statuses"][algo] = "TIMED_OUT"
                         job["solver_errors"][algo] = algo_res.get("error")
-                    elif algo_res.get("is_feasible", False):
-                        job["solver_statuses"][algo] = "completed"
+                    elif algo_res.get("success", False) and algo_res.get("is_feasible", False) and len(algo_res.get("routes", [])) > 0:
+                        job["solver_statuses"][algo] = "SUCCESS"
                     else:
-                        job["solver_statuses"][algo] = (algo_res.get("status") or "failed").lower()
-                    job["completed_algorithms"] = sum(1 for a in to_run if a in job["results"])
+                        job["solver_statuses"][algo] = "FAILED"
+                        if algo_res.get("error"):
+                            job["solver_errors"][algo] = algo_res.get("error")
+                    job["completed_algorithms"] = sum(1 for a in to_run if job.get("solver_statuses", {}).get(a) == "SUCCESS")
 
                 except Exception as exc:
                     logger.error(f"Solver {algo} raised exception in background job {job_id}: {exc}")
@@ -1236,9 +1293,9 @@ async def _run_background_solvers_for_job(
                         "algorithm": algo,
                         "algorithm_name": algo.upper(),
                     }
-                    job["solver_statuses"][algo] = "failed"
+                    job["solver_statuses"][algo] = "FAILED"
                     job["solver_errors"][algo] = str(exc)
-                    job["completed_algorithms"] = sum(1 for a in to_run if a in job["results"])
+                    job["completed_algorithms"] = sum(1 for a in to_run if job.get("solver_statuses", {}).get(a) == "SUCCESS")
                 finally:
                     gc.collect()
                     curr_rss = _get_process_memory_mb()
@@ -1303,9 +1360,9 @@ async def _run_background_solvers_for_job(
                 curr_s = job["solver_statuses"].get(a, "pending")
                 if curr_s in ("pending", "running", None):
                     if is_cancelled:
-                        job["solver_statuses"][a] = "cancelled"
+                        job["solver_statuses"][a] = "CANCELLED"
                     else:
-                        job["solver_statuses"][a] = "failed"
+                        job["solver_statuses"][a] = "FAILED"
                         job.setdefault("solver_errors", {})[a] = "Worker terminated before solver execution"
                         if a not in job["results"]:
                             job["results"][a] = {
@@ -1325,14 +1382,17 @@ async def _run_background_solvers_for_job(
                                 "algorithm_name": a.upper(),
                             }
 
-            job["completed_algorithms"] = sum(1 for a in to_run if a in job["results"])
+            job["completed_algorithms"] = sum(1 for a in to_run if job.get("solver_statuses", {}).get(a) == "SUCCESS")
             statuses = [job.get("solver_statuses", {}).get(a) for a in to_run]
-            any_success = any(s in ("completed", "success", "COMPLETED", "SUCCESS", "feasible", "penalized") for s in statuses)
+            any_success = any(s in ("completed", "success", "COMPLETED", "SUCCESS") for s in statuses)
+            all_success = all(s in ("completed", "success", "COMPLETED", "SUCCESS") for s in statuses)
 
             if is_cancelled:
                 job["status"] = "CANCELLED"
-            elif any_success:
+            elif all_success:
                 job["status"] = "COMPLETED"
+            elif any_success:
+                job["status"] = "COMPLETED_WITH_FAILURES"
             else:
                 job["status"] = "FAILED"
 
@@ -1499,8 +1559,13 @@ async def start_optimization_job(
     if primary_algo == "ortools":
         results["classical"] = primary_res
 
-    solver_statuses = {a: "pending" for a in to_run}
-    solver_statuses[primary_algo] = "completed"
+    solver_statuses = {a: "QUEUED" for a in to_run}
+    is_primary_valid = (
+        primary_res.get("success", False)
+        and primary_res.get("is_feasible", False)
+        and len(primary_res.get("routes", [])) > 0
+    )
+    solver_statuses[primary_algo] = "SUCCESS" if is_primary_valid else "FAILED"
 
     initial_summary = _build_comparison_summary(
         to_run, results, total_cust_demand, total_fleet_capacity, n,
@@ -1508,7 +1573,7 @@ async def start_optimization_job(
     )
 
     is_single = len(to_run) <= 1
-    initial_status = "COMPLETED" if is_single else "PARTIAL"
+    initial_status = "COMPLETED" if (is_single and is_primary_valid) else ("FAILED" if (is_single and not is_primary_valid) else "PARTIAL")
 
     problem_dict = {
         "num_customers": n - 1,
@@ -1521,6 +1586,9 @@ async def start_optimization_job(
                       for l, d in zip(locations, demands)],
     }
 
+    primary_succ_count = 1 if is_primary_valid else 0
+    primary_fail_count = 0 if is_primary_valid else 1
+
     job_record = {
         "job_id": job_id,
         "experiment_id": experiment.id,
@@ -1528,8 +1596,16 @@ async def start_optimization_job(
         "selection_mode": mode,
         "selected_algorithms": to_run,
         "primary_algorithm": primary_algo,
-        "completed_algorithms": 1,
+        "completed_algorithms": primary_succ_count,
         "total_algorithms": len(to_run),
+        "successful_count": primary_succ_count,
+        "completed_count": primary_succ_count,
+        "evaluated_count": 1,
+        "failed_count": primary_fail_count,
+        "timed_out_count": 0,
+        "running_count": 0,
+        "queued_count": max(0, len(to_run) - 1),
+        "pending_count": max(0, len(to_run) - 1),
         "solver_statuses": solver_statuses,
         "solver_errors": {},
         "results": results,
@@ -1576,14 +1652,22 @@ async def start_optimization_job(
         "selection_mode": mode,
         "selected_algorithms": to_run,
         "primary_algorithm": primary_algo,
-        "completed_algorithms": 1,
+        "completed_algorithms": primary_succ_count,
         "total_algorithms": len(to_run),
+        "successful_count": primary_succ_count,
+        "completed_count": primary_succ_count,
+        "evaluated_count": 1,
+        "failed_count": primary_fail_count,
+        "timed_out_count": 0,
+        "running_count": 0,
+        "queued_count": max(0, len(to_run) - 1),
+        "pending_count": max(0, len(to_run) - 1),
         "primary_latency_sec": primary_lat,
         "solver_statuses": solver_statuses,
         "results": results,
         "comparison_summary": initial_summary,
         "problem": problem_dict,
-        "message": f"First feasible route ready in {primary_lat}s via {primary_name} ({primary_dist} km).",
+        "message": f"First feasible route ready in {primary_lat}s via {primary_name} ({primary_dist} km)." if is_primary_valid else f"Primary solver {primary_name} failed: {primary_res.get('error', 'Infeasible solution')}.",
     }
 
 
@@ -1684,36 +1768,47 @@ async def get_optimization_job_status(
         if a in results:
             r = results[a]
             if r.get("status") == "TIMED_OUT":
-                statuses[a] = "timeout"
-            elif r.get("is_feasible", False):
-                statuses[a] = "completed"
+                statuses[a] = "TIMED_OUT"
+            elif r.get("success", False) and r.get("is_feasible", False) and len(r.get("routes", [])) > 0:
+                statuses[a] = "SUCCESS"
             else:
-                statuses[a] = (r.get("status") or "failed").lower()
+                statuses[a] = "FAILED"
         else:
             if exp_status in ("COMPLETED", "FAILED", "CANCELLED"):
-                statuses[a] = "failed"
+                statuses[a] = "FAILED"
             else:
-                statuses[a] = "pending"
+                statuses[a] = "QUEUED"
 
-    completed_count = sum(
-        1 for s in statuses.values()
-        if s in ("completed", "success", "COMPLETED", "SUCCESS", "penalized", "PENALIZED", "feasible", "FEASIBLE")
-    )
-    failed_count = sum(1 for s in statuses.values() if s in ("failed", "error", "FAILED", "ERROR"))
-    timed_out_count = sum(1 for s in statuses.values() if s in ("timeout", "timed_out", "TIMEOUT", "TIMED_OUT"))
-    running_count = sum(1 for s in statuses.values() if s in ("running", "RUNNING"))
-    pending_count = sum(1 for s in statuses.values() if s in ("pending", "PENDING", "queued", "QUEUED"))
+    successful_count = sum(1 for s in statuses.values() if s == "SUCCESS")
+    failed_count = sum(1 for s in statuses.values() if s in ("FAILED", "ERROR"))
+    timed_out_count = sum(1 for s in statuses.values() if s in ("TIMED_OUT", "TIMEOUT"))
+    running_count = sum(1 for s in statuses.values() if s == "RUNNING")
+    queued_count = sum(1 for s in statuses.values() if s in ("QUEUED", "PENDING", "pending"))
+    evaluated_count = successful_count + failed_count + timed_out_count
 
-    parts = []
-    if completed_count > 0:
-        parts.append(f"{completed_count}/{total} completed")
-    if timed_out_count > 0:
-        parts.append(f"{timed_out_count} timed out")
-    if failed_count > 0:
-        parts.append(f"{failed_count} failed")
-    if pending_count > 0 and exp_status in ("PARTIAL", "RUNNING", "running"):
-        parts.append(f"{pending_count} queued")
-    progress_label = " · ".join(parts) if parts else exp_status
+    if running_count > 0 or queued_count > 0:
+        parts = [f"{successful_count}/{total} successful"]
+        if running_count > 0:
+            parts.append(f"{running_count} running")
+        if queued_count > 0:
+            parts.append(f"{queued_count} queued")
+        if failed_count > 0:
+            parts.append(f"{failed_count} failed")
+        if timed_out_count > 0:
+            parts.append(f"{timed_out_count} timed out")
+        progress_label = f"Evaluating: {' · '.join(parts)}"
+    else:
+        if failed_count == 0 and timed_out_count == 0:
+            progress_label = f"All {total} algorithms completed successfully."
+        elif successful_count > 0:
+            fail_details = []
+            if failed_count > 0:
+                fail_details.append(f"{failed_count} failed")
+            if timed_out_count > 0:
+                fail_details.append(f"{timed_out_count} timed out")
+            progress_label = f"Evaluation completed: {successful_count} successful, {', '.join(fail_details)}."
+        else:
+            progress_label = f"Evaluation failed: All {total} algorithms failed or timed out."
 
     return {
         "job_id": job_id,
@@ -1722,13 +1817,16 @@ async def get_optimization_job_status(
         "selection_mode": "compare",
         "selected_algorithms": to_run,
         "primary_algorithm": to_run[0] if to_run else "ortools",
-        "completed_algorithms": sum(1 for a in to_run if a in results),
+        "completed_algorithms": successful_count,
         "total_algorithms": total,
-        "completed_count": completed_count,
+        "successful_count": successful_count,
+        "completed_count": successful_count,
+        "evaluated_count": evaluated_count,
         "failed_count": failed_count,
         "timed_out_count": timed_out_count,
         "running_count": running_count,
-        "pending_count": pending_count,
+        "queued_count": queued_count,
+        "pending_count": queued_count,
         "progress_label": progress_label,
         "solver_statuses": statuses,
         "solver_errors": {},

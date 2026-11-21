@@ -48,6 +48,13 @@ import { api } from '../services/api';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { validateDeliveryCoordinate } from '../utils/geoValidation';
+import {
+  getVehicleRouteStyle,
+  getAlgorithmDisplayName,
+  normalizeAlgorithmId,
+  ALGORITHM_COLOR_FAMILIES,
+  getContrastTextColor,
+} from '../utils/routeColors';
 
 export interface AlgorithmConfigItem {
   id: string;
@@ -225,6 +232,19 @@ const createCustomerIcon = (index: number, isDark: boolean, isUnvisited?: boolea
 // Theme-tailored vibrant route palette: electric high-contrast neon in dark mode, crisp modern in light mode
 const LIGHT_ROUTE_COLORS = ['#080808', '#0284C7', '#7C3AED', '#EA580C', '#059669', '#DB2777'];
 const DARK_ROUTE_COLORS = ['#B7FF2A', '#00E5FF', '#FF6B00', '#E040FB', '#38BDF8', '#FACC15'];
+
+const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) => {
+  const textColor = getContrastTextColor(color);
+  return L.divIcon({
+    className: 'custom-vehicle-pin',
+    html: `<div style="background-color: ${color}; border: 2px solid ${
+      isDark ? '#000000' : '#FFFFFF'
+    }; color: ${textColor}; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
+    iconSize: [36, 24],
+    iconAnchor: [18, 12],
+    popupAnchor: [0, -14],
+  });
+};
 
 export interface DeliveryStop {
   id: string;
@@ -678,24 +698,32 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
   const [solverProgress, setSolverProgress] = useState<{
     completed: number;
+    successful: number;
+    failed: number;
+    timedOut: number;
+    running: number;
+    queued: number;
+    evaluated: number;
     total: number;
     currentAlgo: string;
     elapsedSec: number;
     primaryLatencySec: number;
     progressLabel?: string;
-    failed?: number;
-    timedOut?: number;
-    statuses: Record<string, 'pending' | 'running' | 'completed' | 'failed' | 'timeout'>;
+    statuses: Record<string, string>;
     errors: Record<string, string>;
   }>({
     completed: 0,
+    successful: 0,
+    failed: 0,
+    timedOut: 0,
+    running: 0,
+    queued: 0,
+    evaluated: 0,
     total: 0,
     currentAlgo: '',
     elapsedSec: 0,
     primaryLatencySec: 0,
     progressLabel: '',
-    failed: 0,
-    timedOut: 0,
     statuses: {},
     errors: {},
   });
@@ -712,6 +740,13 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
     pollTimerRef.current = setInterval(async () => {
       try {
+        // Prevent race condition: ignore poll if active job was superseded or cancelled
+        if (activeJobIdRef.current !== jobId) {
+          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+          return;
+        }
+
         const elapsed = Number(((Date.now() - tStart) / 1000).toFixed(1));
 
         if (elapsed > overallTimeoutSec) {
@@ -719,7 +754,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           pollTimerRef.current = null;
           try {
             const finalRes = await api.getJobStatus(jobId);
-            if (finalRes?.results) {
+            if (activeJobIdRef.current === jobId && finalRes?.results) {
               setExecutionResponse(finalRes);
               onOptimizationComplete(finalRes);
             }
@@ -732,7 +767,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         }
 
         const statusRes = await api.getJobStatus(jobId);
-        if (!statusRes) return;
+        if (!statusRes || activeJobIdRef.current !== jobId) return;
         consecutiveErrors = 0; // Reset error streak on success
 
         // Progressively update comparison results
@@ -741,7 +776,12 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           onOptimizationComplete(statusRes);
         }
 
-        const completed = statusRes.completed_algorithms || Object.keys(statusRes.results || {}).length || 1;
+        const successful = statusRes.successful_count ?? statusRes.completed_count ?? 0;
+        const failed = statusRes.failed_count ?? 0;
+        const timedOut = statusRes.timed_out_count ?? 0;
+        const running = statusRes.running_count ?? 0;
+        const queued = statusRes.pending_count ?? statusRes.queued_count ?? 0;
+        const evaluated = statusRes.evaluated_count ?? (successful + failed + timedOut);
         const total = statusRes.total_algorithms || totalAlgos;
 
         // Count solver statuses
@@ -750,30 +790,35 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         const isAllSolversTerminal =
           allStatusVals.length > 0 &&
           allStatusVals.every((s: any) =>
-            ['completed', 'failed', 'timeout', 'skipped', 'cancelled', 'penalized', 'feasible'].includes(String(s).toLowerCase())
+            ['completed', 'failed', 'timeout', 'skipped', 'cancelled', 'penalized', 'feasible', 'success', 'timed_out'].includes(String(s).toLowerCase())
           );
 
         // Find which solver is currently running
         const runningAlgo = Object.keys(statuses).find(
-          (k) => statuses[k] === 'running'
+          (k) => String(statuses[k]).toLowerCase() === 'running'
         );
 
         setSolverProgress((prev) => ({
           ...prev,
-          completed,
+          completed: successful,
+          successful,
+          failed,
+          timedOut,
+          running,
+          queued,
+          evaluated,
           total,
           currentAlgo: runningAlgo ? runningAlgo.toUpperCase() : 'Remaining Solvers',
           elapsedSec: elapsed,
           statuses: statusRes.solver_statuses || prev.statuses,
           errors: statusRes.solver_errors || prev.errors,
-          progressLabel: statusRes.progress_label || `${completed}/${total} completed`,
-          failed: statusRes.failed_count || 0,
-          timedOut: statusRes.timed_out_count || 0,
+          progressLabel: statusRes.progress_label,
         }));
 
         // Terminal state check: COMPLETED, FAILED, CANCELLED, INTERRUPTED, or all solvers reached terminal state
         const isBackendTerminal =
           statusRes.status === 'COMPLETED' ||
+          statusRes.status === 'COMPLETED_WITH_FAILURES' ||
           statusRes.status === 'FAILED' ||
           statusRes.status === 'CANCELLED' ||
           statusRes.status === 'INTERRUPTED';
@@ -781,8 +826,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         const isTerminal =
           isBackendTerminal ||
           isAllSolversTerminal ||
-          (completed >= total && total > 0 && statusRes.status !== 'PARTIAL' && statusRes.status !== 'RUNNING') ||
-          (statusRes.pending_count === 0 && statusRes.running_count === 0 && completed > 0);
+          (evaluated >= total && total > 0 && statusRes.status !== 'PARTIAL' && statusRes.status !== 'RUNNING') ||
+          (queued === 0 && running === 0 && evaluated > 0);
 
         if (isTerminal) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
@@ -795,39 +840,47 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             localStorage.removeItem('routeiq_active_job_id');
           } catch {}
 
-          const effectiveStatus = (isAllSolversTerminal || (completed >= total && total > 0))
-            ? (statusRes.status === 'PARTIAL' ? 'COMPLETED' : statusRes.status || 'COMPLETED')
-            : statusRes.status;
+          const hasFeasible = statusRes.comparison_summary?.has_feasible_solution ?? (successful > 0);
+          const bestName =
+            statusRes.comparison_summary?.best_algorithm_name ||
+            statusRes.best_feasible_algorithm;
+          const bestDist = statusRes.comparison_summary?.best_feasible_distance_km;
 
-          if (effectiveStatus === 'COMPLETED' || completed >= total) {
-            const bestName =
-              statusRes.comparison_summary?.best_algorithm_name ||
-              statusRes.best_feasible_algorithm ||
-              'ROUTE/IQ';
-            const bestDist = statusRes.comparison_summary?.best_feasible_distance_km || 0;
-            const failNotice = (statusRes.failed_count || 0) + (statusRes.timed_out_count || 0) > 0
-              ? ` (${statusRes.failed_count || 0} failed / timed out)`
-              : '';
-            setFeedbackMessage(
-              `All ${total} algorithms evaluated! Best: ${bestName} (${bestDist.toFixed(1)} km)${failNotice}.`
+          if (hasFeasible && bestName && bestDist !== undefined && bestDist !== null && bestDist > 0) {
+            if (failed === 0 && timedOut === 0) {
+              setFeedbackMessage(
+                `All ${total} algorithms completed successfully! Best: ${bestName} (${bestDist.toFixed(1)} km).`
+              );
+            } else {
+              const failParts: string[] = [];
+              if (failed > 0) failParts.push(`${failed} failed`);
+              if (timedOut > 0) failParts.push(`${timedOut} timed out`);
+              setFeedbackMessage(
+                `Evaluation completed: ${successful} successful, ${failParts.join(', ')}. Best: ${bestName} (${bestDist.toFixed(1)} km).`
+              );
+            }
+            setTimeout(() => setFeedbackMessage(null), 7000);
+
+            // Automatically synchronize displayed algorithm & map with best algorithm
+            const bestId = statusRes.comparison_summary?.best_algorithm;
+            if (bestId && statusRes.results?.[bestId]?.routes?.length > 0) {
+              setDisplayedAlgo(bestId);
+              setActiveRoutes(statusRes.results[bestId].routes);
+            }
+          } else if (successful === 0 || !hasFeasible) {
+            setValidationError(
+              `Evaluation failed: All ${total} algorithms failed or timed out. No valid route solution available.`
             );
-            setTimeout(() => setFeedbackMessage(null), 6000);
-          } else if (effectiveStatus === 'CANCELLED') {
+            setActiveRoutes([]);
+            setTimeout(() => setValidationError(null), 8000);
+          } else if (statusRes.status === 'CANCELLED') {
             setFeedbackMessage('Optimization stopped by user.');
             setTimeout(() => setFeedbackMessage(null), 4000);
-          } else if (effectiveStatus === 'INTERRUPTED') {
+          } else if (statusRes.status === 'INTERRUPTED') {
             setFeedbackMessage(
               'Optimization was interrupted by a server restart. Displaying available results.'
             );
             setTimeout(() => setFeedbackMessage(null), 8000);
-          } else if (effectiveStatus === 'FAILED') {
-            setValidationError(`Optimization job failed: ${statusRes.error || 'Solver failure'}`);
-            setTimeout(() => setValidationError(null), 8000);
-          } else if (effectiveStatus === 'PARTIAL') {
-            setFeedbackMessage(
-              `Partial comparison results available (${completed}/${total} algorithms evaluated).`
-            );
-            setTimeout(() => setFeedbackMessage(null), 6000);
           }
         }
       } catch (pollErr: any) {
@@ -917,20 +970,32 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
 
   useEffect(() => {
     if (lastResult?.results) {
-      const best = lastResult.best_feasible_algorithm || lastResult.primary_algorithm;
-      const routes =
-        (best && lastResult.results[best]?.routes) ||
-        lastResult.results.ortools?.routes ||
-        lastResult.results.classical?.routes ||
-        lastResult.results.qaoa?.routes ||
-        Object.values(lastResult.results).find((r: any) => r.routes?.length > 0)?.routes ||
-        [];
-      if (routes.length > 0) {
-        setActiveRoutes(routes);
+      const summary = lastResult.comparison_summary;
+      const hasFeasible = summary?.has_feasible_solution ?? true;
+      const best = summary?.best_algorithm || lastResult.best_feasible_algorithm || lastResult.primary_algorithm;
+
+      let targetAlgo = best;
+      let routes: VehicleRoute[] = [];
+
+      if (hasFeasible && best && lastResult.results[best]?.routes?.length > 0) {
+        routes = lastResult.results[best].routes;
+        targetAlgo = best;
+      } else {
+        const validEntry = Object.entries(lastResult.results).find(
+          ([_, r]: [string, any]) => r?.success && r?.routes?.length > 0
+        );
+        if (validEntry) {
+          targetAlgo = validEntry[0];
+          routes = validEntry[1].routes;
+        } else {
+          routes = [];
+        }
       }
-      if (best) {
-        setDisplayedAlgo(best);
+
+      if (targetAlgo) {
+        setDisplayedAlgo(targetAlgo);
       }
+      setActiveRoutes(routes);
       setExecutionResponse(lastResult);
     }
   }, [lastResult]);
@@ -1160,6 +1225,12 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
     setValidationError(null);
     setSolverProgress({
       completed: 0,
+      successful: 0,
+      failed: 0,
+      timedOut: 0,
+      running: 0,
+      queued: 0,
+      evaluated: 0,
       total: 0,
       currentAlgo: '',
       elapsedSec: 0,
@@ -1277,13 +1348,25 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       })),
     };
 
-    const initialStatuses: Record<string, 'pending' | 'running' | 'completed' | 'failed' | 'timeout'> = {};
+    // Immediately clear active routes and responses from previous optimization
+    setActiveRoutes([]);
+    setExecutionResponse(null);
+    setValidationError(null);
+    setFeedbackMessage(null);
+
+    const initialStatuses: Record<string, string> = {};
     algosToRun.forEach((a) => {
-      initialStatuses[a] = a === primaryAlgo ? 'running' : 'pending';
+      initialStatuses[a] = a === primaryAlgo ? 'RUNNING' : 'QUEUED';
     });
 
     setSolverProgress({
       completed: 0,
+      successful: 0,
+      failed: 0,
+      timedOut: 0,
+      running: 1,
+      queued: Math.max(0, algosToRun.length - 1),
+      evaluated: 0,
       total: algosToRun.length,
       currentAlgo: primaryAlgo,
       elapsedSec: 0,
@@ -1317,33 +1400,47 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       setExecutionResponse(jobRes);
       setDisplayedAlgo(primaryAlgo);
 
-      const primaryRoutes =
-        jobRes?.results?.[primaryAlgo]?.routes ||
-        jobRes?.results?.ortools?.routes ||
-        jobRes?.results?.classical?.routes || [];
+      const primaryRoutes = jobRes?.results?.[primaryAlgo]?.routes || [];
       if (primaryRoutes.length > 0) {
         setActiveRoutes(primaryRoutes);
+      } else {
+        setActiveRoutes([]);
       }
       onOptimizationComplete(jobRes);
 
       const primaryLatency =
         jobRes.primary_latency_sec || Number(((Date.now() - tStart) / 1000).toFixed(2));
+      const isPrimarySuccess = jobRes.solver_statuses?.[primaryAlgo] === 'SUCCESS' || primaryRoutes.length > 0;
+      const succCount = isPrimarySuccess ? 1 : 0;
+      const failCount = isPrimarySuccess ? 0 : 1;
 
       setSolverProgress({
-        completed: jobRes.completed_algorithms || 1,
+        completed: succCount,
+        successful: succCount,
+        failed: failCount,
+        timedOut: 0,
+        running: algosToRun.length > 1 ? 1 : 0,
+        queued: Math.max(0, algosToRun.length - 1),
+        evaluated: 1,
         total: jobRes.total_algorithms || algosToRun.length,
         currentAlgo: primaryAlgo.toUpperCase(),
         primaryLatencySec: primaryLatency,
-        statuses: jobRes.solver_statuses || { [primaryAlgo]: 'completed' },
+        statuses: jobRes.solver_statuses || { [primaryAlgo]: isPrimarySuccess ? 'SUCCESS' : 'FAILED' },
         elapsedSec: primaryLatency,
         errors: {},
       });
 
       // If only 1 algorithm was requested or already complete, finish here
       if (jobRes.status === 'COMPLETED' || algosToRun.length <= 1) {
-        setFeedbackMessage(
-          `Feasible route computed via ${jobRes?.results?.[primaryAlgo]?.algorithm_name || primaryAlgo.toUpperCase()} in ${primaryLatency}s!`
-        );
+        if (isPrimarySuccess) {
+          setFeedbackMessage(
+            `Feasible route computed via ${jobRes?.results?.[primaryAlgo]?.algorithm_name || primaryAlgo.toUpperCase()} in ${primaryLatency}s!`
+          );
+        } else {
+          setValidationError(
+            `Optimization failed: ${primaryAlgo.toUpperCase()} was unable to generate feasible routes.`
+          );
+        }
         setTimeout(() => setFeedbackMessage(null), 5000);
         return;
       }
@@ -1409,7 +1506,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           />
 
           {/* Origin Depot Pin (Lime-Green 'D' marker) */}
-          <Marker position={[depot.lat, depot.lon]} icon={getDepotIcon(isDark)}>
+          <Marker position={[depot.lat, depot.lon]} icon={getDepotIcon(isDark)} zIndexOffset={1100}>
             <Popup>
               <div className="text-xs font-sans space-y-1">
                 <div className="flex items-center gap-1.5">
@@ -1435,6 +1532,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                 key={stop.id}
                 position={[stop.lat, stop.lon]}
                 icon={createCustomerIcon(idx + 1, isDark, isUnvisited)}
+                zIndexOffset={1000}
               >
                 <Popup>
                   <div className="text-xs font-sans space-y-1 p-0.5">
@@ -1473,9 +1571,10 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             );
           })}
 
-          {/* Computed Routes Polylines */}
+          {/* Computed Routes Polylines & Vehicle Pins */}
           {activeRoutes.map((route, idx) => {
-            const color = activeRouteColors[idx % activeRouteColors.length];
+            const driverNumber = route.vehicle_id || (idx + 1);
+            const style = getVehicleRouteStyle(displayedAlgo, idx, isDark, activeRoutes.length);
             const allStops = [depot, ...activeStops];
             let positions: [number, number][] = [];
 
@@ -1498,18 +1597,50 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
             }
 
             if (positions.length < 2) return null;
+            const midPoint = positions[Math.floor(positions.length / 2)];
 
             return (
-              <Polyline
-                key={`plan-polyline-${displayedAlgo}-${idx}-${positions.length}-${positions[0]?.[0] || 0}`}
-                positions={positions}
-                pathOptions={{
-                  color,
-                  weight: 4.5,
-                  opacity: 0.95,
-                  dashArray: idx % 2 === 1 ? '6, 6' : undefined,
-                }}
-              />
+              <React.Fragment key={`plan-route-group-${displayedAlgo}-${driverNumber}`}>
+                <Polyline
+                  positions={positions}
+                  pathOptions={{
+                    color: style.color,
+                    weight: 4.5,
+                    opacity: 0.95,
+                    dashArray: style.dashArray,
+                  }}
+                />
+                {midPoint && (
+                  <Marker
+                    position={midPoint}
+                    icon={createVehicleIcon(driverNumber, style.color, isDark)}
+                    zIndexOffset={800}
+                  >
+                    <Popup>
+                      <div className="text-xs font-heading space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: style.color }} />
+                          <strong className="text-[#080808] dark:text-[#F5F5F7]">
+                            {route.vehicle_name || `Fleet Vehicle V${driverNumber}`}
+                          </strong>
+                        </div>
+                        <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                          Algorithm: <strong className="text-[#080808] dark:text-white">{getAlgorithmDisplayName(displayedAlgo)}</strong>
+                        </div>
+                        <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                          Color Family: <strong className="text-[#080808] dark:text-white">{style.familyName} ({style.shadeName})</strong>
+                        </div>
+                        <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                          Route Distance: <span className="font-technical font-bold text-[#080808] dark:text-white">{(route.distance_km || route.total_distance_km || 0).toFixed(1)} km</span>
+                        </div>
+                        <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                          Customer Stops: <span className="font-technical font-bold">{(route.customer_stops || []).length} stops</span>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+              </React.Fragment>
             );
           })}
         </MapContainer>
@@ -1517,13 +1648,18 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         {/* Active Route Algorithm Indicator Badge on Map */}
         {activeRoutes.length > 0 && (
           <div className="absolute bottom-4 left-4 z-[1000] glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] px-3.5 py-2.5 rounded-2xl shadow-lg backdrop-blur-xl flex items-center gap-3 pointer-events-auto">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#B7FF2A] ring-2 ring-black/20 animate-pulse" />
+            <span
+              className="h-2.5 w-2.5 rounded-full ring-2 ring-black/20 animate-pulse"
+              style={{
+                backgroundColor: ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(displayedAlgo)]?.baseColor || '#10B981',
+              }}
+            />
             <div className="text-xs">
               <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-bold">
-                Displayed: {displayedAlgo.toUpperCase()}
+                {getAlgorithmDisplayName(displayedAlgo)}
               </strong>
               <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
-                {activeRoutes.length} Vehicle Route{activeRoutes.length !== 1 ? 's' : ''} Rendered
+                {activeRoutes.length} Vehicle Route{activeRoutes.length !== 1 ? 's' : ''} ({ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(displayedAlgo)]?.familyName || 'Active'} Family)
               </span>
             </div>
           </div>
@@ -1553,8 +1689,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
               <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
               <span>
                 {(solverProgress.failed || 0) > 0 || (solverProgress.timedOut || 0) > 0
-                  ? `Completed with failures: ${solverProgress.completed}/${solverProgress.total}`
-                  : `Completed: ${solverProgress.total}/${solverProgress.total}`}
+                  ? `Completed: ${solverProgress.successful}/${solverProgress.total} (${(solverProgress.failed || 0) + (solverProgress.timedOut || 0)} failed)`
+                  : `Completed: ${solverProgress.successful}/${solverProgress.total}`}
               </span>
             </>
           ) : executionResponse?.status === 'PARTIAL' ? (
@@ -1641,14 +1777,22 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
           <div className="flex items-center gap-1 p-1 rounded-full bg-white/70 dark:bg-[#18181B]/70 backdrop-blur-2xl border border-white/80 dark:border-white/10 shadow-lg">
             {executionResponse.comparison_summary.items.map((item) => {
               const isSelected = displayedAlgo === item.id;
+              const colorDef = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(item.id)] || { baseColor: '#10B981', familyName: 'Active' };
+              const itemResult = executionResponse.results[item.id];
+              const isFailed = item.status === 'FAILED' || item.status === 'TIMED_OUT' || (itemResult && !itemResult.success);
+
               return (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => {
                     setDisplayedAlgo(item.id);
-                    const r = executionResponse.results[item.id]?.routes || [];
-                    setActiveRoutes(r);
+                    if (isFailed) {
+                      setActiveRoutes([]);
+                    } else {
+                      const r = itemResult?.routes || [];
+                      setActiveRoutes(r);
+                    }
                   }}
                   className={`px-2.5 py-1 rounded-full text-[11px] font-heading font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                     isSelected
@@ -1656,11 +1800,21 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                       : 'text-[#555555] dark:text-[#AAAAAA] hover:text-[#080808] dark:hover:text-white'
                   }`}
                 >
+                  <span
+                    className="h-2 w-2 rounded-full shrink-0"
+                    style={{ backgroundColor: colorDef.baseColor }}
+                  />
                   <span>{item.name}</span>
-                  <span className="font-technical text-[10px] opacity-80">
-                    {item.total_distance_km.toFixed(1)} km
-                  </span>
-                  {item.is_best && (
+                  {isFailed ? (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 font-technical">
+                      {item.status === 'TIMED_OUT' ? 'Timeout' : 'Failed'}
+                    </span>
+                  ) : (
+                    <span className="font-technical text-[10px] opacity-80">
+                      {item.total_distance_km.toFixed(1)} km
+                    </span>
+                  )}
+                  {item.is_best && !isFailed && (
                     <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" title="Best Feasible Solution" />
                   )}
                 </button>
@@ -1876,6 +2030,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                       const v = parseInt(e.target.value, 10);
                       setNumVehicles(v);
                       updateSettings({ defaultVehicles: v });
+                      setActiveRoutes([]);
                     }}
                     className="w-full accent-[#080808] dark:accent-[#B7FF00] h-1.5 bg-black/10 dark:bg-[#17171A] rounded-full cursor-pointer"
                   />
@@ -1894,6 +2049,7 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                       const c = parseInt(e.target.value, 10) || 10;
                       setVehicleCapacity(c);
                       updateSettings({ defaultCapacity: c });
+                      setActiveRoutes([]);
                     }}
                     className="w-full px-2.5 py-1 text-xs font-technical font-bold glass-input rounded-xl bg-white/85 dark:bg-[#17171A] border border-black/10 dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]"
                   />
@@ -2762,8 +2918,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
                   <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
                   <span>
                     {(solverProgress.failed || 0) > 0 || (solverProgress.timedOut || 0) > 0
-                      ? `Completed with failures: ${solverProgress.completed}/${solverProgress.total}`
-                      : `Completed: ${solverProgress.total}/${solverProgress.total}`}
+                      ? `Completed: ${solverProgress.successful}/${solverProgress.total} (${(solverProgress.failed || 0) + (solverProgress.timedOut || 0)} failed)`
+                      : `Completed: ${solverProgress.successful}/${solverProgress.total}`}
                   </span>
                 </>
               ) : executionResponse?.status === 'PARTIAL' ? (
@@ -2857,25 +3013,85 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
       )}
 
       {/* ─── FLOATING BOTTOM-RIGHT MAP LEGEND ────────────────────────── */}
-      <div className="absolute bottom-4 right-4 bg-white/75 dark:bg-[#18181E]/80 backdrop-blur-[24px] backdrop-saturate-[180%] border border-white/80 dark:border-white/10 px-4 py-2 rounded-2xl text-[11px] z-[990] flex items-center gap-3 shadow-[0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.85)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)]">
-        <span className="font-bold text-[#080808] dark:text-white">Legend:</span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="h-3 w-3 rounded-full bg-[#B7FF2A] border border-[#080808] flex items-center justify-center text-[7px] font-bold text-black">
-            D
+      <div className="absolute bottom-4 right-4 max-w-sm max-h-[48vh] overflow-y-auto bg-white/85 dark:bg-[#18181E]/90 backdrop-blur-[24px] backdrop-saturate-[180%] border border-white/80 dark:border-white/10 p-3 rounded-2xl text-[11px] z-[990] shadow-[0_8px_24px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.1)] transition-all">
+        {/* Header / Active Algorithm Family Indicator */}
+        <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-black/10 dark:border-white/10">
+          <div className="flex items-center gap-1.5">
+            <span
+              className="h-2.5 w-2.5 rounded-full ring-1 ring-black/20 shrink-0"
+              style={{
+                backgroundColor: ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(displayedAlgo)]?.baseColor || '#10B981',
+              }}
+            />
+            <span className="font-heading font-bold text-[#080808] dark:text-[#F5F5F7]">
+              {getAlgorithmDisplayName(displayedAlgo)}
+            </span>
+          </div>
+          <span className="text-[10px] font-technical px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
+            {ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(displayedAlgo)]?.familyName || 'Active'} Family
           </span>
-          <span>Depot</span>
-        </span>
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className="h-3 w-3 rounded-full bg-[#080808] border border-white flex items-center justify-center text-[7px] font-bold text-white">
-            #
+        </div>
+
+        {/* Global Markers: Depot and Customer Stops */}
+        <div className="flex items-center gap-3 pb-2 mb-2 border-b border-black/10 dark:border-white/10 text-[10px]">
+          <span className="flex items-center gap-1 font-medium text-[#080808] dark:text-[#F5F5F7]">
+            <span className="h-3.5 w-3.5 rounded-full bg-[#B7FF2A] border border-[#080808] flex items-center justify-center text-[8px] font-bold text-black shadow-xs shrink-0">
+              D
+            </span>
+            <span>Origin Depot</span>
           </span>
-          <span>Customer Stops ({activeStops.length})</span>
-        </span>
-        {activeRoutes.length > 0 && (
-          <span className="flex items-center gap-1.5 font-bold text-[#080808] dark:text-white">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#B7FF2A] border border-black" />
-            <span>{activeRoutes.length} Computed Routes</span>
+          <span className="flex items-center gap-1 font-medium text-[#080808] dark:text-[#F5F5F7]">
+            <span className="h-3.5 w-3.5 rounded-full bg-[#080808] dark:bg-black border border-white flex items-center justify-center text-[8px] font-bold text-white shadow-xs shrink-0">
+              #
+            </span>
+            <span>Customer Stops ({activeStops.length})</span>
           </span>
+        </div>
+
+        {/* Individual Vehicle Routes */}
+        {activeRoutes.length > 0 ? (
+          <div className="space-y-1.5">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#A1A1AA]">
+              Vehicle Routes ({activeRoutes.length})
+            </div>
+            {activeRoutes.map((route, idx) => {
+              const driverNumber = route.vehicle_id || (idx + 1);
+              const style = getVehicleRouteStyle(displayedAlgo, idx, isDark, activeRoutes.length);
+              const stopCount = (route.customer_stops || route.stops || []).length;
+              const distKm = (route.total_distance_km ?? route.distance_km ?? 0).toFixed(1);
+              return (
+                <div
+                  key={`legend-route-${displayedAlgo}-${driverNumber}`}
+                  className="flex items-center justify-between gap-2 px-2 py-1 rounded-lg bg-black/[0.03] dark:bg-white/[0.04] text-[10.5px]"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="h-3 w-4 rounded-xs shrink-0 border border-black/20"
+                      style={{
+                        backgroundColor: style.color,
+                        backgroundImage: style.dashArray ? 'repeating-linear-gradient(90deg, transparent, transparent 2px, white 2px, white 4px)' : undefined,
+                      }}
+                    />
+                    <span className="font-heading font-semibold text-[#080808] dark:text-[#F5F5F7] truncate">
+                      Vehicle {driverNumber}
+                    </span>
+                    <span className="text-[9.5px] text-[#777777] dark:text-[#A1A1AA] truncate">
+                      ({style.shadeName})
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-technical shrink-0 text-[10px]">
+                    <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{distKm} km</span>
+                    <span className="text-[#777777] dark:text-[#A1A1AA]">·</span>
+                    <span className="text-[#555555] dark:text-[#A1A1AA]">{stopCount} stops</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-[10px] text-[#777777] dark:text-[#A1A1AA] italic">
+            No active computed routes. Run optimization to evaluate routes.
+          </div>
         )}
       </div>
     </div>

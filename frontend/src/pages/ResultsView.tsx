@@ -423,7 +423,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
     );
   }
 
-  const bestAlgoId = result.best_feasible_algorithm || result.comparison_summary?.best_algorithm;
+  const bestAlgoId = (result.best_feasible_algorithm || result.comparison_summary?.best_algorithm) ?? undefined;
   const comparisonItems: ComparisonItem[] = useMemo(() => {
     if (result.comparison_summary?.items && result.comparison_summary.items.length > 0) {
       return result.comparison_summary.items;

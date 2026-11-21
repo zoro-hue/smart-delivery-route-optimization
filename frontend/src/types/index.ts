@@ -73,6 +73,7 @@ export interface VehicleRoute {
   stops: number[];
   customer_stops: number[];
   distance_km: number;
+  total_distance_km?: number;
   driving_time_min?: number;
   service_time_min?: number;
   total_duration_min?: number;
@@ -333,10 +334,11 @@ export interface RouteIdentityDiagnostics {
 }
 
 export interface ComparisonSummary {
-  best_algorithm: string;
-  best_algorithm_name: string;
+  best_algorithm?: string | null;
+  best_algorithm_name?: string | null;
   best_reason: string;
-  best_feasible_distance_km: number;
+  best_feasible_distance_km?: number | null;
+  has_feasible_solution?: boolean;
   items: ComparisonItem[];
   route_identity_diagnostics?: RouteIdentityDiagnostics;
   energy_analysis?: FullEnergyAnalysis;
