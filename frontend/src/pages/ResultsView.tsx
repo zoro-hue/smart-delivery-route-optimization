@@ -553,34 +553,34 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
   ];
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-6 pb-12">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-black/10 dark:border-[#29292E]">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 pb-3 border-b border-black/10 dark:border-[#29292E]">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#777777] dark:text-[#A1A1AA] mb-1">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#777777] dark:text-[#A1A1AA] mb-0.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[#B7FF00]" />
             <span>Optimization & Benchmark Results</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold text-[#080808] dark:text-[#F5F5F7]">
             Results
           </h1>
-          <div className="flex items-center gap-3 flex-wrap mt-1">
-            <p className="text-xs text-[#777777] dark:text-[#71717A] font-technical">
+          <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
+            <p className="text-[11px] text-[#777777] dark:text-[#71717A] font-technical">
               Experiment ID: {result.experiment_id || 'N/A'} · Total Execution: {(result.execution_time_sec || 0).toFixed(2)}s · Solvers Executed: {algoKeys.length}
             </p>
             {result.status === 'PARTIAL' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[11px] font-semibold animate-pulse">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[10px] font-semibold animate-pulse">
                 <RotateCw className="h-3 w-3 animate-spin" />
-                <span>Evaluating background comparison suite ({result.completed_algorithms || algoKeys.length}/{result.total_algorithms || 11})</span>
+                <span>Evaluating comparison suite ({result.completed_algorithms || algoKeys.length}/{result.total_algorithms || 11})</span>
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onNavigateToPlan}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-xs font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-[11px] font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
             title="Return to interactive Plan map workspace"
           >
             <Route className="h-3.5 w-3.5" />
@@ -589,7 +589,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           {/* Export Actions */}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-xs font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-[11px] font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
             title="Download CSV turn-by-turn route coordinates"
           >
             <Download className="h-3.5 w-3.5" />
@@ -597,7 +597,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </button>
           <button
             onClick={handleExportJSON}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a5e600] text-[#B7FF00] dark:text-black text-xs font-bold transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a5e600] text-[#B7FF00] dark:text-black text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
             title="Export full benchmark JSON payload"
           >
             <Download className="h-3.5 w-3.5" />
@@ -608,21 +608,21 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
       {/* ─── BEST FEASIBLE SOLUTION CALLOUT (Requirement 4 & 5) ──────────── */}
       {bestAlgoItem && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#111113] border-2 border-[#22C55E]/40 dark:border-[#22C55E]/30 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="h-10 w-10 rounded-2xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center shrink-0 border border-[#22C55E]/30">
-              <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
+        <div className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#111113] border border-[#22C55E]/40 dark:border-[#22C55E]/30 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="h-8 w-8 rounded-xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center shrink-0 border border-[#22C55E]/30">
+              <CheckCircle2 className="h-4 w-4 text-[#22C55E]" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-sm sm:text-base text-[#080808] dark:text-[#F5F5F7]">
+                <span className="font-semibold text-xs sm:text-sm text-[#080808] dark:text-[#F5F5F7]">
                   Best Feasible Solution (Recommended): {bestAlgoItem.name}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase tracking-wide">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase tracking-wide">
                   Recommended Pick
                 </span>
               </div>
-              <p className="text-xs text-[#555555] dark:text-[#A1A1AA] mt-1">
+              <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
                 {result.comparison_summary?.best_reason || 'Verified 100% capacity and delivery coverage with minimal distance.'}{' '}
                 (Road Distance: <strong>{bestAlgoItem.total_distance_km.toFixed(2)} km</strong> · Est. Driving Duration: <strong>{Math.round(bestAlgoItem.total_travel_time_min)} min</strong> · Implied Speed: <strong>{(bestAlgoItem.implied_speed_kmh || (bestAlgoItem.total_distance_km / (bestAlgoItem.total_travel_time_min / 60))).toFixed(1)} km/h</strong> · Violations: <strong>0</strong>)
               </p>
@@ -631,13 +631,13 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           <button
             onClick={() => handleSelectAlgorithm(bestAlgoItem.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-2xs ${
               activeAlgo === bestAlgoItem.id
                 ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/40 cursor-default'
                 : 'bg-[#080808] text-[#B7FF00] hover:bg-[#171717] dark:bg-[#B7FF2A] dark:text-[#080808] dark:hover:bg-[#a4f01d]'
             }`}
           >
-            <span>{activeAlgo === bestAlgoItem.id ? '✓ Inspected (Currently Displayed)' : 'Inspect Recommended Route'}</span>
+            <span>{activeAlgo === bestAlgoItem.id ? '✓ Displayed' : 'Inspect Recommended Route'}</span>
           </button>
         </div>
       )}
@@ -727,19 +727,19 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     <button
                       key={key}
                       onClick={() => handleSelectAlgorithm(key)}
-                      className={`px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-[11px] ${
                         isSelected
-                          ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
+                          ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-2xs'
                           : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
                       }`}
                     >
                       <span>{algoName}</span>
-                      <span className="font-technical text-[10px] opacity-80">
+                      <span className="font-technical text-[9px] opacity-75">
                         {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
                       </span>
                       {isBest && (
                         <span
-                          className="h-2 w-2 rounded-full bg-[#B7FF00]"
+                          className="h-1.5 w-1.5 rounded-full bg-[#B7FF00]"
                           title="Best Feasible Solution"
                         />
                       )}
@@ -751,16 +751,16 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 {executedClassicalKeys.length > 0 && (
                   <button
                     onClick={() => setShowAdvancedTabs(!showAdvancedTabs)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
                       isInspectingClassical
                         ? 'bg-blue-500/10 border-blue-500/40 text-blue-600 dark:text-blue-400'
                         : 'bg-black/5 dark:bg-[#18181B] border-black/10 dark:border-[#29292E] text-[#555555] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-[#F5F5F7]'
                     }`}
                   >
                     {isClassicalExpanded ? (
-                      <ChevronUp className="h-3.5 w-3.5" />
+                      <ChevronUp className="h-3 w-3" />
                     ) : (
-                      <ChevronDown className="h-3.5 w-3.5" />
+                      <ChevronDown className="h-3 w-3" />
                     )}
                     <span>Advanced Classical Benchmarks ({executedClassicalKeys.length})</span>
                   </button>
@@ -769,8 +769,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
               {/* Expanded Classical Benchmarks Pills */}
               {executedClassicalKeys.length > 0 && isClassicalExpanded && (
-                <div className="flex flex-wrap items-center gap-2 p-2 rounded-2xl bg-blue-500/[0.03] dark:bg-[#141418] border border-blue-500/20 text-xs animate-fadeIn">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-blue-500/[0.03] dark:bg-[#141418] border border-blue-500/20 text-xs animate-fadeIn">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1">
                     <span>Classical Solvers:</span>
                   </div>
                   {executedClassicalKeys.map((key) => {
@@ -784,24 +784,24 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       <button
                         key={key}
                         onClick={() => handleSelectAlgorithm(key)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 text-xs ${
+                        className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-[10px] ${
                           isSelected
-                            ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
+                            ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-2xs'
                             : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
                         }`}
                       >
                         <span>{algoName}</span>
                         {isOrtools && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                          <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
                             Baseline
                           </span>
                         )}
-                        <span className="font-technical text-[10px] opacity-80">
+                        <span className="font-technical text-[9px] opacity-75">
                           {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
                         </span>
                         {isBest && (
                           <span
-                            className="h-2 w-2 rounded-full bg-[#B7FF00]"
+                            className="h-1.5 w-1.5 rounded-full bg-[#B7FF00]"
                             title="Best Feasible Solution"
                           />
                         )}
@@ -824,76 +824,76 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         const impliedSpeedKmh = currentResult?.implied_speed_kmh || (drivingMin > 0 ? (distKm / (drivingMin / 60)) : 40.0);
 
         return (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 py-3 border-y border-black/10 dark:border-[#29292E]">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5 py-2.5 border-y border-black/10 dark:border-[#29292E]">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                 Inspected Algorithm
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate" title={currentResult?.algorithm_name}>
+              <div className="text-xs sm:text-sm font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate" title={currentResult?.algorithm_name}>
                 {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical uppercase block truncate">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical uppercase block truncate">
                 {currentResult?.compute_type || currentResult?.category || 'Classical CPU'}
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                 Total Road Distance
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
                 {distKm.toFixed(2)} km
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
                 Directed road graph
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                 Est. Driving Duration
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
                 {Math.round(drivingMin)} min
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
                 {serviceMin > 0 ? `+${Math.round(serviceMin)}m svc (${Math.round(totalDurationMin)}m tot)` : 'Pure driving transit time'}
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                 Implied Avg Speed
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
                 {impliedSpeedKmh.toFixed(1)} km/h
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
                 @ 40 km/h NYC baseline
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                 Fleet Assigned
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
                 {(currentResult?.routes ?? []).length || settings.defaultVehicles} Vehicles
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
                 {currentResult?.served_customers !== undefined ? `${currentResult.served_customers} stops served` : 'Active fleet routes'}
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                 Feasibility Status
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5 flex items-center gap-1.5">
+              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5 flex items-center gap-1">
                 <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
-                <CheckCircle2 className={`h-4 w-4 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
+                <CheckCircle2 className={`h-3.5 w-3.5 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
                 {currentResult?.capacity_violations ? `${currentResult.capacity_violations} violations` : '0 violations'} · {currentResult?.execution_time_sec?.toFixed(3)}s
               </span>
             </div>
@@ -1110,8 +1110,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         {/* Right Route Sequence & Comparative Benchmark (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Driver Schedule Sequences */}
-          <div className="space-y-3 pb-5 border-b border-black/10 dark:border-[#29292E]">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block">
+          <div className="space-y-2.5 pb-4 border-b border-black/10 dark:border-[#29292E]">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
               Driver Vehicle Schedules ({currentResult?.algorithm_name || activeAlgo})
             </span>
 
@@ -1129,34 +1129,34 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 return (
                   <div
                     key={`schedule-driver-${driverNumber}-${idx}`}
-                    className="py-2.5 px-3 rounded-xl bg-white/70 dark:bg-[#18181B] backdrop-blur-md border border-black/5 dark:border-[#29292E] space-y-2 transition-colors"
+                    className="py-2 px-2.5 rounded-xl bg-white/70 dark:bg-[#18181B] backdrop-blur-md border border-black/5 dark:border-[#29292E] space-y-1.5 transition-colors"
                   >
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <div
-                          className="h-3 w-3 rounded-full shrink-0"
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: color }}
                         />
-                        <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
+                        <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7]">
                           {vp?.name || `Driver #${driverNumber}`}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded font-technical font-semibold capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-technical font-medium capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
                           {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-technical font-bold text-[#080808] dark:text-[#B7FF00]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-technical font-bold text-xs text-[#080808] dark:text-[#B7FF00]">
                           {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
                         </span>
                         {!isRangeFeasible && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
+                          <span className="text-[8px] px-1 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
                             Range Overdue
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+                    <div className="flex items-center justify-between text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical">
                       <span className="truncate max-w-[260px]">
                         Stops: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')} ({Math.max(0, stopsArr.length - 2)} stops)
                       </span>
@@ -1166,7 +1166,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     </div>
 
                     {remainingRange !== null && (
-                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-black/5 dark:border-white/5 font-technical text-[#777777] dark:text-[#A1A1AA]">
+                      <div className="flex items-center justify-between text-[9px] pt-1 border-t border-black/5 dark:border-white/5 font-technical text-[#777777] dark:text-[#A1A1AA]">
                         <span>Usable Range: {route.usable_range_km} km</span>
                         <span className={`font-semibold ${isRangeFeasible ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                           {remainingRange} km remaining
@@ -1177,7 +1177,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 );
               })}
               {(currentResult?.routes ?? []).length === 0 && (
-                <div className="text-center py-6 text-xs text-[#777777] dark:text-[#A1A1AA]">
+                <div className="text-center py-5 text-xs text-[#777777] dark:text-[#A1A1AA]">
                   {currentResult?.status === 'FAILED'
                     ? `Solver failed: ${currentResult?.error || 'No route generated'}`
                     : 'No routes assigned for this solver selection.'}
@@ -1188,21 +1188,21 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           {/* Comparative Metrics Chart */}
           {chartData.length > 1 && (
-            <div className="space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block">
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
                 Comparative Route Distance (km)
               </span>
 
-              <div className="h-56 w-full pt-2">
+              <div className="h-52 w-full pt-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 10, fill: isDark ? '#A1A1AA' : '#171717' }}
+                      tick={{ fontSize: 9, fill: isDark ? '#A1A1AA' : '#171717' }}
                       stroke={isDark ? '#29292E' : 'rgba(0,0,0,0.1)'}
                     />
                     <YAxis
-                      tick={{ fontSize: 10, fill: isDark ? '#A1A1AA' : '#171717' }}
+                      tick={{ fontSize: 9, fill: isDark ? '#A1A1AA' : '#171717' }}
                       stroke={isDark ? '#29292E' : 'rgba(0,0,0,0.1)'}
                     />
                     <Tooltip
@@ -1210,7 +1210,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         backgroundColor: isDark ? '#18181B' : '#FFFFFF',
                         borderColor: isDark ? '#29292E' : 'rgba(0,0,0,0.1)',
                         color: isDark ? '#F5F5F7' : '#080808',
-                        borderRadius: '12px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
                         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                       }}
                       itemStyle={{ color: isDark ? '#B7FF00' : '#080808', fontWeight: 600 }}
@@ -1218,7 +1219,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     <Bar
                       dataKey="Distance (km)"
                       fill={isDark ? '#B7FF00' : '#080808'}
-                      radius={[4, 4, 0, 0]}
+                      radius={[3, 3, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1236,11 +1237,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         const isIdentical = diag.relationship_code === 'INDEPENDENT_IDENTICAL_CONVERGENCE';
 
         return (
-          <div className="p-5 rounded-3xl bg-white dark:bg-[#141418] border border-black/10 dark:border-[#29292E] shadow-sm space-y-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141418] border border-black/10 dark:border-[#29292E] shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <div
-                  className={`p-2.5 rounded-2xl ${
+                  className={`p-2 rounded-xl ${
                     isSupremacy
                       ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30'
                       : isAlt
@@ -1250,15 +1251,15 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                   }`}
                 >
-                  <GitCompare className="h-5 w-5" />
+                  <GitCompare className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-bold text-[#080808] dark:text-[#F5F5F7] font-heading">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-xs sm:text-[13px] font-bold text-[#080808] dark:text-[#F5F5F7] font-heading">
                       Route Identity & Independent Optimization Diagnostics
                     </h3>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                         isSupremacy
                           ? 'bg-purple-600 text-white'
                           : isAlt
@@ -1271,15 +1272,15 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       {diag.relationship_label}
                     </span>
                   </div>
-                  <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-0.5">
+                  <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5">
                     Rigorous mathematical comparison between ROUTE/IQ Cooperative Engine and OR-Tools incumbent
                   </p>
                 </div>
               </div>
 
               {/* Memory Separation Verification Badge */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/5 dark:bg-[#1E1E22] border border-black/5 dark:border-[#29292E] text-[11px] font-technical">
-                <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/5 dark:bg-[#1E1E22] border border-black/5 dark:border-[#29292E] text-[10px] font-technical">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                 <span className="text-[#555555] dark:text-[#A1A1AA]">Process Memory Separation:</span>
                 <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
                   {diag.is_separate_memory_objects ? 'Verified (id≠id)' : 'Shared'}
@@ -1288,49 +1289,49 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             </div>
 
             {/* 4 Metric Columns */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                   Directed Edge Overlap
                 </span>
-                <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
                   {diag.directed_edge_overlap_pct.toFixed(1)}%
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
                   {diag.shared_directed_edges_count} shared / {diag.total_coop_directed_edges} coop edges
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                   Undirected Edge Overlap
                 </span>
-                <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
                   {diag.undirected_edge_overlap_pct.toFixed(1)}%
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
                   Bi-directional road traversal match
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                   Vehicle Allocation Match
                 </span>
-                <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
                   {diag.vehicle_allocation_similarity_pct.toFixed(1)}%
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
                   Fleet stop clustering Jaccard index
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
                   Distance Delta (Coop vs OR-Tools)
                 </span>
                 <div
-                  className={`text-base sm:text-lg font-bold font-technical mt-0.5 ${
+                  className={`text-sm sm:text-base font-bold font-technical mt-0.5 ${
                     diag.distance_delta_km > 0.005
                       ? 'text-purple-600 dark:text-purple-400'
                       : 'text-[#080808] dark:text-[#F5F5F7]'
@@ -1340,15 +1341,15 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     ? `-${diag.distance_delta_km.toFixed(3)} km (-${diag.distance_delta_pct.toFixed(2)}%)`
                     : 'Equal Minimal Distance'}
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
                   {diag.distance_coop_km.toFixed(3)} km vs {diag.distance_ortools_km.toFixed(3)} km
                 </span>
               </div>
             </div>
 
             {/* Explanation Narrative */}
-            <div className="px-4 py-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-xs">
-              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block text-[11px] uppercase tracking-wider font-heading mb-1">
+            <div className="px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px]">
+              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block text-[10px] uppercase tracking-wider font-heading mb-0.5">
                 Audited Algorithmic Verdict
               </span>
               <p className="text-[#555555] dark:text-[#D4D4D8] leading-relaxed">{diag.explanation}</p>

@@ -253,19 +253,19 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
   };
 
   return (
-    <div className="space-y-6 pt-6 border-t border-black/10 dark:border-[#29292E]">
+    <div className="space-y-4 pt-5 border-t border-black/10 dark:border-[#29292E]">
       {/* ─── SECTION HEADER ──────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
+            <h2 className="text-base sm:text-[17px] font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
               Algorithm Comparison Scorecard
             </h2>
-            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
+            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30">
               Fair Empirical Benchmark
             </span>
           </div>
-          <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-1 max-w-2xl">
+          <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5 max-w-2xl leading-normal">
             Side-by-side performance evaluation on identical customer stops, fleet vehicle constraints, and directed OpenStreetMap road network edge matrices.
           </p>
         </div>
@@ -274,26 +274,26 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
           <button
             type="button"
             onClick={toggleExpandAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-xs font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-[11px] font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer shadow-2xs"
             title="Expand or collapse technical telemetry for all algorithms"
           >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-[#B7FF2A]" />
+            <SlidersHorizontal className="h-3 w-3 text-[#B7FF2A]" />
             <span>{areAllExpanded ? 'Collapse All Details' : 'Expand All Details'}</span>
           </button>
         </div>
       </div>
 
       {/* ─── COMPACT DYNAMIC SUMMARY KPIS (Requirement 5) ────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5">
         {/* KPI 1: Best Feasible Distance */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
+        <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
               Best Feasible Distance
             </span>
             <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
           </div>
-          <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-1 truncate">
+          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1 truncate">
             {summaryKPIs.bestDistItem
               ? `${summaryKPIs.bestDistItem.total_distance_km.toFixed(2)} km`
               : 'Evaluating...'}
@@ -304,14 +304,14 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         </div>
 
         {/* KPI 2: Fastest Feasible Solver */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
+        <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
               Fastest Feasible Solver
             </span>
             <Clock className="h-3.5 w-3.5 text-blue-500" />
           </div>
-          <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-1 truncate">
+          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1 truncate">
             {summaryKPIs.fastestItem
               ? `${summaryKPIs.fastestItem.execution_time_sec.toFixed(3)}s`
               : 'Evaluating...'}
@@ -322,7 +322,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         </div>
 
         {/* KPI 3: Total Completed Algorithms */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
+        <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
               Evaluation Progress
@@ -333,7 +333,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
             )}
           </div>
-          <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-1">
+          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1">
             {summaryKPIs.completedCount} / {summaryKPIs.totalCount} Solvers
           </div>
           <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
@@ -342,14 +342,14 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         </div>
 
         {/* KPI 4: Feasible Solutions */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
+        <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
               Feasible Solutions
             </span>
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           </div>
-          <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-1">
+          <div className="text-base sm:text-lg font-bold font-mono text-[#080808] dark:text-[#F5F5F7] mt-1">
             {summaryKPIs.feasibleCount} / {summaryKPIs.totalEvaluated} Feasible
           </div>
           <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
@@ -360,7 +360,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         </div>
 
         {/* KPI 5: Total Constraint Violations */}
-        <div className="p-3.5 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs col-span-2 lg:col-span-1">
+        <div className="p-3 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
               Fleet Violations
@@ -371,7 +371,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
             )}
           </div>
-          <div className={`text-base sm:text-lg font-bold font-technical mt-1 ${summaryKPIs.totalViolations === 0 ? 'text-[#22C55E]' : 'text-amber-500'}`}>
+          <div className={`text-base sm:text-lg font-bold font-mono mt-1 ${summaryKPIs.totalViolations === 0 ? 'text-[#22C55E]' : 'text-amber-500'}`}>
             {summaryKPIs.totalViolations} Violations
           </div>
           <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] block mt-0.5">
@@ -381,16 +381,16 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
       </div>
 
       {/* ─── CONTROLS BAR: SEARCH, SCOPE FILTER, SORTING (Requirement 6) ─── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 rounded-2xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-white dark:bg-[#111113] border border-black/10 dark:border-[#29292E] shadow-2xs">
         {/* Left: System Scope Pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] mr-1 hidden sm:inline">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] mr-1 hidden sm:inline">
             Scope:
           </span>
           <button
             type="button"
             onClick={() => setSystemScope('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
               systemScope === 'all'
                 ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] dark:text-[#B7FF2A] border border-black dark:border-[#B7FF2A]/40'
                 : 'bg-black/5 text-[#555555] hover:bg-black/10 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7]'
@@ -401,7 +401,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
           <button
             type="button"
             onClick={() => setSystemScope('primary')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
               systemScope === 'primary'
                 ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] dark:text-[#B7FF2A] border border-black dark:border-[#B7FF2A]/40'
                 : 'bg-black/5 text-[#555555] hover:bg-black/10 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7]'
@@ -412,7 +412,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
           <button
             type="button"
             onClick={() => setSystemScope('classical')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
               systemScope === 'classical'
                 ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] dark:text-[#B7FF2A] border border-black dark:border-[#B7FF2A]/40'
                 : 'bg-black/5 text-[#555555] hover:bg-black/10 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7]'
@@ -425,13 +425,13 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
         {/* Right: Feasibility Filter & Search */}
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           {/* Feasibility Selector */}
-          <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-xs">
-            <Filter className="h-3.5 w-3.5 text-[#777777] dark:text-[#A1A1AA] shrink-0" />
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px]">
+            <Filter className="h-3 w-3 text-[#777777] dark:text-[#A1A1AA] shrink-0" />
             <select
               value={feasibilityFilter}
               aria-label="Filter algorithms by feasibility status"
               onChange={(e) => setFeasibilityFilter(e.target.value as FeasibilityFilter)}
-              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-xs border-none outline-none cursor-pointer"
+              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px] border-none outline-none cursor-pointer"
             >
               <option value="all" className="dark:bg-[#18181B]">All Feasibility</option>
               <option value="feasible" className="dark:bg-[#18181B]">Feasible Only</option>
@@ -440,13 +440,13 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
           </div>
 
           {/* Sort Selector */}
-          <div className="flex items-center gap-1 px-2 py-1 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-xs">
-            <ArrowUpDown className="h-3.5 w-3.5 text-[#777777] dark:text-[#A1A1AA] shrink-0" />
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px]">
+            <ArrowUpDown className="h-3 w-3 text-[#777777] dark:text-[#A1A1AA] shrink-0" />
             <select
               value={sortField}
               aria-label="Sort comparison table by metric"
               onChange={(e) => setSortField(e.target.value as SortField)}
-              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-xs border-none outline-none cursor-pointer"
+              className="bg-transparent text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px] border-none outline-none cursor-pointer"
             >
               <option value="default" className="dark:bg-[#18181B]">Sort: Research Priority</option>
               <option value="distance" className="dark:bg-[#18181B]">Sort: Distance</option>
@@ -457,37 +457,37 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
           </div>
 
           {/* Quick Search */}
-          <div className="relative min-w-[150px] w-full sm:w-auto">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#777777] dark:text-[#71717A]" />
+          <div className="relative min-w-[140px] w-full sm:w-auto">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-[#777777] dark:text-[#71717A]" />
             <input
               type="text"
               placeholder="Search solver..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-xs text-[#080808] dark:text-[#F5F5F7] placeholder-[#777777] dark:placeholder-[#71717A] outline-none focus:border-[#B7FF2A]/50 transition-colors"
+              className="w-full pl-7 pr-2.5 py-1 rounded-lg bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px] text-[#080808] dark:text-[#F5F5F7] placeholder-[#777777] dark:placeholder-[#71717A] outline-none focus:border-[#B7FF2A]/50 transition-colors"
             />
           </div>
         </div>
       </div>
 
       {/* ─── DESKTOP & TABLET TABLE LAYOUT (Requirements 1, 2, 3, 4, 8) ────── */}
-      <div className="hidden md:block rounded-2xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#111113] overflow-hidden shadow-sm">
+      <div className="hidden md:block rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#111113] overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-[11px] border-collapse">
             <thead>
-              <tr className="border-b border-black/10 dark:border-[#29292E] bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] text-[10px] uppercase font-bold tracking-wider select-none">
-                <th className="py-3.5 px-4 min-w-[220px]">
+              <tr className="border-b border-black/10 dark:border-[#29292E] bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] text-[9px] sm:text-[10px] uppercase font-bold tracking-wider select-none">
+                <th className="py-2.5 px-3 min-w-[200px]">
                   <span>1. Algorithm</span>
                 </th>
-                <th className="py-3.5 px-4 min-w-[140px]">
+                <th className="py-2.5 px-3 min-w-[130px]">
                   <span>2. Category</span>
                 </th>
-                <th className="py-3.5 px-4 min-w-[110px]">
+                <th className="py-2.5 px-3 min-w-[100px]">
                   <span>3. Feasibility</span>
                 </th>
                 <th
                   onClick={() => handleSortClick('distance')}
-                  className="py-3.5 px-4 min-w-[120px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
+                  className="py-2.5 px-3 min-w-[110px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
                   title="Click to sort by total road distance"
                 >
                   <div className="flex items-center gap-1">
@@ -499,7 +499,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                 </th>
                 <th
                   onClick={() => handleSortClick('duration')}
-                  className="py-3.5 px-4 min-w-[110px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
+                  className="py-2.5 px-3 min-w-[100px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
                   title="Click to sort by driving duration"
                 >
                   <div className="flex items-center gap-1">
@@ -511,7 +511,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                 </th>
                 <th
                   onClick={() => handleSortClick('vehicles')}
-                  className="py-3.5 px-4 min-w-[110px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
+                  className="py-2.5 px-3 min-w-[100px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
                   title="Click to sort by fleet vehicles"
                 >
                   <div className="flex items-center gap-1">
@@ -521,12 +521,12 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                     )}
                   </div>
                 </th>
-                <th className="py-3.5 px-4 min-w-[120px]">
+                <th className="py-2.5 px-3 min-w-[110px]">
                   <span>7. Violations</span>
                 </th>
                 <th
                   onClick={() => handleSortClick('runtime')}
-                  className="py-3.5 px-4 min-w-[100px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
+                  className="py-2.5 px-3 min-w-[95px] cursor-pointer hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-colors"
                   title="Click to sort by solver runtime"
                 >
                   <div className="flex items-center gap-1">
@@ -536,7 +536,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                     )}
                   </div>
                 </th>
-                <th className="py-3.5 px-4 min-w-[140px] text-right">
+                <th className="py-2.5 px-3 min-w-[130px] text-right">
                   <span>9. Action</span>
                 </th>
               </tr>
@@ -569,13 +569,13 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       }`}
                     >
                       {/* 1. Algorithm Name & Sub-badge */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`font-bold ${isCoop ? 'text-purple-600 dark:text-purple-300 font-heading text-sm' : 'text-[#080808] dark:text-[#F5F5F7]'}`}>
+                      <td className="py-2.5 px-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`font-bold ${isCoop ? 'text-purple-600 dark:text-purple-300 font-heading text-xs sm:text-[13px]' : 'text-xs sm:text-[13px] text-[#080808] dark:text-[#F5F5F7]'}`}>
                             {item.name}
                           </span>
                           {isBest && (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold tracking-wide">
+                            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#B7FF00] text-black font-extrabold tracking-wide">
                               Best Pick
                             </span>
                           )}
@@ -585,65 +585,65 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-[#777777] dark:text-[#71717A] font-technical block mt-0.5">
+                        <span className="text-[10px] text-[#777777] dark:text-[#71717A] font-mono block mt-0.5">
                           {badge.hardwareTag}
                         </span>
                       </td>
 
                       {/* 2. Category */}
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-block px-2 py-0.5 rounded-lg text-[10px] font-bold ${badge.classes}`}>
+                      <td className="py-2.5 px-3">
+                        <span className={`inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold ${badge.classes}`}>
                           {badge.label}
                         </span>
                       </td>
 
                       {/* 3. Feasibility */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         {item.status === 'RUNNING' ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-amber-500 text-[11px]">
+                          <span className="inline-flex items-center gap-1 font-bold text-amber-500 text-[10px]">
                             <RotateCw className="h-3 w-3 animate-spin" />
                             <span>Running...</span>
                           </span>
                         ) : item.status === 'PENDING' ? (
-                          <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-[11px]">
+                          <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-[10px]">
                             <span>Pending</span>
                           </span>
                         ) : item.status === 'TIMED_OUT' ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-orange-500 text-[11px]">
-                            <AlertTriangle className="h-3.5 w-3.5" />
+                          <span className="inline-flex items-center gap-1 font-bold text-orange-500 text-[10px]">
+                            <AlertTriangle className="h-3 w-3" />
                             <span>Timed Out</span>
                           </span>
                         ) : item.status === 'FAILED' ? (
-                          <span className="inline-flex items-center gap-1 font-bold text-red-500 text-[11px]" title={item.error || 'Solver failed'}>
-                            <AlertTriangle className="h-3.5 w-3.5" />
+                          <span className="inline-flex items-center gap-1 font-bold text-red-500 text-[10px]" title={item.error || 'Solver failed'}>
+                            <AlertTriangle className="h-3 w-3" />
                             <span>Failed</span>
                           </span>
                         ) : (
-                          <span className={`inline-flex items-center gap-1 font-bold text-[11px] ${
+                          <span className={`inline-flex items-center gap-1 font-bold text-[10px] ${
                             item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
                           }`}>
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            <CheckCircle2 className="h-3 w-3 shrink-0" />
                             <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
                           </span>
                         )}
                       </td>
 
                       {/* 4. Total Distance */}
-                      <td className="py-3.5 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono font-bold text-[#080808] dark:text-[#F5F5F7] whitespace-nowrap">
                         {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
                           ? `${item.total_distance_km.toFixed(2)} km`
                           : (item.status === 'RUNNING' ? 'Computing...' : '—')}
                       </td>
 
                       {/* 5. Estimated Duration */}
-                      <td className="py-3.5 px-4 font-technical text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
                         {drivingMin > 0 ? (
                           <div>
                             <span className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
                               {Math.round(drivingMin)} min
                             </span>
                             {serviceMin > 0 && (
-                              <span className="text-[10px] text-[#777777] dark:text-[#71717A] block">
+                              <span className="text-[9px] text-[#777777] dark:text-[#71717A] block">
                                 +{Math.round(serviceMin)}m svc
                               </span>
                             )}
@@ -652,7 +652,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 6. Vehicles Used */}
-                      <td className="py-3.5 px-4 font-technical text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-[#555555] dark:text-[#A1A1AA] whitespace-nowrap">
                         {item.vehicles_used ? (
                           <span>
                             <strong className="text-[#080808] dark:text-[#F5F5F7]">{item.vehicles_used}</strong> veh · {item.served_customers} stops
@@ -661,7 +661,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 7. Constraint Violations */}
-                      <td className="py-3.5 px-4 font-technical whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono whitespace-nowrap">
                         {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
                           <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Execution Error'}>
                             {item.status === 'TIMED_OUT' ? 'Limit Exceeded' : 'Execution Failed'}
@@ -679,19 +679,19 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </td>
 
                       {/* 8. Runtime */}
-                      <td className="py-3.5 px-4 font-technical text-[#777777] dark:text-[#A1A1AA] whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-[#777777] dark:text-[#A1A1AA] whitespace-nowrap">
                         {typeof item.execution_time_sec === 'number'
                           ? `${item.execution_time_sec.toFixed(3)}s`
                           : '—'}
                       </td>
 
                       {/* 9. Action Buttons */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => onSelectAlgorithm(item.id)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs ${
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer shadow-2xs ${
                               isCurrent
                                 ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] dark:text-[#B7FF2A] border border-black dark:border-[#B7FF2A]/50 ring-1 ring-[#B7FF2A]/30'
                                 : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
@@ -703,13 +703,13 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                           <button
                             type="button"
                             onClick={() => toggleRowExpanded(item.id)}
-                            className="p-1.5 rounded-xl bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:hover:bg-[#202024] text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-all cursor-pointer"
+                            className="p-1 rounded-lg bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:hover:bg-[#202024] text-[#777777] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-[#F5F5F7] transition-all cursor-pointer"
                             title={isExpanded ? 'Collapse technical metrics' : 'Expand technical telemetry'}
                           >
                             {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
+                              <ChevronUp className="h-3.5 w-3.5" />
                             ) : (
-                              <ChevronDown className="h-4 w-4" />
+                              <ChevronDown className="h-3.5 w-3.5" />
                             )}
                           </button>
                         </div>
@@ -719,58 +719,58 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                     {/* Expandable Technical Details Row (Requirement 2 & 4) */}
                     {isExpanded && (
                       <tr className="bg-black/[0.02] dark:bg-[#141418] border-b border-black/10 dark:border-[#29292E] animate-fadeIn">
-                        <td colSpan={9} className="p-4 sm:p-5">
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-2">
-                              <div className="flex items-center gap-2">
-                                <Activity className="h-4 w-4 text-[#B7FF2A]" />
+                        <td colSpan={9} className="p-3.5 sm:p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between border-b border-black/5 dark:border-white/5 pb-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Activity className="h-3.5 w-3.5 text-[#B7FF2A]" />
                                 <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] font-heading">
                                   Technical Telemetry & Solver Parameters: {item.name}
                                 </span>
                               </div>
-                              <span className="text-[10px] font-technical text-[#777777] dark:text-[#71717A]">
+                              <span className="text-[10px] font-mono text-[#777777] dark:text-[#71717A]">
                                 Verified Single Source of Truth
                               </span>
                             </div>
 
                             {/* 4 Telemetry Grid Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5">
                               {/* Telemetry Card 1: Speed & Travel Time */}
-                              <div className="p-3.5 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1.5">
+                              <div className="p-3 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1">
                                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
-                                  <Gauge className="h-3.5 w-3.5 text-blue-500" />
+                                  <Gauge className="h-3 w-3 text-blue-500" />
                                   <span>Speed & Transit Model</span>
                                 </div>
-                                <div className="space-y-1 text-xs">
+                                <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Implied Avg Speed:</span>
-                                    <strong className="font-technical text-[#080808] dark:text-[#F5F5F7]">{impliedSpeed.toFixed(1)} km/h</strong>
+                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">{impliedSpeed.toFixed(1)} km/h</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Pure Driving Transit:</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">{Math.round(drivingMin)} min</span>
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{Math.round(drivingMin)} min</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Stop Dwell Service:</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">{Math.round(serviceMin)} min</span>
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{Math.round(serviceMin)} min</span>
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Total Mission Time:</span>
-                                    <strong className="font-technical text-[#080808] dark:text-[#F5F5F7]">{Math.round(totalDurMin)} min</strong>
+                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">{Math.round(totalDurMin)} min</strong>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Telemetry Card 2: Computational Resources (CPU & RAM) */}
-                              <div className="p-3.5 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1.5">
+                              <div className="p-3 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1">
                                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
-                                  <Cpu className="h-3.5 w-3.5 text-emerald-500" />
+                                  <Cpu className="h-3 w-3 text-emerald-500" />
                                   <span>Compute & Memory</span>
                                 </div>
-                                <div className="space-y-1 text-xs">
+                                <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">CPU Core Utilization:</span>
-                                    <strong className="font-technical text-[#080808] dark:text-[#F5F5F7]">
+                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">
                                       {item.cpu_core_ratio_percent || item.cpu_utilization_percent
                                         ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(1)}%`
                                         : 'Active'}
@@ -778,13 +778,13 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Process RSS RAM:</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">
                                       {item.process_rss_mb ? `${item.process_rss_mb.toFixed(1)} MB` : '182.4 MB'}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Python Heap (Alloc):</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">
                                       {item.heap_allocated_mb || item.memory_used_mb
                                         ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)} MB`
                                         : '< 1 MB'}
@@ -792,7 +792,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Peak Heap Allocation:</span>
-                                    <strong className="font-technical text-[#080808] dark:text-[#F5F5F7]">
+                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">
                                       {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)} MB
                                     </strong>
                                   </div>
@@ -800,59 +800,59 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                               </div>
 
                               {/* Telemetry Card 3: Big-O Complexity & Subroutines */}
-                              <div className="p-3.5 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1.5">
+                              <div className="p-3 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1">
                                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
-                                  <Layers className="h-3.5 w-3.5 text-purple-500" />
+                                  <Layers className="h-3 w-3 text-purple-500" />
                                   <span>Complexity & Architecture</span>
                                 </div>
-                                <div className="space-y-1 text-xs">
+                                <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Worst-Case Time:</span>
-                                    <strong className="font-technical text-[#080808] dark:text-[#F5F5F7]">{item.time_complexity || 'O(N²)'}</strong>
+                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">{item.time_complexity || 'O(N²)'}</strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Space Complexity:</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">{item.space_complexity || 'O(N)'}</span>
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{item.space_complexity || 'O(N)'}</span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Execution Runtime:</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">{typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}</span>
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">{typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}</span>
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Execution Environment:</span>
-                                    <strong className="font-technical text-[10px] text-[#080808] dark:text-[#F5F5F7] truncate max-w-[130px]">{badge.hardwareTag}</strong>
+                                    <strong className="font-mono text-[10px] text-[#080808] dark:text-[#F5F5F7] truncate max-w-[130px]">{badge.hardwareTag}</strong>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Telemetry Card 4: Objective Cost & Optimization Convergence */}
-                              <div className="p-3.5 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1.5">
+                              <div className="p-3 rounded-xl bg-white dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] space-y-1">
                                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A]">
-                                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                                  <Sparkles className="h-3 w-3 text-amber-500" />
                                   <span>Objective & Convergence</span>
                                 </div>
-                                <div className="space-y-1 text-xs">
+                                <div className="space-y-1 text-[11px]">
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Total Objective Cost:</span>
-                                    <strong className="font-technical text-[#080808] dark:text-[#F5F5F7]">
+                                    <strong className="font-mono text-[#080808] dark:text-[#F5F5F7]">
                                       {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
                                     </strong>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Penalty Incurred:</span>
-                                    <span className={`font-technical ${item.capacity_violations > 0 ? 'text-red-500 font-bold' : 'text-[#22C55E]'}`}>
+                                    <span className={`font-mono ${item.capacity_violations > 0 ? 'text-red-500 font-bold' : 'text-[#22C55E]'}`}>
                                       {item.capacity_violations > 0 ? `${item.capacity_violations * 1000} pts` : '0.00 pts'}
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Convergence State:</span>
-                                    <span className="font-technical text-[#777777] dark:text-[#D4D4D8]">
+                                    <span className="font-mono text-[#777777] dark:text-[#D4D4D8]">
                                       {item.status === 'COMPLETED' ? 'Converged Optimal' : item.status}
                                     </span>
                                   </div>
                                   <div className="flex justify-between border-t border-black/5 dark:border-white/5 pt-1">
                                     <span className="text-[#555555] dark:text-[#A1A1AA]">Solution Feasibility:</span>
-                                    <strong className={`font-technical text-[10px] ${item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`}>
+                                    <strong className={`font-mono text-[10px] ${item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`}>
                                       {item.is_feasible ? 'Verified 100% Feasible' : 'Constraint Penalized'}
                                     </strong>
                                   </div>
@@ -861,7 +861,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                             </div>
 
                             {/* Solver Architectural Note */}
-                            <div className="px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px] text-[#555555] dark:text-[#A1A1AA] flex items-start gap-2.5">
+                            <div className="px-3 py-2 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px] text-[#555555] dark:text-[#A1A1AA] flex items-start gap-2 leading-relaxed">
                               <span className="font-bold text-[#080808] dark:text-[#F5F5F7] shrink-0">Solver Architecture:</span>
                               {isCoop ? (
                                 <span>
@@ -898,7 +898,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
       </div>
 
       {/* ─── MOBILE CARD VIEW (Requirement 9) ────────────────────────────── */}
-      <div className="md:hidden space-y-3">
+      <div className="md:hidden space-y-2.5">
         {processedItems.map((item) => {
           const isCurrent = activeAlgo === item.id;
           const isBest = item.id === bestAlgoId;
@@ -911,7 +911,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
           return (
             <div
               key={`mobile-card-${item.id}`}
-              className={`p-4 rounded-2xl bg-white dark:bg-[#111113] border transition-all ${
+              className={`p-3.5 rounded-xl bg-white dark:bg-[#111113] border transition-all ${
                 isCurrent
                   ? 'border-[#B7FF2A] ring-1 ring-[#B7FF2A]/50 shadow-md'
                   : isCoop
@@ -920,14 +920,14 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               }`}
             >
               {/* Card Header */}
-              <div className="flex items-start justify-between gap-2 pb-3 border-b border-black/5 dark:border-[#29292E]">
+              <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-black/5 dark:border-[#29292E]">
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <h3 className={`font-bold text-sm ${isCoop ? 'text-purple-600 dark:text-purple-400 font-heading' : 'text-[#080808] dark:text-[#F5F5F7]'}`}>
+                    <h3 className={`font-bold text-xs sm:text-[13px] ${isCoop ? 'text-purple-600 dark:text-purple-400 font-heading' : 'text-[#080808] dark:text-[#F5F5F7]'}`}>
                       {item.name}
                     </h3>
                     {isBest && (
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase">
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase">
                         Best Pick
                       </span>
                     )}
@@ -937,7 +937,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                       </span>
                     )}
                   </div>
-                  <span className={`inline-block px-2 py-0.5 rounded-lg text-[9px] font-bold mt-1 ${badge.classes}`}>
+                  <span className={`inline-block px-1.5 py-0.5 rounded-md text-[9px] font-bold mt-1 ${badge.classes}`}>
                     {badge.label}
                   </span>
                 </div>
@@ -966,64 +966,64 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
               </div>
 
               {/* Card Key Metrics Grid (2x3) */}
-              <div className="grid grid-cols-2 gap-2.5 py-3 text-xs border-b border-black/5 dark:border-[#29292E]">
+              <div className="grid grid-cols-2 gap-2 py-2.5 text-[11px] border-b border-black/5 dark:border-[#29292E]">
                 <div>
-                  <span className="text-[10px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase">
+                  <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Road Distance
                   </span>
-                  <strong className="text-sm font-technical text-[#080808] dark:text-[#F5F5F7]">
+                  <strong className="text-xs sm:text-[13px] font-mono text-[#080808] dark:text-[#F5F5F7]">
                     {item.total_distance_km ? `${item.total_distance_km.toFixed(2)} km` : '—'}
                   </strong>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase">
+                  <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Driving Duration
                   </span>
-                  <strong className="text-sm font-technical text-[#080808] dark:text-[#F5F5F7]">
+                  <strong className="text-xs sm:text-[13px] font-mono text-[#080808] dark:text-[#F5F5F7]">
                     {drivingMin ? `${Math.round(drivingMin)} min` : '—'}
                   </strong>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase">
+                  <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Vehicles Assigned
                   </span>
-                  <span className="font-technical text-[#080808] dark:text-[#F5F5F7] font-semibold">
+                  <span className="font-mono text-[#080808] dark:text-[#F5F5F7] font-semibold text-[11px]">
                     {item.vehicles_used ? `${item.vehicles_used} veh (${item.served_customers} stops)` : '—'}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase">
+                  <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Violations
                   </span>
-                  <span className={`font-technical font-bold ${item.capacity_violations === 0 ? 'text-[#22C55E]' : 'text-red-500'}`}>
+                  <span className={`font-mono font-bold text-[11px] ${item.capacity_violations === 0 ? 'text-[#22C55E]' : 'text-red-500'}`}>
                     {item.capacity_violations === 0 ? '0 violations' : `${item.capacity_violations} cap breaches`}
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase">
+                  <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Implied Speed
                   </span>
-                  <span className="font-technical text-[#080808] dark:text-[#F5F5F7]">
+                  <span className="font-mono text-[#080808] dark:text-[#F5F5F7] text-[11px]">
                     {impliedSpeed.toFixed(1)} km/h
                   </span>
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase">
+                  <span className="text-[9px] text-[#777777] dark:text-[#71717A] block font-semibold uppercase tracking-wider">
                     Runtime
                   </span>
-                  <span className="font-technical text-[#777777] dark:text-[#A1A1AA]">
+                  <span className="font-mono text-[#777777] dark:text-[#A1A1AA] text-[11px]">
                     {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
                   </span>
                 </div>
               </div>
 
               {/* Card Actions */}
-              <div className="flex items-center justify-between gap-2 pt-3">
+              <div className="flex items-center justify-between gap-2 pt-2.5">
                 <button
                   type="button"
                   onClick={() => toggleRowExpanded(item.id)}
@@ -1036,7 +1036,7 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
                 <button
                   type="button"
                   onClick={() => onSelectAlgorithm(item.id)}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
                     isCurrent
                       ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] dark:text-[#B7FF2A] border border-black dark:border-[#B7FF2A]/50'
                       : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] text-[#080808] dark:text-[#F5F5F7]'
@@ -1048,28 +1048,28 @@ export const AlgorithmComparisonScorecard: React.FC<AlgorithmComparisonScorecard
 
               {/* Mobile Expanded Details */}
               {isExpanded && (
-                <div className="mt-3 pt-3 border-t border-black/5 dark:border-[#29292E] space-y-2 text-xs animate-fadeIn">
-                  <div className="flex justify-between py-1 border-b border-black/5 dark:border-white/5">
+                <div className="mt-2.5 pt-2.5 border-t border-black/5 dark:border-[#29292E] space-y-1.5 text-[11px] animate-fadeIn">
+                  <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">Time Complexity:</span>
-                    <strong className="font-technical">{item.time_complexity || 'O(N²)'}</strong>
+                    <strong className="font-mono">{item.time_complexity || 'O(N²)'}</strong>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-black/5 dark:border-white/5">
+                  <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">Space Complexity:</span>
-                    <strong className="font-technical">{item.space_complexity || 'O(N)'}</strong>
+                    <strong className="font-mono">{item.space_complexity || 'O(N)'}</strong>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-black/5 dark:border-white/5">
+                  <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">Total Objective Cost:</span>
-                    <strong className="font-technical">{typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}</strong>
+                    <strong className="font-mono">{typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}</strong>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-black/5 dark:border-white/5">
+                  <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">CPU Core Utilization:</span>
-                    <strong className="font-technical">{item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}%` : 'Active'}</strong>
+                    <strong className="font-mono">{item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}%` : 'Active'}</strong>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-black/5 dark:border-white/5">
+                  <div className="flex justify-between py-0.5 border-b border-black/5 dark:border-white/5">
                     <span className="text-[#777777] dark:text-[#71717A]">RAM Heap Allocated:</span>
-                    <strong className="font-technical">{item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)} MB` : '<1 MB'}</strong>
+                    <strong className="font-mono">{item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)} MB` : '<1 MB'}</strong>
                   </div>
-                  <div className="pt-2 text-[10px] text-[#777777] dark:text-[#A1A1AA] leading-relaxed">
+                  <div className="pt-1.5 text-[10px] text-[#777777] dark:text-[#A1A1AA] leading-relaxed">
                     <strong>Compute Architecture:</strong> {badge.hardwareTag}
                   </div>
                 </div>
