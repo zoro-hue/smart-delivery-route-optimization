@@ -1,0 +1,8 @@
+config,state,mixer,beta,row_valid_pct,col_valid_pct,strict_perm_valid_pct,avg_proj_delta
+Standard Uniform + Transverse,uniform,transverse,0.35,1.76,1.37,0.49,2.314
+Classical Seed + Transverse,classical_seed,transverse,0.35,0.0,0.05,0.0,2.977
+Classical Seed + XY (Beta=0.05pi - Near Identity),classical_seed,xy,0.05,100.0,86.87,86.87,0.136
+Classical Seed + XY (Beta=0.20pi),classical_seed,xy,0.2,100.0,16.89,16.89,1.036
+Classical Seed + XY (Beta=0.35pi - Phase P Default),classical_seed,xy,0.35,100.0,31.98,31.98,0.756
+Classical Seed + XY (Beta=0.50pi - Strong Mixing),classical_seed,xy,0.5,100.0,100.0,100.0,0.0
+Perturbed Seed + XY (Beta=0.35pi),perturbed_seed,xy,0.35,100.0,31.15,31.15,0.785
