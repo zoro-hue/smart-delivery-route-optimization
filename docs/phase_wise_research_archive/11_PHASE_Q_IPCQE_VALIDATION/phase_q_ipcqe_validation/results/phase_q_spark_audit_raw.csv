@@ -1,0 +1,6 @@
+N,pandas_time_ms,spark_time_ms,clusters_count,cluster_balance_std,payload_gen_time_ms,pandas_mem_mb,spark_mem_mb,clusters_identical
+25,8.89,10527.63,3,1.25,0.19,112.8,157.9,True
+50,9.36,1142.99,7,2.64,0.23,158.0,158.2,True
+100,9.0,1139.8,12,2.25,0.16,158.3,158.5,True
+250,18.06,1110.7,29,1.19,0.15,158.6,159.0,True
+500,50.48,1130.96,58,1.11,0.13,159.8,160.3,True

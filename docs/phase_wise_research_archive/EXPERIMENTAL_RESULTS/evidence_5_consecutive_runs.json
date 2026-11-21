@@ -1,0 +1,422 @@
+[
+  {
+    "run_number": 1,
+    "job_id": "f50643b5-6cfa-47b8-b544-98b28445947f",
+    "experiment_id": "f50643b5-6cfa-47b8-b544-98b28445947f",
+    "primary_algo": "routeiq_cooperative",
+    "primary_latency_sec": 7.497,
+    "terminal_status": "COMPLETED",
+    "total_time_sec": 17.911,
+    "total_algorithms": 11,
+    "completed_count": 11,
+    "failed_count": 0,
+    "timed_out_count": 0,
+    "pending_count": 0,
+    "running_count": 0,
+    "solver_details": {
+      "routeiq_cooperative": {
+        "status": "completed",
+        "distance_km": 16.992,
+        "is_feasible": true,
+        "execution_time_sec": 3.547
+      },
+      "ortools": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.355
+      },
+      "clarke_wright": {
+        "status": "completed",
+        "distance_km": 17.954,
+        "is_feasible": true,
+        "execution_time_sec": 0.006
+      },
+      "two_opt": {
+        "status": "completed",
+        "distance_km": 18.339,
+        "is_feasible": true,
+        "execution_time_sec": 0.009
+      },
+      "dijkstra": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.005
+      },
+      "astar": {
+        "status": "completed",
+        "distance_km": 17.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.002
+      },
+      "tabu_search": {
+        "status": "completed",
+        "distance_km": 17.017,
+        "is_feasible": true,
+        "execution_time_sec": 0.486
+      },
+      "kernighan_lin": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.026
+      },
+      "vnd": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.003
+      },
+      "qaoa": {
+        "status": "completed",
+        "distance_km": 24.762,
+        "is_feasible": true,
+        "execution_time_sec": 1.502
+      },
+      "qiga": {
+        "status": "completed",
+        "distance_km": 27.248,
+        "is_feasible": true,
+        "execution_time_sec": 0.554
+      }
+    },
+    "db_rows_count": 11
+  },
+  {
+    "run_number": 2,
+    "job_id": "e9323af4-ebdc-4a9c-ac10-1e2a2557ba6f",
+    "experiment_id": "e9323af4-ebdc-4a9c-ac10-1e2a2557ba6f",
+    "primary_algo": "routeiq_cooperative",
+    "primary_latency_sec": 3.734,
+    "terminal_status": "COMPLETED",
+    "total_time_sec": 11.511,
+    "total_algorithms": 11,
+    "completed_count": 11,
+    "failed_count": 0,
+    "timed_out_count": 0,
+    "pending_count": 0,
+    "running_count": 0,
+    "solver_details": {
+      "routeiq_cooperative": {
+        "status": "completed",
+        "distance_km": 16.992,
+        "is_feasible": true,
+        "execution_time_sec": 2.949
+      },
+      "ortools": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.359
+      },
+      "clarke_wright": {
+        "status": "completed",
+        "distance_km": 17.954,
+        "is_feasible": true,
+        "execution_time_sec": 0.009
+      },
+      "two_opt": {
+        "status": "completed",
+        "distance_km": 18.339,
+        "is_feasible": true,
+        "execution_time_sec": 0.009
+      },
+      "dijkstra": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.011
+      },
+      "astar": {
+        "status": "completed",
+        "distance_km": 17.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.002
+      },
+      "tabu_search": {
+        "status": "completed",
+        "distance_km": 17.017,
+        "is_feasible": true,
+        "execution_time_sec": 0.505
+      },
+      "kernighan_lin": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.012
+      },
+      "vnd": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.002
+      },
+      "qaoa": {
+        "status": "completed",
+        "distance_km": 24.762,
+        "is_feasible": true,
+        "execution_time_sec": 0.088
+      },
+      "qiga": {
+        "status": "completed",
+        "distance_km": 27.248,
+        "is_feasible": true,
+        "execution_time_sec": 0.194
+      }
+    },
+    "db_rows_count": 11
+  },
+  {
+    "run_number": 3,
+    "job_id": "9c3690f3-6f24-4aef-8091-0465d3493409",
+    "experiment_id": "9c3690f3-6f24-4aef-8091-0465d3493409",
+    "primary_algo": "routeiq_cooperative",
+    "primary_latency_sec": 1.543,
+    "terminal_status": "COMPLETED",
+    "total_time_sec": 6.961,
+    "total_algorithms": 11,
+    "completed_count": 11,
+    "failed_count": 0,
+    "timed_out_count": 0,
+    "pending_count": 0,
+    "running_count": 0,
+    "solver_details": {
+      "routeiq_cooperative": {
+        "status": "completed",
+        "distance_km": 16.992,
+        "is_feasible": true,
+        "execution_time_sec": 1.201
+      },
+      "ortools": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.265
+      },
+      "clarke_wright": {
+        "status": "completed",
+        "distance_km": 17.954,
+        "is_feasible": true,
+        "execution_time_sec": 0.004
+      },
+      "two_opt": {
+        "status": "completed",
+        "distance_km": 18.339,
+        "is_feasible": true,
+        "execution_time_sec": 0.004
+      },
+      "dijkstra": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.003
+      },
+      "astar": {
+        "status": "completed",
+        "distance_km": 17.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.001
+      },
+      "tabu_search": {
+        "status": "completed",
+        "distance_km": 17.017,
+        "is_feasible": true,
+        "execution_time_sec": 0.182
+      },
+      "kernighan_lin": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.019
+      },
+      "vnd": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.001
+      },
+      "qaoa": {
+        "status": "completed",
+        "distance_km": 24.762,
+        "is_feasible": true,
+        "execution_time_sec": 0.116
+      },
+      "qiga": {
+        "status": "completed",
+        "distance_km": 27.248,
+        "is_feasible": true,
+        "execution_time_sec": 0.176
+      }
+    },
+    "db_rows_count": 11
+  },
+  {
+    "run_number": 4,
+    "job_id": "f1dd21c2-bd4f-4599-b649-7a9d3bb939b1",
+    "experiment_id": "f1dd21c2-bd4f-4599-b649-7a9d3bb939b1",
+    "primary_algo": "routeiq_cooperative",
+    "primary_latency_sec": 1.708,
+    "terminal_status": "COMPLETED",
+    "total_time_sec": 7.076,
+    "total_algorithms": 11,
+    "completed_count": 11,
+    "failed_count": 0,
+    "timed_out_count": 0,
+    "pending_count": 0,
+    "running_count": 0,
+    "solver_details": {
+      "routeiq_cooperative": {
+        "status": "completed",
+        "distance_km": 16.992,
+        "is_feasible": true,
+        "execution_time_sec": 1.24
+      },
+      "ortools": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.25
+      },
+      "clarke_wright": {
+        "status": "completed",
+        "distance_km": 17.954,
+        "is_feasible": true,
+        "execution_time_sec": 0.003
+      },
+      "two_opt": {
+        "status": "completed",
+        "distance_km": 18.339,
+        "is_feasible": true,
+        "execution_time_sec": 0.005
+      },
+      "dijkstra": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.003
+      },
+      "astar": {
+        "status": "completed",
+        "distance_km": 17.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.002
+      },
+      "tabu_search": {
+        "status": "completed",
+        "distance_km": 17.017,
+        "is_feasible": true,
+        "execution_time_sec": 0.175
+      },
+      "kernighan_lin": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.011
+      },
+      "vnd": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.001
+      },
+      "qaoa": {
+        "status": "completed",
+        "distance_km": 24.762,
+        "is_feasible": true,
+        "execution_time_sec": 0.106
+      },
+      "qiga": {
+        "status": "completed",
+        "distance_km": 27.248,
+        "is_feasible": true,
+        "execution_time_sec": 0.157
+      }
+    },
+    "db_rows_count": 11
+  },
+  {
+    "run_number": 5,
+    "job_id": "258e3d53-bedb-4ba3-8dcf-0a89cc95328e",
+    "experiment_id": "258e3d53-bedb-4ba3-8dcf-0a89cc95328e",
+    "primary_algo": "routeiq_cooperative",
+    "primary_latency_sec": 1.539,
+    "terminal_status": "COMPLETED",
+    "total_time_sec": 6.97,
+    "total_algorithms": 11,
+    "completed_count": 11,
+    "failed_count": 0,
+    "timed_out_count": 0,
+    "pending_count": 0,
+    "running_count": 0,
+    "solver_details": {
+      "routeiq_cooperative": {
+        "status": "completed",
+        "distance_km": 16.992,
+        "is_feasible": true,
+        "execution_time_sec": 1.207
+      },
+      "ortools": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.272
+      },
+      "clarke_wright": {
+        "status": "completed",
+        "distance_km": 17.954,
+        "is_feasible": true,
+        "execution_time_sec": 0.005
+      },
+      "two_opt": {
+        "status": "completed",
+        "distance_km": 18.339,
+        "is_feasible": true,
+        "execution_time_sec": 0.007
+      },
+      "dijkstra": {
+        "status": "completed",
+        "distance_km": 20.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.001
+      },
+      "astar": {
+        "status": "completed",
+        "distance_km": 17.974,
+        "is_feasible": true,
+        "execution_time_sec": 0.001
+      },
+      "tabu_search": {
+        "status": "completed",
+        "distance_km": 17.017,
+        "is_feasible": true,
+        "execution_time_sec": 0.162
+      },
+      "kernighan_lin": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.017
+      },
+      "vnd": {
+        "status": "completed",
+        "distance_km": 17.651,
+        "is_feasible": true,
+        "execution_time_sec": 0.001
+      },
+      "qaoa": {
+        "status": "completed",
+        "distance_km": 24.762,
+        "is_feasible": true,
+        "execution_time_sec": 0.116
+      },
+      "qiga": {
+        "status": "completed",
+        "distance_km": 27.248,
+        "is_feasible": true,
+        "execution_time_sec": 0.183
+      }
+    },
+    "db_rows_count": 11
+  }
+]
