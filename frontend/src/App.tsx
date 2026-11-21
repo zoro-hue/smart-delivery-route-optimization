@@ -61,6 +61,7 @@ export const App: React.FC = () => {
   const [connectionLatencyMs, setConnectionLatencyMs] = useState<number | null>(null);
   const reconnectAttemptRef = useRef<number>(0);
   const reconnectTimerRef = useRef<any>(null);
+  const consecutiveHealthFailuresRef = useRef<number>(0);
   const [lastResult, setLastResult] = useState<OptimizationResponse | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -84,6 +85,7 @@ export const App: React.FC = () => {
       setConnectionLatencyMs(latency);
       setBackendHealth(hl);
       reconnectAttemptRef.current = 0;
+      consecutiveHealthFailuresRef.current = 0;
       if (latency > 3500) {
         setConnectionStatus('DEGRADED');
       } else {
@@ -92,9 +94,17 @@ export const App: React.FC = () => {
       return true;
     } catch (err: any) {
       console.warn('[ROUTE/IQ Connection] Health check failed:', err?.message || err);
+      consecutiveHealthFailuresRef.current += 1;
       setConnectionLatencyMs(null);
       setBackendHealth(null);
-      setConnectionStatus('DISCONNECTED');
+      // Check if an optimization job is currently active
+      const hasActiveJob = !!localStorage.getItem('routeiq_active_job_id');
+      // If an active job is polling or this is only the first failure, flag as DEGRADED instead of immediately displaying DISCONNECTED
+      if (hasActiveJob || consecutiveHealthFailuresRef.current < 2) {
+        setConnectionStatus('DEGRADED');
+      } else {
+        setConnectionStatus('DISCONNECTED');
+      }
       return false;
     }
   }, []);

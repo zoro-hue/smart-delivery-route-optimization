@@ -604,7 +604,8 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         const isTerminal =
           isBackendTerminal ||
           isAllSolversTerminal ||
-          (completed >= total && total > 0 && statusRes.status !== 'PARTIAL' && statusRes.status !== 'RUNNING');
+          (completed >= total && total > 0 && statusRes.status !== 'PARTIAL' && statusRes.status !== 'RUNNING') ||
+          (statusRes.pending_count === 0 && statusRes.running_count === 0 && completed > 0);
 
         if (isTerminal) {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
