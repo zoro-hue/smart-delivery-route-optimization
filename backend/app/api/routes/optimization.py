@@ -28,6 +28,12 @@ from app.services.optimization.quantum_solver import quantum_solver, _check_qisk
 from app.services.optimization.qiga_solver import qiga_solver
 from app.services.optimization.cooperative_solver import cooperative_solver
 from app.services.optimization.route_identity import compute_route_identity_diagnostics
+from app.services.optimization.energy_service import (
+    compute_full_energy_analysis,
+    compute_algorithm_energy_profile,
+    compute_energy_comparison,
+    PROPULSION_MODELS,
+)
 from app.services.geo_validation import check_water_body, validate_nyc_coordinate
 from app.services.road_network_service import road_network_service
 from app.services.optimization.route_validator import (
@@ -226,7 +232,44 @@ class OptimizationRequest(BaseModel):
         }
 
 
+class EnergyAnalysisRequest(BaseModel):
+    results: Dict[str, Any]
+    propulsion_type: Optional[str] = "diesel"
+    baseline_algorithm: Optional[str] = "ortools"
+    vehicle_capacity: Optional[float] = 0.0
+    traffic_factor: Optional[float] = 1.0
+
+
 # ─── Optimization Endpoints ──────────────────────────────────────
+
+@router.get("/optimization/propulsion-models")
+async def get_propulsion_models():
+    """Retrieve all supported vehicle propulsion profiles, emission factors, and fuel prices."""
+    return {
+        "status": "success",
+        "models": PROPULSION_MODELS,
+        "default": "diesel",
+    }
+
+
+@router.post("/optimization/energy-analysis")
+async def calculate_energy_analysis_endpoint(req: EnergyAnalysisRequest):
+    """Calculate comprehensive energy, fuel, carbon emissions, and operational cost analysis."""
+    try:
+        analysis = compute_full_energy_analysis(
+            results=req.results,
+            default_propulsion=req.propulsion_type or "diesel",
+            baseline_algo=req.baseline_algorithm or "ortools",
+            vehicle_capacity=req.vehicle_capacity or 0.0,
+            traffic_factor=req.traffic_factor or 1.0,
+        )
+        return {
+            "status": "success",
+            "energy_analysis": analysis,
+        }
+    except Exception as e:
+        logger.error(f"Error calculating energy analysis: {e}")
+        raise HTTPException(500, f"Energy analysis failed: {str(e)}")
 
 @router.get("/optimization/algorithms")
 async def get_optimization_algorithms():
@@ -864,6 +907,28 @@ def _build_comparison_summary(
             )
         except Exception as diag_err:
             logger.warning(f"Failed to compute route identity diagnostics: {diag_err}")
+
+    # Compute comprehensive energy, fuel, carbon, and economic analysis across all algorithms
+    try:
+        energy_analysis = compute_full_energy_analysis(
+            results=results,
+            default_propulsion="diesel",
+            baseline_algo="ortools",
+            vehicle_capacity=float(total_fleet_capacity or 0.0),
+        )
+        summary_data["energy_analysis"] = energy_analysis
+
+        # Enrich each comparison item with active energy profile metrics
+        profiles = energy_analysis.get("profiles", {})
+        comparisons = energy_analysis.get("comparisons", {})
+        for item in comparison_items:
+            a_id = item["id"]
+            if a_id in profiles:
+                item["energy_metrics"] = profiles[a_id]
+            if a_id in comparisons:
+                item["energy_comparison"] = comparisons[a_id]
+    except Exception as energy_err:
+        logger.warning(f"Failed to compute energy analysis: {energy_err}")
 
     return summary_data
 

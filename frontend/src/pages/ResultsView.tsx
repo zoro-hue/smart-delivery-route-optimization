@@ -30,6 +30,7 @@ import {
   Legend,
 } from 'recharts';
 import { OptimizationResponse, VehicleRoute, RouteIdentityDiagnostics } from '../types';
+import { EnergyResourceAnalysis } from '../components/EnergyResourceAnalysis';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -972,8 +973,13 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       </span>
                     </div>
 
-                    <div className="text-[11px] text-[#777777] dark:text-[#A1A1AA] font-technical">
-                      Stop sequence: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')}
+                    <div className="flex items-center justify-between text-[11px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+                      <span className="truncate max-w-[280px]">
+                        Stop sequence: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')}
+                      </span>
+                      <span className="font-mono text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 font-semibold">
+                        ⚡ {((route.distance_km || 0) * 0.95).toFixed(1)} kWh
+                      </span>
                     </div>
                   </div>
                 );
@@ -1158,6 +1164,16 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </div>
         );
       })()}
+
+      {/* ─── ENERGY & RESOURCE SAVINGS ANALYSIS SECTION ──────── */}
+      {result && (
+        <EnergyResourceAnalysis
+          optimizationData={result}
+          activeAlgo={activeAlgo}
+          onSelectAlgorithm={setActiveAlgo}
+          isDark={isDark}
+        />
+      )}
 
       {/* ─── ALGORITHM COMPARISON SCORECARD TABLE (Requirement 4) ──────── */}
       {comparisonItems.length > 0 && (

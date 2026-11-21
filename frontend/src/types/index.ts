@@ -125,6 +125,7 @@ export interface SolverResult {
     measurement_method?: string;
   };
   error?: string;
+  energy_metrics?: AlgorithmEnergyProfile;
 }
 
 export interface AlgorithmInfo {
@@ -183,6 +184,89 @@ export interface ComparisonItem {
   resource_metrics?: Record<string, any>;
   is_best: boolean;
   error?: string;
+  energy_metrics?: AlgorithmEnergyProfile;
+  energy_comparison?: EnergyComparison;
+}
+
+export type VehiclePropulsionType = 'diesel' | 'petrol' | 'hybrid' | 'electric';
+
+export interface VehicleRouteEnergy {
+  vehicle_id: number;
+  distance_km: number;
+  duration_min: number;
+  stops_count: number;
+  load: number;
+  capacity: number;
+  utilization_pct: number;
+  load_factor: number;
+  traffic_factor: number;
+  fuel_consumption_litres: number;
+  energy_consumption_kwh: number;
+  direct_tailpipe_co2_kg: number;
+  indirect_grid_co2_kg: number;
+  upstream_well_to_tank_co2_kg: number;
+  total_co2_kg: number;
+  operational_cost_usd: number;
+  unit_label: string;
+}
+
+export interface AlgorithmEnergyProfile {
+  algorithm_id: string;
+  algorithm_name: string;
+  category: string;
+  is_feasible: boolean;
+  propulsion_type: VehiclePropulsionType;
+  propulsion_name: string;
+  unit_label: string;
+  total_distance_km: number;
+  total_duration_min: number;
+  vehicles_count: number;
+  fuel_consumption_litres: number;
+  energy_consumption_kwh: number;
+  direct_tailpipe_co2_kg: number;
+  indirect_grid_co2_kg: number;
+  upstream_well_to_tank_co2_kg: number;
+  total_co2_kg: number;
+  operational_cost_usd: number;
+  vehicle_breakdowns: VehicleRouteEnergy[];
+  data_tags?: Record<string, 'MEASURED' | 'ESTIMATED' | 'ASSUMED' | 'UNAVAILABLE'>;
+}
+
+export interface EnergyComparison {
+  target_algorithm: string;
+  baseline_algorithm: string;
+  propulsion_type: VehiclePropulsionType;
+  delta_distance_km: number;
+  delta_fuel_litres: number;
+  delta_energy_kwh: number;
+  delta_co2_kg: number;
+  delta_cost_usd: number;
+  pct_distance_savings: number;
+  pct_fuel_savings: number;
+  pct_energy_savings: number;
+  pct_co2_savings: number;
+  pct_cost_savings: number;
+  is_saving: boolean;
+  is_identical: boolean;
+  status_label: 'RESOURCE_SAVING' | 'RESOURCE_DEFICIT' | 'IDENTICAL_TO_BASELINE';
+  impact_summary: string;
+}
+
+export interface FullEnergyAnalysis {
+  active_propulsion: VehiclePropulsionType;
+  baseline_algorithm: string;
+  best_eco_algorithm?: string;
+  propulsion_models: Record<string, any>;
+  profiles: Record<string, AlgorithmEnergyProfile>;
+  profiles_by_propulsion: Record<VehiclePropulsionType, Record<string, AlgorithmEnergyProfile>>;
+  comparisons: Record<string, EnergyComparison>;
+  flagship_comparison?: EnergyComparison;
+  methodology?: {
+    title: string;
+    standards: string[];
+    data_tags: Record<string, string>;
+    fuel_prices_source: string;
+  };
 }
 
 export interface RouteIdentityDiagnostics {
@@ -217,6 +301,7 @@ export interface ComparisonSummary {
   best_feasible_distance_km: number;
   items: ComparisonItem[];
   route_identity_diagnostics?: RouteIdentityDiagnostics;
+  energy_analysis?: FullEnergyAnalysis;
 }
 
 export interface OptimizationResponse {
@@ -235,6 +320,7 @@ export interface OptimizationResponse {
   problem: {
     num_customers: number;
     num_vehicles: number;
+    vehicle_capacity?: number;
     depot: { lat: number; lon: number };
     traffic_factor: number;
     weather_factor: number;
