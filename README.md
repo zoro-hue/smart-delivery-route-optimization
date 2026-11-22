@@ -209,8 +209,8 @@ flowchart TD
     ADMISSION -->|Feedback Signal| CONTROLLER
     BLACKBOARD --> POLISH_GUARD
     G1 --> G2
-    G2 -->|D(Final) <= D(Baseline)| G3
-    G2 -->|D(Final) > D(Baseline)| G4
+    G2 -->|"D(Final) <= D(Baseline)"| G3
+    G2 -->|"D(Final) > D(Baseline)"| G4
     G3 --> G5
     G4 --> G5
 ```
@@ -410,7 +410,7 @@ The operator selection mechanism is implemented in `backend/app/services/optimiz
 - **Four-Pillar Scalarized Feedback Reward:**
   $$R_i(t) = 0.50 \cdot r_{\mathrm{cost}} + 0.25 \cdot r_{\mathrm{feas}} + 0.20 \cdot r_{\mathrm{div}} + 0.05 \cdot r_{\mathrm{latency}}$$
   where:
-  - $r_{\mathrm{cost}} = \operatorname{clamp}\left(\frac{\mathcal{F}(P) - \mathcal{F}(C)}{\mathcal{F}(P)}, -1.0, 1.0\right)$
+  - $r_{\mathrm{cost}} = \mathrm{clamp}\left(\frac{\mathcal{F}(P) - \mathcal{F}(C)}{\mathcal{F}(P)}, -1.0, 1.0\right)$
   - $r_{\mathrm{feas}} = +1.0$ (restored feasibility), $+0.5$ (maintained feasibility), $-0.5$ (introduced infeasibility)
   - $r_{\mathrm{div}} = d_{\mathrm{edge}}(P, C) \in [0, 1]$
   - $r_{\mathrm{latency}} = \frac{1}{1 + \ln(1 + \tau_{\mathrm{ms}} / 1000)}$
