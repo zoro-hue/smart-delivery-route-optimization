@@ -280,6 +280,8 @@ export interface EnergyComparison {
   delta_energy_kwh: number;
   delta_co2_kg: number;
   delta_cost_usd: number;
+  co2_abatement_kg?: number;
+  fleet_cost_saved_usd?: number;
   pct_distance_savings: number;
   pct_fuel_savings: number;
   pct_energy_savings: number;

@@ -312,34 +312,49 @@ export function calculateEnergyComparison(
   target: AlgorithmEnergyProfile,
   baseline: AlgorithmEnergyProfile
 ): EnergyComparison {
-  const deltaDist = baseline.total_distance_km - target.total_distance_km;
-  const deltaFuel = baseline.fuel_consumption_litres - target.fuel_consumption_litres;
-  const deltaKwh = baseline.energy_consumption_kwh - target.energy_consumption_kwh;
-  const deltaCo2 = baseline.total_co2_kg - target.total_co2_kg;
-  const deltaCost = baseline.operational_cost_usd - target.operational_cost_usd;
+  // delta = selected - baseline (negative = saved, positive = additional)
+  const deltaDist = target.total_distance_km - baseline.total_distance_km;
+  const deltaFuel = target.fuel_consumption_litres - baseline.fuel_consumption_litres;
+  const deltaKwh = target.energy_consumption_kwh - baseline.energy_consumption_kwh;
+  const deltaCo2 = target.total_co2_kg - baseline.total_co2_kg;
+  const deltaCost = target.operational_cost_usd - baseline.operational_cost_usd;
 
-  const pct = (delta: number, base: number) => {
+  // co2_abatement = baseline - selected (positive = avoided emissions)
+  const co2Abatement = baseline.total_co2_kg - target.total_co2_kg;
+  // fleet_cost_saved = baseline - selected (positive = cost saved)
+  const fleetCostSaved = baseline.operational_cost_usd - target.operational_cost_usd;
+
+  const pctSavings = (base: number, selected: number) => {
     if (Math.abs(base) < 1e-6) return 0.0;
-    return Math.round((delta / base) * 10000) / 100;
+    return Math.round(((base - selected) / base) * 10000) / 100;
   };
 
-  const pctDist = pct(deltaDist, baseline.total_distance_km);
-  const pctFuel = pct(deltaFuel, baseline.fuel_consumption_litres);
-  const pctKwh = pct(deltaKwh, baseline.energy_consumption_kwh);
-  const pctCo2 = pct(deltaCo2, baseline.total_co2_kg);
-  const pctCost = pct(deltaCost, baseline.operational_cost_usd);
+  const pctDist = pctSavings(baseline.total_distance_km, target.total_distance_km);
+  const pctFuel = pctSavings(baseline.fuel_consumption_litres, target.fuel_consumption_litres);
+  const pctKwh = pctSavings(baseline.energy_consumption_kwh, target.energy_consumption_kwh);
+  const pctCo2 = pctSavings(baseline.total_co2_kg, target.total_co2_kg);
+  const pctCost = pctSavings(baseline.operational_cost_usd, target.operational_cost_usd);
 
   let statusLabel: 'RESOURCE_SAVING' | 'RESOURCE_DEFICIT' | 'IDENTICAL_TO_BASELINE' = 'IDENTICAL_TO_BASELINE';
-  let impactSummary = 'Identical resource consumption to baseline';
+  let impactSummary = 'Identical resource consumption and emissions to baseline';
+  let isSaving = false;
+  let isIdentical = true;
 
-  if (Math.abs(deltaDist) > 0.01) {
-    if (deltaDist > 0) {
-      statusLabel = 'RESOURCE_SAVING';
-      impactSummary = `Saves ${Math.abs(pctKwh)}% energy (${Math.round(deltaKwh * 10) / 10} kWh) and avoids ${Math.round(deltaCo2 * 100) / 100} kg CO2`;
-    } else {
-      statusLabel = 'RESOURCE_DEFICIT';
-      impactSummary = `Uses ${Math.abs(pctKwh)}% more energy (+${Math.round(Math.abs(deltaKwh) * 10) / 10} kWh) than baseline`;
-    }
+  if (Math.abs(deltaKwh) <= 0.01) {
+    statusLabel = 'IDENTICAL_TO_BASELINE';
+    impactSummary = 'Identical resource consumption and emissions to baseline';
+    isSaving = false;
+    isIdentical = true;
+  } else if (deltaKwh < -0.01) {
+    statusLabel = 'RESOURCE_SAVING';
+    impactSummary = `Saves ${Math.abs(pctKwh)}% energy (${Math.round(deltaKwh * 10) / 10} kWh) and avoids ${Math.round(co2Abatement * 100) / 100} kg CO2`;
+    isSaving = true;
+    isIdentical = false;
+  } else {
+    statusLabel = 'RESOURCE_DEFICIT';
+    impactSummary = `Uses ${Math.abs(pctKwh)}% more energy (+${Math.round(deltaKwh * 10) / 10} kWh) than baseline`;
+    isSaving = false;
+    isIdentical = false;
   }
 
   return {
@@ -351,13 +366,15 @@ export function calculateEnergyComparison(
     delta_energy_kwh: Math.round(deltaKwh * 100) / 100,
     delta_co2_kg: Math.round(deltaCo2 * 1000) / 1000,
     delta_cost_usd: Math.round(deltaCost * 100) / 100,
+    co2_abatement_kg: Math.round(co2Abatement * 1000) / 1000,
+    fleet_cost_saved_usd: Math.round(fleetCostSaved * 100) / 100,
     pct_distance_savings: pctDist,
     pct_fuel_savings: pctFuel,
     pct_energy_savings: pctKwh,
     pct_co2_savings: pctCo2,
     pct_cost_savings: pctCost,
-    is_saving: deltaDist > 0.01,
-    is_identical: Math.abs(deltaDist) <= 0.01,
+    is_saving: isSaving,
+    is_identical: isIdentical,
     status_label: statusLabel,
     impact_summary: impactSummary,
   };

@@ -304,15 +304,15 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                 </span>
                 <span
                   className={`text-xs font-semibold tabular-nums font-heading ${
-                    comparison.delta_energy_kwh > 0
+                    comparison.delta_energy_kwh < -0.01
                       ? 'text-emerald-600 dark:text-emerald-400'
-                      : comparison.delta_energy_kwh < 0
+                      : comparison.delta_energy_kwh > 0.01
                       ? 'text-amber-600 dark:text-amber-400'
                       : 'text-gray-500'
                   }`}
                 >
-                  {comparison.delta_energy_kwh > 0 ? '-' : comparison.delta_energy_kwh < 0 ? '+' : ''}
-                  {Math.abs(comparison.delta_energy_kwh)} kWh ({formatPct(comparison.pct_energy_savings)})
+                  {comparison.delta_energy_kwh > 0.01 ? '+' : ''}
+                  {comparison.delta_energy_kwh.toFixed(1)} kWh ({formatPct(comparison.pct_energy_savings)})
                 </span>
               </div>
 
@@ -322,15 +322,20 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                 </span>
                 <span
                   className={`text-xs font-semibold tabular-nums font-heading ${
-                    comparison.delta_co2_kg > 0
+                    (comparison.co2_abatement_kg ?? (0 - comparison.delta_co2_kg)) > 0.001
                       ? 'text-emerald-600 dark:text-emerald-400'
-                      : comparison.delta_co2_kg < 0
+                      : (comparison.co2_abatement_kg ?? (0 - comparison.delta_co2_kg)) < -0.001
                       ? 'text-amber-600 dark:text-amber-400'
                       : 'text-gray-500'
                   }`}
                 >
-                  {comparison.delta_co2_kg > 0 ? '-' : comparison.delta_co2_kg < 0 ? '+' : ''}
-                  {Math.abs(comparison.delta_co2_kg)} kg
+                  {(() => {
+                    const co2Val = comparison.co2_abatement_kg !== undefined
+                      ? comparison.co2_abatement_kg
+                      : (0 - comparison.delta_co2_kg);
+                    const sign = co2Val > 0.001 ? '+' : '';
+                    return `${sign}${co2Val.toFixed(2)} kg`;
+                  })()}
                 </span>
               </div>
 
@@ -340,15 +345,20 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                 </span>
                 <span
                   className={`text-xs font-semibold tabular-nums font-heading ${
-                    comparison.delta_cost_usd > 0
+                    (comparison.fleet_cost_saved_usd ?? (0 - comparison.delta_cost_usd)) > 0.01
                       ? 'text-emerald-600 dark:text-emerald-400'
-                      : comparison.delta_cost_usd < 0
+                      : (comparison.fleet_cost_saved_usd ?? (0 - comparison.delta_cost_usd)) < -0.01
                       ? 'text-amber-600 dark:text-amber-400'
                       : 'text-gray-500'
                   }`}
                 >
-                  {comparison.delta_cost_usd >= 0 ? '+' : ''}
-                  {formatUsd(comparison.delta_cost_usd)}
+                  {(() => {
+                    const costVal = comparison.fleet_cost_saved_usd !== undefined
+                      ? comparison.fleet_cost_saved_usd
+                      : (0 - comparison.delta_cost_usd);
+                    const sign = costVal > 0.01 ? '+' : costVal < -0.01 ? '-' : '';
+                    return `${sign}${formatUsd(Math.abs(costVal))}`;
+                  })()}
                 </span>
               </div>
             </div>
@@ -680,17 +690,17 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                     <td className="py-2.5 px-3 text-right">
                       <span
                         className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                          comp.delta_energy_kwh > 0.01
+                          comp.pct_energy_savings > 0.01
                             ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                            : comp.delta_energy_kwh < -0.01
+                            : comp.pct_energy_savings < -0.01
                             ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                             : 'text-gray-500 dark:text-gray-400'
                         }`}
                       >
-                        {comp.delta_energy_kwh > 0.01
-                          ? `+${comp.pct_energy_savings}%`
-                          : comp.delta_energy_kwh < -0.01
-                          ? `${comp.pct_energy_savings}%`
+                        {comp.pct_energy_savings > 0.01
+                          ? `+${comp.pct_energy_savings.toFixed(1)}%`
+                          : comp.pct_energy_savings < -0.01
+                          ? `${comp.pct_energy_savings.toFixed(1)}%`
                           : '0.0%'}
                       </span>
                     </td>
