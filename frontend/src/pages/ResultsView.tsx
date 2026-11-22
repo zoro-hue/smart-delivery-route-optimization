@@ -1026,7 +1026,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                             Algorithm: <strong className="text-[#080808] dark:text-white">{getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</strong>
                           </div>
                           <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
-                            Assigned Shade: <span className="font-semibold" style={{ color }}>{routeStyle.shadeName}</span> ({routeStyle.familyName} Family)
+                            Assigned Route Color: <span className="font-semibold" style={{ color }}>{routeStyle.shadeName}</span>
                           </div>
                           <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
                             Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
@@ -1135,10 +1135,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               </span>
             </div>
 
-            {/* Middle row: Vehicle Route Swatches (V1, V2, V3...) with their distinct shades */}
+            {/* Middle row: Vehicle Route Swatches (V1, V2, V3...) with their distinct vehicle colors */}
             <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
               <span className="text-[#777777] dark:text-[#71717A] font-semibold uppercase text-[9px] tracking-wider shrink-0">
-                Vehicle Shades:
+                Vehicle Routes:
               </span>
               {(currentResult?.routes ?? []).map((_, rIdx) => {
                 const totalVehicles = (currentResult?.routes ?? []).length;
@@ -1147,8 +1147,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 return (
                   <div
                     key={`legend-v-${activeAlgo}-${driverNumber}`}
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10"
-                    title={`Vehicle ${driverNumber}: ${style.shadeName} (${style.familyName} Family)`}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10"
+                    title={`Vehicle ${driverNumber} — ${style.shadeName}`}
                   >
                     <span
                       className="h-2.5 w-3.5 rounded-xs shrink-0"
@@ -1158,10 +1158,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       }}
                     />
                     <strong className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
-                      V{driverNumber}
+                      Vehicle {driverNumber}
                     </strong>
-                    <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] hidden md:inline">
-                      ({style.shadeName})
+                    <span className="text-[10px] font-semibold" style={{ color: style.color }}>
+                      — {style.shadeName}
                     </span>
                   </div>
                 );
@@ -1240,10 +1240,10 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                           {vp?.name || `Driver #${driverNumber}`}
                         </span>
                         <span
-                          className="text-[9px] px-1.5 py-0.2 rounded font-normal"
+                          className="text-[9px] px-1.5 py-0.2 rounded font-semibold"
                           style={{ backgroundColor: `${color}20`, color: color }}
                         >
-                          {routeStyle.shadeName}
+                          Vehicle {driverNumber} — {routeStyle.shadeName}
                         </span>
                         <span className="text-[9px] px-1.5 py-0.2 rounded font-normal capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
                           {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}

@@ -588,8 +588,46 @@ export function normalizeAlgorithmId(id?: string): string {
   return 'ortools';
 }
 
+export interface VehicleColorDefinition {
+  id: number;
+  name: string;
+  lightColor: string;
+  darkColor: string;
+}
+
 /**
- * Line dash patterns for vehicle counts exceeding base shade tiers (N > 8)
+ * Standard High-Contrast Multi-Vehicle Palette:
+ *
+ * Vehicle 1: Blue
+ * Vehicle 2: Orange
+ * Vehicle 3: Purple
+ * Vehicle 4: Teal
+ * Vehicle 5: Pink
+ * Vehicle 6: Yellow
+ * Vehicle 7: Emerald Green
+ * Vehicle 8: Indigo
+ * Vehicle 9: Red
+ * Vehicle 10: Cyan
+ * Vehicle 11: Fuchsia
+ * Vehicle 12: Lime
+ */
+export const VEHICLE_PALETTE: VehicleColorDefinition[] = [
+  { id: 1, name: 'Blue', lightColor: '#2563EB', darkColor: '#3B82F6' },
+  { id: 2, name: 'Orange', lightColor: '#EA580C', darkColor: '#F97316' },
+  { id: 3, name: 'Purple', lightColor: '#9333EA', darkColor: '#A855F7' },
+  { id: 4, name: 'Teal', lightColor: '#0D9488', darkColor: '#14B8A6' },
+  { id: 5, name: 'Pink', lightColor: '#DB2777', darkColor: '#EC4899' },
+  { id: 6, name: 'Yellow', lightColor: '#D97706', darkColor: '#F59E0B' },
+  { id: 7, name: 'Emerald', lightColor: '#059669', darkColor: '#10B981' },
+  { id: 8, name: 'Indigo', lightColor: '#4F46E5', darkColor: '#6366F1' },
+  { id: 9, name: 'Red', lightColor: '#DC2626', darkColor: '#EF4444' },
+  { id: 10, name: 'Cyan', lightColor: '#0284C7', darkColor: '#06B6D4' },
+  { id: 11, name: 'Fuchsia', lightColor: '#C026D3', darkColor: '#D946EF' },
+  { id: 12, name: 'Lime', lightColor: '#65A30D', darkColor: '#84CC16' },
+];
+
+/**
+ * Line dash patterns for vehicle counts exceeding base shade tiers (N > 12)
  * to ensure overlapping or dense multi-vehicle routes remain distinct.
  */
 const FALLBACK_DASH_PATTERNS = [
@@ -603,8 +641,14 @@ const FALLBACK_DASH_PATTERNS = [
 
 /**
  * Returns deterministic styling for a specific vehicle route belonging to an algorithm.
- * 
- * @param algorithmId - ID or alias of the algorithm
+ *
+ * Rules:
+ * - Each vehicle has a distinct, visually distinguishable color (Vehicle 1: Blue, Vehicle 2: Orange, etc.).
+ * - Stable across algorithm switches, refreshes, and async results.
+ * - Same vehicle ID retains the same color across algorithms.
+ * - Dynamic support for any fleet size.
+ *
+ * @param algorithmId - ID or alias of the algorithm (optional context)
  * @param vehicleIndexOrId - 0-based index or 1-based vehicle ID
  * @param isDark - whether dark mode theme is active
  * @param totalVehicles - total number of vehicles in fleet (optional)
@@ -615,10 +659,7 @@ export function getVehicleRouteStyle(
   isDark: boolean,
   totalVehicles: number = 5
 ): VehicleRouteStyle {
-  const normId = normalizeAlgorithmId(algorithmId);
-  const family = ALGORITHM_COLOR_FAMILIES[normId] || ALGORITHM_COLOR_FAMILIES.ortools;
-
-  // Derive stable 0-based index
+  // Derive stable 0-based index and 1-based vehicle number
   let idx = 0;
   if (typeof vehicleIndexOrId === 'number') {
     idx = vehicleIndexOrId >= 1 ? vehicleIndexOrId - 1 : vehicleIndexOrId;
@@ -627,16 +668,17 @@ export function getVehicleRouteStyle(
     idx = match ? parseInt(match[0], 10) - 1 : 0;
   }
   idx = Math.max(0, idx);
+  const vehicleNumber = idx + 1;
 
-  const shades = isDark ? family.darkShades : family.lightShades;
-  const numShades = shades.length;
-  const shadeIndex = idx % numShades;
-  const cycleIndex = Math.floor(idx / numShades);
+  const numColors = VEHICLE_PALETTE.length;
+  const colorIndex = idx % numColors;
+  const cycleIndex = Math.floor(idx / numColors);
 
-  const color = shades[shadeIndex];
+  const def = VEHICLE_PALETTE[colorIndex];
+  const color = isDark ? def.darkColor : def.lightColor;
   const contrastTextColor = getContrastTextColor(color);
-  const baseShadeName = family.shadeNames[shadeIndex] || `Shade ${shadeIndex + 1}`;
-  const shadeName = cycleIndex > 0 ? `${baseShadeName} (Tier ${cycleIndex + 1})` : baseShadeName;
+  const baseName = def.name;
+  const shadeName = cycleIndex > 0 ? `${baseName} (Tier ${cycleIndex + 1})` : baseName;
 
   // Use line pattern distinctions if vehicle count exceeds available shades or for high vehicle density
   let dashArray: string | undefined = undefined;
@@ -651,8 +693,8 @@ export function getVehicleRouteStyle(
     contrastTextColor,
     shadeName,
     dashArray,
-    familyName: family.familyName,
-    baseColor: family.baseColor,
+    familyName: `Vehicle ${vehicleNumber}`,
+    baseColor: color,
   };
 }
 
