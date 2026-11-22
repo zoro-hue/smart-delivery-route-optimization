@@ -1,0 +1,18 @@
+\begin{table*}[t]
+\centering
+\caption{Systematic Component Ablation Study of ROUTE/IQ-NextGen}
+\label{tab:ablation_study}
+\small
+\begin{tabular}{lp{3.5cm}cccc}
+\toprule
+\textbf{Ablation Variant} & \textbf{Ablated Component} & \textbf{Mean Dist (km)} & \textbf{Dist Degradation} & \textbf{Mean Latency (ms)} & \textbf{Pool Diversity $\mathcal{D}$} \\
+\midrule
+Full Engine & None (All Components Active) & 179.31 & 0.00\% (Ref) & 1219.2 & 0.54 \\
+Variant A & Without QAOA Subproblem & 181.26 & +1.09\% & 1236.7 & 0.38 \\
+Variant B & Without QIGA Rotation Gates & 181.26 & +1.09\% & 1263.0 & 0.35 \\
+Variant C & Without Candidate Blackboard & 181.26 & +1.09\% & 841.2 & 0.12 \\
+Variant D & Without Adaptive MAB (Uniform Random) & 181.26 & +1.09\% & 1044.0 & 0.44 \\
+Baseline & Pure Google OR-Tools & 181.57 & +1.26\% & 516.1 & N/A \\
+\bottomrule
+\end{tabular}
+\end{table*}

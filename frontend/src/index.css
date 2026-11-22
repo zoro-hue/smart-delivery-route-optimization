@@ -31,27 +31,182 @@
     font-family: 'Roboto Condensed', sans-serif !important;
   }
 
-  code, pre, .font-mono, .font-technical {
+  code, pre, .font-code {
     font-family: var(--font-mono) !important;
   }
 
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
   h1, .font-bold, .metric-value, .font-extrabold {
-    font-weight: 700 !important;
+    font-weight: 700;
     letter-spacing: -0.015em;
   }
 
   h2, h3, h4, h5, h6, .font-heading, .font-semibold {
-    font-weight: 600 !important;
+    font-weight: 600;
     letter-spacing: -0.01em;
   }
 
   label, .font-medium, select, th {
-    font-weight: 500 !important;
+    font-weight: 500;
   }
 
-  p, .text-xs, .text-sm, .text-body {
+  p, .text-xs, .text-sm, .text-body, .font-normal {
     font-weight: 400;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   ROUTE/IQ UNIFIED RESULTS WORKSPACE TYPOGRAPHY TOKENS
+   Standardized to 'Roboto Condensed', sans-serif across all elements
+   ───────────────────────────────────────────────────────────── */
+
+.results-workspace {
+  font-family: 'Roboto Condensed', sans-serif !important;
+}
+
+.results-workspace *:not(code):not(pre):not(.font-code) {
+  font-family: 'Roboto Condensed', sans-serif !important;
+}
+
+/* Tabular numbers for clean column alignment without switching to monospace */
+.results-tnum,
+.results-workspace table,
+.results-workspace td,
+.results-workspace th {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Typography Hierarchy Tokens */
+.results-title-main {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 1.375rem; /* 22px */
+  line-height: 1.75rem;
+  font-weight: 700 !important; /* bold */
+  letter-spacing: -0.015em;
+}
+@media (min-width: 640px) {
+  .results-title-main {
+    font-size: 1.5rem; /* 24px */
+    line-height: 2rem;
+  }
+}
+
+.results-heading-section {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 1rem; /* 16px */
+  line-height: 1.5rem;
+  font-weight: 600 !important; /* semibold */
+  letter-spacing: -0.01em;
+}
+@media (min-width: 640px) {
+  .results-heading-section {
+    font-size: 1.0625rem; /* 17px */
+    line-height: 1.5rem;
+  }
+}
+
+.results-card-title {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.75rem; /* 12px */
+  line-height: 1rem;
+  font-weight: 500 !important; /* medium */
+}
+@media (min-width: 640px) {
+  .results-card-title {
+    font-size: 0.8125rem; /* 13px */
+  }
+}
+
+.results-body-text {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.15rem;
+  font-weight: 400 !important; /* regular */
+}
+@media (min-width: 640px) {
+  .results-body-text {
+    font-size: 0.8125rem; /* 13px */
+    line-height: 1.25rem;
+  }
+}
+
+.results-metric-value {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 1.5rem; /* 24px */
+  line-height: 2rem;
+  font-weight: 600 !important; /* semibold */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+@media (min-width: 640px) {
+  .results-metric-value {
+    font-size: 1.625rem; /* 26px */
+  }
+}
+
+.results-metric-compact {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.25rem;
+  font-weight: 600 !important; /* semibold */
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 640px) {
+  .results-metric-compact {
+    font-size: 1rem; /* 16px */
+  }
+}
+
+.results-table-cell {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1rem;
+  font-weight: 400 !important; /* regular */
+  font-variant-numeric: tabular-nums;
+}
+
+.results-table-header {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.625rem; /* 10px */
+  line-height: 0.875rem;
+  font-weight: 600 !important; /* semibold */
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.results-secondary-label {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.625rem; /* 10px */
+  line-height: 0.875rem;
+  font-weight: 400 !important; /* regular */
+}
+@media (min-width: 640px) {
+  .results-secondary-label {
+    font-size: 0.6875rem; /* 11px */
+  }
+}
+
+.results-badge {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.5625rem; /* 9px */
+  line-height: 0.75rem;
+  font-weight: 600 !important; /* semibold */
+}
+@media (min-width: 640px) {
+  .results-badge {
+    font-size: 0.625rem; /* 10px */
+  }
+}
+
+.results-btn {
+  font-family: 'Roboto Condensed', sans-serif !important;
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1rem;
+  font-weight: 600 !important; /* semibold */
 }
 
 /* ─────────────────────────────────────────────────────────────

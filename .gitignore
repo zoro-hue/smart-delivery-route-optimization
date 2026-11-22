@@ -40,7 +40,10 @@ yarn-error.log*
 # Databases & Runtime Logs
 *.db
 *.sqlite3
+*.db-shm
+*.db-wal
 backend/data/sdro.db
+backend/data/backups/*.db
 backend/data/processed/*.pickle
 !backend/data/processed/road_graph_newyork.pickle
 !backend/data/processed/road_graph_newyork.pickle.gz
@@ -48,6 +51,20 @@ backend/data/processed/*.pickle
 backend/data/processed/.spark-warehouse/
 derby.log
 metastore_db/
+
+# Temporary Audit & Diagnostic Artifacts (whitelisting research benchmarks)
+repo_cleanup_audit_data.json
+inventory_research_scan.json
+cleanup_step_db_and_branches.json
+docs/*.zip
+!nextgen_30_instances_report.json
+!baseline_30_instances_report.json
+!ablation_study_report.json
+!evidence_5_consecutive_runs.json
+!live_production_comparison_result.json
+!live_production_18_stop_result.json
+!live_route_identity_audit_result.json
+!phase_ao_18_stops_benchmark.json
 
 # Tools & Heavy Binaries (Downloadable via scripts)
 backend/tools/jdk-17.0.20.1+1-jre/

@@ -1,0 +1,20 @@
+\section{Adaptive Cooperative Engine and MAB Controller}
+\label{sec:cooperative_engine}
+The core operational loop of ROUTE/IQ-NextGen is orchestrated by an Adaptive Multi-Armed Bandit (MAB) controller over $T$ cooperative cycles.
+
+\subsection{Contextual State Representation}
+At each cycle $t$, the controller observes instance state vector $\mathbf{s}_t = (N, K, H, \mathcal{D}_t, \sigma_t)$, where $N$ is stop count, $K$ is fleet size, $H$ is fleet heterogeneity index, $\mathcal{D}_t$ is current blackboard diversity, and $\sigma_t$ is stagnation counter (consecutive cycles without global incumbent improvement).
+
+\subsection{UCB-1 Operator Selection}
+The controller selects operator $o_t \in \mathcal{O}$ using Upper Confidence Bound (UCB-1)~\cite{auer2002finite} with contextual biasing:
+\begin{equation}
+\text{Score}(o, \mathbf{s}_t) = Q_t(o) + c \sqrt{\frac{\ln(t + 1)}{N_t(o) + 1}} + \Psi(o, \mathbf{s}_t)
+\end{equation}
+where $Q_t(o)$ is empirical mean reward, $N_t(o)$ is invocation count, $c = 1.414$, and $\Psi(o, \mathbf{s}_t)$ is a heuristic bias favoring diversification operators when $\sigma_t > 3$.
+
+\subsection{Multi-Objective Feedback Reward Function}
+Standard hyper-heuristics evaluate operators solely on objective gains, leading to selection of computationally expensive operators even for trivial gains~\cite{burke2013hyper}. ROUTE/IQ-NextGen addresses this by introducing a balanced 4-pillar reward:
+\begin{equation}
+R(o) = w_1 \Delta_{\text{norm}} + w_2 \mathbb{I}_{\text{feas}} + w_3 \text{Div}(S_{\text{new}}, \mathcal{P}_t) - w_4 \left(\frac{t_{\text{exec}}}{t_{\text{budget}}}\right)
+\end{equation}
+with weights $w_1 = 0.50, w_2 = 0.25, w_3 = 0.20, w_4 = 0.05$. This explicitly penalizes high-latency operators while rewarding feasibility and diversity.

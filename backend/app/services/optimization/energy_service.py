@@ -231,11 +231,14 @@ def compute_vehicle_route_energy(
     has_activity = stops_count > 0 and dist_km > 0.0
 
     battery_capacity_kwh = float(vp.get("battery_capacity_kwh", 60.0) or 60.0)
-    battery_soc_pct = float(vp.get("battery_soc_pct", 100.0) if vp.get("battery_soc_pct") is not None else 100.0)
-    battery_soh_pct = float(vp.get("battery_soh_pct", 100.0) if vp.get("battery_soh_pct") is not None else 100.0)
+    battery_soc_raw = vp.get("battery_soc_percent") if vp.get("battery_soc_percent") is not None else vp.get("battery_soc_pct")
+    battery_soc_pct = float(battery_soc_raw if battery_soc_raw is not None else 100.0)
+    battery_soh_raw = vp.get("battery_soh_percent") if vp.get("battery_soh_percent") is not None else vp.get("battery_soh_pct")
+    battery_soh_pct = float(battery_soh_raw if battery_soh_raw is not None else 100.0)
 
     fuel_tank_capacity_l = float(vp.get("fuel_tank_capacity_l", 60.0) or 60.0)
-    fuel_level_pct = float(vp.get("fuel_level_pct", 100.0) if vp.get("fuel_level_pct") is not None else 100.0)
+    fuel_level_raw = vp.get("fuel_tank_level_percent") if vp.get("fuel_tank_level_percent") is not None else vp.get("fuel_level_pct")
+    fuel_level_pct = float(fuel_level_raw if fuel_level_raw is not None else 100.0)
 
     usable_range_km = float(vp.get("usable_range_km", 250.0) or 250.0)
     max_shift_hours = float(vp.get("max_shift_hours", 8.0) or 8.0)
@@ -435,51 +438,75 @@ def compute_energy_comparison(
     Compute comparative resource and carbon savings between a target algorithm and a baseline solver.
 
     Conventions:
-    - Positive delta (delta > 0) = SAVED by target (target consumed less than baseline).
-    - Negative delta (delta < 0) = EXTRA CONSUMPTION by target (target consumed more).
-    - Savings % = (delta / baseline) * 100.
+    - delta_energy = selected_route_energy - baseline_route_energy
+      Negative (< 0): energy saved.
+      Zero (= 0): identical energy consumption.
+      Positive (> 0): additional energy consumed.
+    - delta_distance = selected_dist - baseline_dist
+    - delta_fuel = selected_fuel - baseline_fuel
+    - co2_abatement = baseline_emissions - selected_route_emissions
+      Positive (> 0): emissions avoided.
+      Negative (< 0): additional emissions.
+    - fleet_cost_saved = baseline_cost - selected_route_cost
+      Positive (> 0): cost saved.
+      Negative (< 0): additional cost.
+    - Savings % = ((baseline - selected) / baseline) * 100
     """
-    base_dist = baseline_profile.get("total_distance_km", 0.0)
-    tgt_dist = target_profile.get("total_distance_km", 0.0)
-    delta_dist = base_dist - tgt_dist
+    base_dist = float(baseline_profile.get("total_distance_km", 0.0) or 0.0)
+    tgt_dist = float(target_profile.get("total_distance_km", 0.0) or 0.0)
+    delta_dist = tgt_dist - base_dist
 
-    base_fuel = baseline_profile.get("fuel_consumption_litres", 0.0)
-    tgt_fuel = target_profile.get("fuel_consumption_litres", 0.0)
-    delta_fuel = base_fuel - tgt_fuel
+    base_fuel = float(baseline_profile.get("fuel_consumption_litres", 0.0) or 0.0)
+    tgt_fuel = float(target_profile.get("fuel_consumption_litres", 0.0) or 0.0)
+    delta_fuel = tgt_fuel - base_fuel
 
-    base_kwh = baseline_profile.get("energy_consumption_kwh", 0.0)
-    tgt_kwh = target_profile.get("energy_consumption_kwh", 0.0)
-    delta_kwh = base_kwh - tgt_kwh
+    base_kwh = float(baseline_profile.get("energy_consumption_kwh", 0.0) or 0.0)
+    tgt_kwh = float(target_profile.get("energy_consumption_kwh", 0.0) or 0.0)
+    delta_kwh = tgt_kwh - base_kwh
 
-    base_co2 = baseline_profile.get("total_co2_kg", 0.0)
-    tgt_co2 = target_profile.get("total_co2_kg", 0.0)
-    delta_co2 = base_co2 - tgt_co2
+    base_co2 = float(baseline_profile.get("total_co2_kg", 0.0) or 0.0)
+    tgt_co2 = float(target_profile.get("total_co2_kg", 0.0) or 0.0)
+    co2_abatement = base_co2 - tgt_co2
+    delta_co2 = tgt_co2 - base_co2
 
-    base_cost = baseline_profile.get("operational_cost_usd", 0.0)
-    tgt_cost = target_profile.get("operational_cost_usd", 0.0)
-    delta_cost = base_cost - tgt_cost
+    base_cost = float(baseline_profile.get("operational_cost_usd", 0.0) or 0.0)
+    tgt_cost = float(target_profile.get("operational_cost_usd", 0.0) or 0.0)
+    fleet_cost_saved = base_cost - tgt_cost
+    delta_cost = tgt_cost - base_cost
 
-    def _calc_pct(delta: float, base: float) -> float:
+    def _calc_savings_pct(base: float, tgt: float) -> float:
         if abs(base) < 1e-6:
             return 0.0
-        return round((delta / base) * 100.0, 2)
+        return round(((base - tgt) / base) * 100.0, 2)
 
-    pct_dist = _calc_pct(delta_dist, base_dist)
-    pct_fuel = _calc_pct(delta_fuel, base_fuel)
-    pct_kwh = _calc_pct(delta_kwh, base_kwh)
-    pct_co2 = _calc_pct(delta_co2, base_co2)
-    pct_cost = _calc_pct(delta_cost, base_cost)
+    pct_dist = _calc_savings_pct(base_dist, tgt_dist)
+    pct_fuel = _calc_savings_pct(base_fuel, tgt_fuel)
+    pct_kwh = _calc_savings_pct(base_kwh, tgt_kwh)
+    pct_co2 = _calc_savings_pct(base_co2, tgt_co2)
+    pct_cost = _calc_savings_pct(base_cost, tgt_cost)
 
-    # Classification
-    if abs(delta_dist) < 0.01:
+    # Classification: negative delta_energy means energy is saved
+    if abs(delta_kwh) <= 0.01:
         status_label = "IDENTICAL_TO_BASELINE"
         impact_summary = "Identical resource consumption and emissions to baseline"
-    elif delta_dist > 0.01:
+        is_saving = False
+        is_identical = True
+    elif delta_kwh < -0.01:
         status_label = "RESOURCE_SAVING"
-        impact_summary = f"Reduces energy consumption by {abs(pct_kwh)}% ({round(delta_kwh, 2)} kWh) and avoids {round(delta_co2, 3)} kg CO2"
+        impact_summary = (
+            f"Reduces energy consumption by {abs(pct_kwh)}% ({round(delta_kwh, 2)} kWh) "
+            f"and avoids {round(co2_abatement, 3)} kg CO2"
+        )
+        is_saving = True
+        is_identical = False
     else:
         status_label = "RESOURCE_DEFICIT"
-        impact_summary = f"Increases energy consumption by {abs(pct_kwh)}% ({round(abs(delta_kwh), 2)} kWh) over baseline"
+        impact_summary = (
+            f"Increases energy consumption by {abs(pct_kwh)}% (+{round(delta_kwh, 2)} kWh) "
+            f"over baseline"
+        )
+        is_saving = False
+        is_identical = False
 
     return {
         "target_algorithm": target_profile.get("algorithm_id"),
@@ -490,13 +517,15 @@ def compute_energy_comparison(
         "delta_energy_kwh": round(delta_kwh, 2),
         "delta_co2_kg": round(delta_co2, 3),
         "delta_cost_usd": round(delta_cost, 2),
+        "co2_abatement_kg": round(co2_abatement, 3),
+        "fleet_cost_saved_usd": round(fleet_cost_saved, 2),
         "pct_distance_savings": pct_dist,
         "pct_fuel_savings": pct_fuel,
         "pct_energy_savings": pct_kwh,
         "pct_co2_savings": pct_co2,
         "pct_cost_savings": pct_cost,
-        "is_saving": delta_dist > 0.01,
-        "is_identical": abs(delta_dist) <= 0.01,
+        "is_saving": is_saving,
+        "is_identical": is_identical,
         "status_label": status_label,
         "impact_summary": impact_summary,
     }

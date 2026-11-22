@@ -34,17 +34,27 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import { OptimizationResponse, VehicleRoute, RouteIdentityDiagnostics } from '../types';
+import { OptimizationResponse, VehicleRoute, RouteIdentityDiagnostics, ComparisonItem } from '../types';
 import { EnergyResourceAnalysis } from '../components/EnergyResourceAnalysis';
+import { AlgorithmComparisonScorecard } from '../components/AlgorithmComparisonScorecard';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
+import {
+  ALGORITHM_COLOR_FAMILIES,
+  getVehicleRouteStyle,
+  getContrastTextColor,
+  normalizeAlgorithmId,
+  getAlgorithmDisplayName,
+  AlgorithmColorDefinition,
+  VehicleRouteStyle,
+} from '../utils/routeColors';
 
 const getDepotIcon = (isDark: boolean) =>
   L.divIcon({
     className: 'custom-map-pin-depot',
     html: `<div style="background-color: #B7FF2A; border: 2.5px solid ${
       isDark ? '#000000' : '#080808'
-    }; color: #080808; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: ${
+    }; color: #080808; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: ${
       isDark
         ? '0 0 24px rgba(183, 255, 42, 0.7), 0 4px 14px rgba(0,0,0,0.8)'
         : '0 4px 16px rgba(0,0,0,0.35)'
@@ -63,104 +73,23 @@ export interface AlgorithmVisualTheme {
   darkVehicleColors: string[];
 }
 
-export const ALGORITHM_THEMES: Record<string, AlgorithmVisualTheme> = {
-  routeiq_cooperative: {
-    primary: '#8B5CF6',
-    badgeBg: 'bg-purple-500/15',
-    badgeText: 'text-purple-600 dark:text-purple-400',
-    border: 'border-purple-500/40',
-    lightVehicleColors: ['#7C3AED', '#9333EA', '#6D28D9', '#A855F7', '#5B21B6', '#C084FC'],
-    darkVehicleColors: ['#A78BFA', '#C4B5FD', '#8B5CF6', '#DDD6FE', '#7C3AED', '#EDE9FE'],
-  },
-  ortools: {
-    primary: '#10B981',
-    badgeBg: 'bg-emerald-500/15',
-    badgeText: 'text-emerald-600 dark:text-emerald-400',
-    border: 'border-emerald-500/40',
-    lightVehicleColors: ['#059669', '#047857', '#10B981', '#065F46', '#34D399', '#022C22'],
-    darkVehicleColors: ['#10B981', '#34D399', '#6EE7B7', '#059669', '#A7F3D0', '#047857'],
-  },
-  classical: {
-    primary: '#10B981',
-    badgeBg: 'bg-emerald-500/15',
-    badgeText: 'text-emerald-600 dark:text-emerald-400',
-    border: 'border-emerald-500/40',
-    lightVehicleColors: ['#059669', '#047857', '#10B981', '#065F46', '#34D399', '#022C22'],
-    darkVehicleColors: ['#10B981', '#34D399', '#6EE7B7', '#059669', '#A7F3D0', '#047857'],
-  },
-  clarke_wright: {
-    primary: '#F59E0B',
-    badgeBg: 'bg-amber-500/15',
-    badgeText: 'text-amber-600 dark:text-amber-400',
-    border: 'border-amber-500/40',
-    lightVehicleColors: ['#D97706', '#B45309', '#F59E0B', '#92400E', '#FBBF24', '#78350F'],
-    darkVehicleColors: ['#F59E0B', '#FBBF24', '#FCD34D', '#D97706', '#FEF3C7', '#B45309'],
-  },
-  two_opt: {
-    primary: '#06B6D4',
-    badgeBg: 'bg-cyan-500/15',
-    badgeText: 'text-cyan-600 dark:text-cyan-400',
-    border: 'border-cyan-500/40',
-    lightVehicleColors: ['#0891B2', '#0E7490', '#06B6D4', '#155E75', '#22D3EE', '#164E63'],
-    darkVehicleColors: ['#06B6D4', '#22D3EE', '#67E8F9', '#0891B2', '#A5F3FC', '#0E7490'],
-  },
-  dijkstra: {
-    primary: '#3B82F6',
-    badgeBg: 'bg-blue-500/15',
-    badgeText: 'text-blue-600 dark:text-blue-400',
-    border: 'border-blue-500/40',
-    lightVehicleColors: ['#2563EB', '#1D4ED8', '#3B82F6', '#1E40AF', '#60A5FA', '#172554'],
-    darkVehicleColors: ['#3B82F6', '#60A5FA', '#93C5FD', '#2563EB', '#BFDBFE', '#1D4ED8'],
-  },
-  astar: {
-    primary: '#14B8A6',
-    badgeBg: 'bg-teal-500/15',
-    badgeText: 'text-teal-600 dark:text-teal-400',
-    border: 'border-teal-500/40',
-    lightVehicleColors: ['#0D9488', '#0F766E', '#14B8A6', '#115E59', '#2DD4BF', '#134E4A'],
-    darkVehicleColors: ['#14B8A6', '#2DD4BF', '#5EEAD4', '#0D9488', '#99F6E4', '#0F766E'],
-  },
-  tabu_search: {
-    primary: '#F97316',
-    badgeBg: 'bg-orange-500/15',
-    badgeText: 'text-orange-600 dark:text-orange-400',
-    border: 'border-orange-500/40',
-    lightVehicleColors: ['#EA580C', '#C2410C', '#F97316', '#9A3412', '#FB923C', '#7C2D12'],
-    darkVehicleColors: ['#F97316', '#FB923C', '#FDBA74', '#EA580C', '#FED7AA', '#C2410C'],
-  },
-  kernighan_lin: {
-    primary: '#F43F5E',
-    badgeBg: 'bg-rose-500/15',
-    badgeText: 'text-rose-600 dark:text-rose-400',
-    border: 'border-rose-500/40',
-    lightVehicleColors: ['#E11D48', '#BE123C', '#F43F5E', '#9F1239', '#FB7185', '#881337'],
-    darkVehicleColors: ['#F43F5E', '#FB7185', '#FDA4AF', '#E11D48', '#FECDD3', '#BE123C'],
-  },
-  vnd: {
-    primary: '#EC4899',
-    badgeBg: 'bg-pink-500/15',
-    badgeText: 'text-pink-600 dark:text-pink-400',
-    border: 'border-pink-500/40',
-    lightVehicleColors: ['#DB2777', '#BE185D', '#EC4899', '#9D174D', '#F472B6', '#831843'],
-    darkVehicleColors: ['#EC4899', '#F472B6', '#F472B6', '#DB2777', '#FBCFE8', '#BE185D'],
-  },
-  qaoa: {
-    primary: '#B7FF2A',
-    badgeBg: 'bg-lime-500/15',
-    badgeText: 'text-lime-600 dark:text-[#B7FF2A]',
-    border: 'border-lime-500/40',
-    lightVehicleColors: ['#65A30D', '#4D7C0F', '#84CC16', '#3F6212', '#A3E635', '#1A2E05'],
-    darkVehicleColors: ['#B7FF2A', '#CCFF00', '#D9F99D', '#A3E635', '#BEF264', '#65A30D'],
-  },
-  qiga: {
-    primary: '#D946EF',
-    badgeBg: 'bg-fuchsia-500/15',
-    badgeText: 'text-fuchsia-600 dark:text-fuchsia-400',
-    border: 'border-fuchsia-500/40',
-    lightVehicleColors: ['#C026D3', '#A21CAF', '#D946EF', '#86198F', '#E879F9', '#701A75'],
-    darkVehicleColors: ['#D946EF', '#E879F9', '#F0ABFC', '#C026D3', '#F5D0FE', '#A21CAF'],
-  },
-};
+/**
+ * Standardized Algorithm Themes backed by centralized routeColors system.
+ * Guaranteed 1:1 match with ALGORITHM_COLOR_FAMILIES.
+ */
+export const ALGORITHM_THEMES: Record<string, AlgorithmVisualTheme> = Object.fromEntries(
+  Object.entries(ALGORITHM_COLOR_FAMILIES).map(([k, v]) => [
+    k,
+    {
+      primary: v.baseColor,
+      badgeBg: v.badgeBg,
+      badgeText: v.badgeText,
+      border: v.border,
+      lightVehicleColors: v.lightShades,
+      darkVehicleColors: v.darkShades,
+    },
+  ])
+);
 
 function getRouteIdentityDiagnostics(
   summaryDiag?: RouteIdentityDiagnostics,
@@ -309,7 +238,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         className: 'custom-customer-pin-unvisited',
         html: `<div style="background-color: ${
           isDark ? '#3F1515' : '#FEF2F2'
-        }; border: 2.5px dashed #EF4444; color: #EF4444; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: 0 0 14px rgba(239,68,68,0.7);">${index}</div>`,
+        }; border: 2.5px dashed #EF4444; color: #EF4444; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 0 14px rgba(239,68,68,0.7);">${index}</div>`,
         iconSize: [28, 28],
         iconAnchor: [14, 14],
         popupAnchor: [0, -16],
@@ -323,7 +252,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         isDark ? '#B7FF2A' : '#FFFFFF'
       }; color: ${
         isDark ? '#B7FF2A' : '#FFFFFF'
-      }; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; box-shadow: ${
+      }; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: ${
         isDark ? '0 0 12px rgba(183,255,42,0.3), 0 4px 12px rgba(0,0,0,0.6)' : '0 4px 14px rgba(0,0,0,0.3)'
       };">${index}</div>`,
       iconSize: [28, 28],
@@ -333,14 +262,12 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   };
 
 const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) => {
-  const isLime = color.toUpperCase() === '#B7FF2A';
+  const textColor = getContrastTextColor(color);
   return L.divIcon({
     className: 'custom-vehicle-pin',
     html: `<div style="background-color: ${color}; border: 2px solid ${
       isDark ? '#000000' : '#FFFFFF'
-    }; color: ${
-      isLime ? '#080808' : '#FFFFFF'
-    }; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; font-family: 'JetBrains Mono', monospace; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
+    }; color: ${textColor}; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,0.4); text-transform: uppercase;">V${vehicleId}</div>`,
     iconSize: [36, 24],
     iconAnchor: [18, 12],
     popupAnchor: [0, -14],
@@ -363,10 +290,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       : algoKeys[0] || 'classical';
 
   const [activeAlgo, setActiveAlgo] = useState<string>(initialAlgo);
+  const [showComparativeOverlay, setShowComparativeOverlay] = useState<boolean>(false);
+  const activeFamily = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(activeAlgo)] || ALGORITHM_COLOR_FAMILIES.ortools;
   const currentTheme = ALGORITHM_THEMES[activeAlgo] || ALGORITHM_THEMES.ortools;
-  const activeRouteColors = isDark ? currentTheme.darkVehicleColors : currentTheme.lightVehicleColors;
+  const activeRouteColors = isDark ? activeFamily.darkShades : activeFamily.lightShades;
   const [fitTrigger, setFitTrigger] = useState<number>(0);
-  const [showAdvancedScorecard, setShowAdvancedScorecard] = useState<boolean>(false);
   const [showAdvancedTabs, setShowAdvancedTabs] = useState<boolean>(false);
   const lastExperimentIdRef = useRef<string | null>(result?.experiment_id || null);
 
@@ -396,6 +324,37 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
   const currentResult = resultsMap[activeAlgo] || resultsMap[initialAlgo] || Object.values(resultsMap)[0];
   const problemLocations = result?.problem?.locations || [];
+
+  // Determine comparative baseline algorithm for overlay
+  const compareAlgoKey = useMemo(() => {
+    if (activeAlgo === 'routeiq_cooperative') {
+      return resultsMap.ortools ? 'ortools' : resultsMap.classical ? 'classical' : null;
+    }
+    return resultsMap.routeiq_cooperative ? 'routeiq_cooperative' : (resultsMap.ortools ? 'ortools' : null);
+  }, [activeAlgo, resultsMap]);
+
+  const compareResult = compareAlgoKey ? resultsMap[compareAlgoKey] : null;
+
+  const compareRoutePositionsList = useMemo(() => {
+    if (!compareResult?.routes) return [];
+    return compareResult.routes.map((route) => {
+      if (route.waypoints && route.waypoints.length > 1) {
+        return route.waypoints.map((w) => [w.lat, w.lon] as [number, number]);
+      }
+      if (route.stops && route.stops.length > 1 && problemLocations.length > 0) {
+        return route.stops
+          .filter((s) => s >= 0 && s < problemLocations.length)
+          .map((s) => [problemLocations[s].lat, problemLocations[s].lon] as [number, number]);
+      }
+      if (route.customer_stops && route.customer_stops.length > 0 && problemLocations.length > 0) {
+        const fullStops = [0, ...route.customer_stops, 0];
+        return fullStops
+          .filter((s) => s >= 0 && s < problemLocations.length)
+          .map((s) => [problemLocations[s].lat, problemLocations[s].lon] as [number, number]);
+      }
+      return [] as [number, number][];
+    });
+  }, [compareResult, problemLocations]);
 
   const routePositionsList = useMemo(() => {
     return (currentResult?.routes ?? []).map((route) => {
@@ -464,8 +423,44 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
     );
   }
 
-  const comparisonItems = result.comparison_summary?.items || [];
-  const bestAlgoId = result.best_feasible_algorithm || result.comparison_summary?.best_algorithm;
+  const bestAlgoId = (result.best_feasible_algorithm || result.comparison_summary?.best_algorithm) ?? undefined;
+  const comparisonItems: ComparisonItem[] = useMemo(() => {
+    if (result.comparison_summary?.items && result.comparison_summary.items.length > 0) {
+      return result.comparison_summary.items;
+    }
+    return algoKeys.map((k) => {
+      const res = resultsMap[k];
+      return {
+        id: k,
+        name: res?.algorithm_name || k.toUpperCase(),
+        category: res?.category || 'classical',
+        category_label: res?.category_label || 'Classical Solver',
+        compute_type: res?.compute_type || 'Classical CPU',
+        status: res?.status || 'COMPLETED',
+        execution_time_sec: res?.execution_time_sec || 0,
+        total_distance_km: res?.total_distance_km || 0,
+        total_travel_time_min: res?.total_travel_time_min || 0,
+        driving_duration_min: res?.driving_duration_min || res?.total_travel_time_min || 0,
+        service_duration_min: res?.service_duration_min || 0,
+        total_duration_min: res?.total_duration_min || 0,
+        implied_speed_kmh: res?.implied_speed_kmh,
+        total_objective_cost: res?.total_objective_cost || 0,
+        is_feasible: res?.is_feasible ?? true,
+        capacity_violations: res?.capacity_violations || 0,
+        unserved_customers: res?.unserved_customers || 0,
+        served_customers: res?.served_customers || 0,
+        vehicles_used: res?.routes?.length || 0,
+        is_best: k === bestAlgoId,
+        error: res?.error,
+        cpu_core_ratio_percent: res?.resource_metrics?.cpu_core_ratio_percent || res?.resource_metrics?.cpu_utilization_percent,
+        heap_allocated_mb: res?.resource_metrics?.heap_allocated_mb || res?.resource_metrics?.memory_used_mb,
+        heap_peak_mb: res?.resource_metrics?.heap_peak_mb || res?.resource_metrics?.peak_memory_mb,
+        process_rss_mb: res?.resource_metrics?.process_rss_mb,
+        time_complexity: res?.resource_metrics?.time_complexity,
+        space_complexity: res?.resource_metrics?.space_complexity,
+      } as ComparisonItem;
+    });
+  }, [result.comparison_summary?.items, algoKeys, resultsMap, bestAlgoId]);
   const bestAlgoItem = comparisonItems.find((it) => it.id === bestAlgoId);
 
   // Handle Export CSV
@@ -517,34 +512,34 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
   ];
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="results-workspace space-y-6 pb-12 font-heading">
       {/* Editorial Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-black/10 dark:border-[#29292E]">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3 pb-3 border-b border-black/10 dark:border-[#29292E]">
         <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#777777] dark:text-[#A1A1AA] mb-1">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#777777] dark:text-[#A1A1AA] mb-0.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[#B7FF00]" />
             <span>Optimization & Benchmark Results</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
+          <h1 className="text-xl sm:text-2xl font-heading font-bold text-[#080808] dark:text-[#F5F5F7]">
             Results
           </h1>
-          <div className="flex items-center gap-3 flex-wrap mt-1">
-            <p className="text-xs text-[#777777] dark:text-[#71717A] font-technical">
+          <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
+            <p className="text-[11px] text-[#777777] dark:text-[#71717A] font-normal">
               Experiment ID: {result.experiment_id || 'N/A'} · Total Execution: {(result.execution_time_sec || 0).toFixed(2)}s · Solvers Executed: {algoKeys.length}
             </p>
             {result.status === 'PARTIAL' && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[11px] font-semibold animate-pulse">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[10px] font-semibold animate-pulse">
                 <RotateCw className="h-3 w-3 animate-spin" />
-                <span>Evaluating background comparison suite ({result.completed_algorithms || algoKeys.length}/{result.total_algorithms || 11})</span>
+                <span>Evaluating comparison suite ({result.completed_algorithms || algoKeys.length}/{result.total_algorithms || 11})</span>
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onNavigateToPlan}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-xs font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-[11px] font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
             title="Return to interactive Plan map workspace"
           >
             <Route className="h-3.5 w-3.5" />
@@ -553,7 +548,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           {/* Export Actions */}
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-xs font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#18181B] hover:bg-black/5 dark:hover:bg-[#202024] text-[11px] font-semibold text-[#080808] dark:text-[#F5F5F7] transition-all cursor-pointer"
             title="Download CSV turn-by-turn route coordinates"
           >
             <Download className="h-3.5 w-3.5" />
@@ -561,7 +556,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </button>
           <button
             onClick={handleExportJSON}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a5e600] text-[#B7FF00] dark:text-black text-xs font-bold transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#080808] hover:bg-[#171717] dark:bg-[#B7FF00] dark:hover:bg-[#a5e600] text-[#B7FF00] dark:text-black text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
             title="Export full benchmark JSON payload"
           >
             <Download className="h-3.5 w-3.5" />
@@ -572,36 +567,36 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
       {/* ─── BEST FEASIBLE SOLUTION CALLOUT (Requirement 4 & 5) ──────────── */}
       {bestAlgoItem && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#111113] border-2 border-[#22C55E]/40 dark:border-[#22C55E]/30 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="h-10 w-10 rounded-2xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center shrink-0 border border-[#22C55E]/30">
-              <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
+        <div className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-[#111113] border border-[#22C55E]/40 dark:border-[#22C55E]/30 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="h-8 w-8 rounded-xl bg-[#22C55E]/15 text-[#22C55E] flex items-center justify-center shrink-0 border border-[#22C55E]/30">
+              <CheckCircle2 className="h-4 w-4 text-[#22C55E]" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-sm sm:text-base text-[#080808] dark:text-[#F5F5F7]">
+                <span className="font-semibold text-xs sm:text-sm text-[#080808] dark:text-[#F5F5F7]">
                   Best Feasible Solution (Recommended): {bestAlgoItem.name}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase tracking-wide">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#B7FF00] text-black font-extrabold uppercase tracking-wide">
                   Recommended Pick
                 </span>
               </div>
-              <p className="text-xs text-[#555555] dark:text-[#A1A1AA] mt-1">
+              <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
                 {result.comparison_summary?.best_reason || 'Verified 100% capacity and delivery coverage with minimal distance.'}{' '}
-                (Road Distance: <strong>{bestAlgoItem.total_distance_km.toFixed(2)} km</strong> · Est. Driving Duration: <strong>{Math.round(bestAlgoItem.total_travel_time_min)} min</strong> · Implied Speed: <strong>{(bestAlgoItem.implied_speed_kmh || (bestAlgoItem.total_distance_km / (bestAlgoItem.total_travel_time_min / 60))).toFixed(1)} km/h</strong> · Violations: <strong>0</strong>)
+                (Road Distance: <strong className="font-semibold tabular-nums">{bestAlgoItem.total_distance_km.toFixed(2)} km</strong> · Est. Driving Duration: <strong className="font-semibold tabular-nums">{Math.round(bestAlgoItem.total_travel_time_min)} min</strong> · Implied Speed: <strong className="font-semibold tabular-nums">{(bestAlgoItem.implied_speed_kmh || (bestAlgoItem.total_distance_km / (bestAlgoItem.total_travel_time_min / 60))).toFixed(1)} km/h</strong> · Violations: <strong className="font-semibold tabular-nums">0</strong>)
               </p>
             </div>
           </div>
 
           <button
             onClick={() => handleSelectAlgorithm(bestAlgoItem.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm ${
+            className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 shadow-2xs ${
               activeAlgo === bestAlgoItem.id
                 ? 'bg-[#22C55E]/15 text-[#22C55E] border border-[#22C55E]/40 cursor-default'
                 : 'bg-[#080808] text-[#B7FF00] hover:bg-[#171717] dark:bg-[#B7FF2A] dark:text-[#080808] dark:hover:bg-[#a4f01d]'
             }`}
           >
-            <span>{activeAlgo === bestAlgoItem.id ? '✓ Inspected (Currently Displayed)' : 'Inspect Recommended Route'}</span>
+            <span>{activeAlgo === bestAlgoItem.id ? '✓ Displayed' : 'Inspect Recommended Route'}</span>
           </button>
         </div>
       )}
@@ -614,14 +609,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
+              <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
                 Research Pillar 1: Apache Spark Big Data Engine
               </span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold">
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300 font-semibold">
                 Spark 4.2 Local
               </span>
             </div>
-            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
+            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug font-normal">
               Spatial RDD stop partitioning & parallel road-network distance matrix graph projection ({result.problem?.locations?.length || 0} stops processed).
             </p>
           </div>
@@ -633,14 +628,14 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
+              <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7] font-heading">
                 Research Pillar 2: Quantum & Hybrid Solvers
               </span>
-              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-bold">
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#B7FF00]/25 text-[#080808] dark:text-[#B7FF00] font-semibold">
                 Qiskit Aer CPU
               </span>
             </div>
-            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug">
+            <p className="text-[11px] text-[#555555] dark:text-[#A1A1AA] mt-0.5 leading-snug font-normal">
               Variational QAOA statevector circuit simulation for Hamiltonian optimization + QIGA simulated Q-bit evolutionary operators.
             </p>
           </div>
@@ -651,20 +646,20 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] font-heading">
               Active Route Inspection: {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
             </span>
             {activeAlgo === bestAlgoId ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-semibold">
                 Viewing Recommended Best
               </span>
             ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold border border-amber-500/30">
                 Comparative Inspection (Recommended Best is {bestAlgoItem?.name || 'ROUTE/IQ Cooperative'})
               </span>
             )}
           </div>
-          <span className="text-[11px] text-[#777777] dark:text-[#71717A]">
+          <span className="text-[11px] text-[#777777] dark:text-[#71717A] font-normal">
             Click any algorithm chip or scorecard row to inspect its genuine road route
           </span>
         </div>
@@ -685,25 +680,31 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                   const data = resultsMap[key];
                   const isSelected = activeAlgo === key;
                   const isBest = key === bestAlgoId;
-                  const algoName = data?.algorithm_name || key.toUpperCase();
+                  const algoName = getAlgorithmDisplayName(key, data?.algorithm_name);
+                  const family = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(key)] || ALGORITHM_COLOR_FAMILIES.ortools;
 
                   return (
                     <button
                       key={key}
                       onClick={() => handleSelectAlgorithm(key)}
-                      className={`px-3.5 py-2 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-[11px] ${
                         isSelected
-                          ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
+                          ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-2xs'
                           : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
                       }`}
                     >
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0 shadow-2xs"
+                        style={{ backgroundColor: family.baseColor }}
+                        title={`${family.familyName} Color Family`}
+                      />
                       <span>{algoName}</span>
-                      <span className="font-technical text-[10px] opacity-80">
+                      <span className="text-[9px] opacity-75 font-normal tabular-nums">
                         {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
                       </span>
                       {isBest && (
                         <span
-                          className="h-2 w-2 rounded-full bg-[#B7FF00]"
+                          className="h-1.5 w-1.5 rounded-full bg-[#B7FF00]"
                           title="Best Feasible Solution"
                         />
                       )}
@@ -715,16 +716,16 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 {executedClassicalKeys.length > 0 && (
                   <button
                     onClick={() => setShowAdvancedTabs(!showAdvancedTabs)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
                       isInspectingClassical
                         ? 'bg-blue-500/10 border-blue-500/40 text-blue-600 dark:text-blue-400'
                         : 'bg-black/5 dark:bg-[#18181B] border-black/10 dark:border-[#29292E] text-[#555555] dark:text-[#A1A1AA] hover:text-[#080808] dark:hover:text-[#F5F5F7]'
                     }`}
                   >
                     {isClassicalExpanded ? (
-                      <ChevronUp className="h-3.5 w-3.5" />
+                      <ChevronUp className="h-3 w-3" />
                     ) : (
-                      <ChevronDown className="h-3.5 w-3.5" />
+                      <ChevronDown className="h-3 w-3" />
                     )}
                     <span>Advanced Classical Benchmarks ({executedClassicalKeys.length})</span>
                   </button>
@@ -733,8 +734,8 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
               {/* Expanded Classical Benchmarks Pills */}
               {executedClassicalKeys.length > 0 && isClassicalExpanded && (
-                <div className="flex flex-wrap items-center gap-2 p-2 rounded-2xl bg-blue-500/[0.03] dark:bg-[#141418] border border-blue-500/20 text-xs animate-fadeIn">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-xl bg-blue-500/[0.03] dark:bg-[#141418] border border-blue-500/20 text-xs animate-fadeIn">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-[#777777] dark:text-[#71717A] px-1 flex items-center gap-1">
                     <span>Classical Solvers:</span>
                   </div>
                   {executedClassicalKeys.map((key) => {
@@ -742,30 +743,36 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     const isSelected = activeAlgo === key;
                     const isBest = key === bestAlgoId;
                     const isOrtools = key === 'ortools' || key === 'classical';
-                    const algoName = data?.algorithm_name || key.toUpperCase();
+                    const algoName = getAlgorithmDisplayName(key, data?.algorithm_name);
+                    const family = ALGORITHM_COLOR_FAMILIES[normalizeAlgorithmId(key)] || ALGORITHM_COLOR_FAMILIES.ortools;
 
                     return (
                       <button
                         key={key}
                         onClick={() => handleSelectAlgorithm(key)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-2 text-xs ${
+                        className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5 text-[10px] ${
                           isSelected
-                            ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-xs'
+                            ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40 shadow-2xs'
                             : 'bg-white text-[#171717] hover:bg-black/5 dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:text-[#F5F5F7] dark:hover:bg-[#202024] border border-black/5 dark:border-[#29292E]'
                         }`}
                       >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: family.baseColor }}
+                          title={`${family.familyName} Color Family`}
+                        />
                         <span>{algoName}</span>
                         {isOrtools && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
+                          <span className="text-[8px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold">
                             Baseline
                           </span>
                         )}
-                        <span className="font-technical text-[10px] opacity-80">
+                        <span className="text-[9px] opacity-75 font-normal tabular-nums">
                           {data?.total_distance_km ? `${data.total_distance_km.toFixed(1)} km` : ''}
                         </span>
                         {isBest && (
                           <span
-                            className="h-2 w-2 rounded-full bg-[#B7FF00]"
+                            className="h-1.5 w-1.5 rounded-full bg-[#B7FF00]"
                             title="Best Feasible Solution"
                           />
                         )}
@@ -788,76 +795,76 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         const impliedSpeedKmh = currentResult?.implied_speed_kmh || (drivingMin > 0 ? (distKm / (drivingMin / 60)) : 40.0);
 
         return (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 py-3 border-y border-black/10 dark:border-[#29292E]">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5 py-2.5 border-y border-black/10 dark:border-[#29292E]">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Inspected Algorithm
               </span>
-              <div className="text-sm sm:text-base font-bold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate" title={currentResult?.algorithm_name}>
+              <div className="text-xs sm:text-sm font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 truncate font-heading" title={currentResult?.algorithm_name}>
                 {currentResult?.algorithm_name || activeAlgo.toUpperCase()}
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical uppercase block truncate">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal uppercase block truncate">
                 {currentResult?.compute_type || currentResult?.category || 'Classical CPU'}
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Total Road Distance
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {distKm.toFixed(2)} km
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                 Directed road graph
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Est. Driving Duration
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {Math.round(drivingMin)} min
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block truncate" title={serviceMin > 0 ? `Driving: ${Math.round(drivingMin)}m + Service: ${Math.round(serviceMin)}m = ${Math.round(totalDurationMin)}m total` : 'Pure driving transit time'}>
                 {serviceMin > 0 ? `+${Math.round(serviceMin)}m svc (${Math.round(totalDurationMin)}m tot)` : 'Pure driving transit time'}
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Implied Avg Speed
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {impliedSpeedKmh.toFixed(1)} km/h
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block truncate" title="Distance / Driving Duration (assumed 40 km/h baseline)">
                 @ 40 km/h NYC baseline
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Fleet Assigned
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] tabular-nums mt-0.5 font-heading">
                 {(currentResult?.routes ?? []).length || settings.defaultVehicles} Vehicles
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                 {currentResult?.served_customers !== undefined ? `${currentResult.served_customers} stops served` : 'Active fleet routes'}
               </span>
             </div>
 
-            <div className="border-l border-black/10 dark:border-[#29292E] pl-3 sm:pl-4">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+            <div className="border-l border-black/10 dark:border-[#29292E] pl-2.5 sm:pl-3">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                 Feasibility Status
               </span>
-              <div className="text-base sm:text-lg font-bold text-[#080808] dark:text-[#F5F5F7] font-technical mt-0.5 flex items-center gap-1.5">
+              <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 flex items-center gap-1 font-heading">
                 <span>{currentResult?.is_feasible ? 'Feasible' : 'Penalized'}</span>
-                <CheckCircle2 className={`h-4 w-4 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
+                <CheckCircle2 className={`h-3.5 w-3.5 inline ${currentResult?.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'}`} />
               </div>
-              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block truncate">
+              <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block truncate">
                 {currentResult?.capacity_violations ? `${currentResult.capacity_violations} violations` : '0 violations'} · {currentResult?.execution_time_sec?.toFixed(3)}s
               </span>
             </div>
@@ -926,12 +933,12 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
             {/* Origin Depot Pin (Lime-Green 'D' marker with zIndexOffset to remain prominent) */}
             <Marker position={depotPos} icon={getDepotIcon(isDark)} zIndexOffset={1000}>
               <Popup>
-                <div className="text-xs font-sans space-y-1">
+                <div className="text-xs font-heading space-y-1">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-[#B7FF2A] ring-1 ring-black" />
                     <strong className="text-[#080808] dark:text-white font-bold">Origin Depot Hub (D)</strong>
                   </div>
-                  <p className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+                  <p className="tabular-nums text-[10px] text-[#777777] dark:text-[#A1A1AA]">
                     {depotPos[0].toFixed(6)}, {depotPos[1].toFixed(6)}
                   </p>
                   <span className="inline-block text-[10px] px-2 py-0.5 rounded-full bg-black text-[#B7FF2A] font-bold">
@@ -948,23 +955,43 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
               return (
                 <Marker key={idx + 1} position={[loc.lat, loc.lon]} icon={createCustomerIcon(idx + 1, isDark, isUnvisited)}>
                   <Popup>
-                    <div className="text-xs font-sans space-y-1">
+                    <div className="text-xs font-heading space-y-1">
                       <strong className="text-[#080808] dark:text-[#F5F5F7]">Customer Delivery Stop #{idx + 1}</strong>
                       {isUnvisited && (
                         <div className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-[10px]">
                           ⚠️ Unvisited by {currentResult?.algorithm_name || activeAlgo}
                         </div>
                       )}
-                      <div className="text-[#555555] dark:text-[#A1A1AA]">Demand: {loc.demand} units</div>
+                      <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">Demand: {loc.demand} units</div>
                     </div>
                   </Popup>
                 </Marker>
               );
             })}
 
-            {/* Vehicle Routes Polylines & Driver Badges (V1, V2...) */}
+            {/* Optional Comparative Overlay Routes (Reduced Opacity, Preserves Comparative Color Family) */}
+            {showComparativeOverlay && compareAlgoKey && compareResult && (
+              compareResult.routes.map((route, cIdx) => {
+                const positions = compareRoutePositionsList[cIdx] || [];
+                const style = getVehicleRouteStyle(compareAlgoKey, cIdx, isDark, compareResult.routes.length);
+                return positions.length > 1 ? (
+                  <Polyline
+                    key={`compare-overlay-${compareAlgoKey}-v${cIdx + 1}-${positions.length}`}
+                    positions={positions}
+                    color={style.color}
+                    weight={2.5}
+                    opacity={0.35}
+                    dashArray="5, 5"
+                  />
+                ) : null;
+              })
+            )}
+
+            {/* Selected Active Algorithm Vehicle Routes Polylines & Driver Badges (V1, V2...) */}
             {(currentResult?.routes ?? []).map((route, rIdx) => {
-              const color = activeRouteColors[rIdx % activeRouteColors.length];
+              const totalVehicles = (currentResult?.routes ?? []).length;
+              const routeStyle = getVehicleRouteStyle(activeAlgo, rIdx, isDark, totalVehicles);
+              const color = routeStyle.color;
               const driverNumber = rIdx + 1;
               const positions = routePositionsList[rIdx] || [];
               const midPoint = positions.length > 2 ? positions[Math.floor(positions.length / 2)] : positions[0];
@@ -978,7 +1005,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       color={color}
                       weight={4.5}
                       opacity={0.95}
-                      dashArray={rIdx % 2 === 1 ? '5, 5' : undefined}
+                      dashArray={routeStyle.dashArray}
                     />
                   )}
                   {midPoint && (
@@ -988,14 +1015,28 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       icon={createVehicleIcon(driverNumber, color, isDark)}
                     >
                       <Popup>
-                        <div className="text-xs font-sans">
-                          <strong className="text-[#080808] dark:text-[#F5F5F7]">Fleet Vehicle Driver V{driverNumber} ({currentResult?.algorithm_name || activeAlgo})</strong>
-                          <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km</span>
-                          <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Load: {Math.round(route.load || 0)} units</span>
-                          <br />
-                          <span className="text-[#555555] dark:text-[#A1A1AA]">Waypoints: {positions.length} coordinates</span>
+                        <div className="text-xs font-heading space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                            <strong className="text-[#080808] dark:text-[#F5F5F7]">
+                              Fleet Vehicle Driver V{driverNumber}
+                            </strong>
+                          </div>
+                          <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                            Algorithm: <strong className="text-[#080808] dark:text-white">{getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</strong>
+                          </div>
+                          <div className="text-[10px] text-[#555555] dark:text-[#A1A1AA]">
+                            Assigned Route Color: <span className="font-semibold" style={{ color }}>{routeStyle.shadeName}</span>
+                          </div>
+                          <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
+                            Distance: {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
+                          </div>
+                          <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
+                            Load: {Math.round(route.load || 0)} units
+                          </div>
+                          <div className="text-[#555555] dark:text-[#A1A1AA] tabular-nums">
+                            Waypoints: {positions.length} coordinates
+                          </div>
                         </div>
                       </Popup>
                     </Marker>
@@ -1007,81 +1048,174 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           {/* Floating Selected Algorithm Badge Header */}
           <div className="absolute top-4 left-4 z-[1000] glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] px-3.5 py-2.5 rounded-2xl shadow-lg backdrop-blur-xl flex items-center gap-3 pointer-events-auto">
-            <span className="h-3 w-3 rounded-full bg-[#B7FF2A] ring-2 ring-black/20 animate-pulse" />
+            <span
+              className="h-3 w-3 rounded-full ring-2 ring-black/20 animate-pulse"
+              style={{ backgroundColor: activeFamily.baseColor }}
+            />
             <div className="text-xs">
-              <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-bold">
-                {currentResult?.algorithm_name || activeAlgo}
-              </strong>
-              <span className="font-technical text-[10px] text-[#777777] dark:text-[#A1A1AA]">
+              <div className="flex items-center gap-1.5">
+                <strong className="text-[#080808] dark:text-[#F5F5F7] block font-heading font-semibold">
+                  {getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}
+                </strong>
+                <span
+                  className="text-[9px] px-1.5 py-0.2 rounded font-bold"
+                  style={{
+                    backgroundColor: `${activeFamily.baseColor}20`,
+                    color: activeFamily.baseColor,
+                  }}
+                >
+                  {activeFamily.familyName}
+                </span>
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-normal tabular-nums">
                 {currentResult?.total_distance_km ? `${currentResult.total_distance_km.toFixed(1)} km` : '0.0 km'} · {activeRoutesCount} Active Driver{activeRoutesCount !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
 
-          {/* Fit To Route Button */}
-          <button
-            type="button"
-            onClick={() => setFitTrigger((t) => t + 1)}
-            className="absolute top-4 right-4 z-[1000] px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold pointer-events-auto"
-            title="Fit Map to Selected Algorithm Route"
-          >
-            <Maximize2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
-            <span className="hidden sm:inline">Fit Route</span>
-          </button>
+          {/* Map Control Buttons: Fit Route & Compare Overlay */}
+          <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2 pointer-events-auto">
+            {compareAlgoKey && (
+              <button
+                type="button"
+                onClick={() => setShowComparativeOverlay(!showComparativeOverlay)}
+                className={`px-3 py-2 rounded-2xl text-xs font-semibold shadow-lg backdrop-blur-xl transition-all cursor-pointer flex items-center gap-1.5 border ${
+                  showComparativeOverlay
+                    ? 'bg-[#080808] text-[#B7FF2A] dark:bg-[#202024] border-black dark:border-[#B7FF2A]/50 ring-1 ring-[#B7FF2A]/30'
+                    : 'bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border-black/10 dark:border-[#29292E] hover:scale-105'
+                }`}
+                title={showComparativeOverlay ? 'Hide Comparative Overlay' : `Overlay ${resultsMap[compareAlgoKey]?.algorithm_name || compareAlgoKey} Baseline`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {showComparativeOverlay ? 'Hide Overlay' : `Overlay ${activeAlgo === 'routeiq_cooperative' ? 'OR-Tools' : 'Cooperative'}`}
+                </span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setFitTrigger((t) => t + 1)}
+              className="px-3 py-2 rounded-2xl bg-white/90 dark:bg-[#18181B]/95 text-[#080808] dark:text-white border border-black/10 dark:border-[#29292E] shadow-lg backdrop-blur-xl hover:scale-105 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+              title="Fit Map to Selected Algorithm Route"
+            >
+              <Maximize2 className="h-3.5 w-3.5 text-[#B7FF2A]" />
+              <span className="hidden sm:inline">Fit Route</span>
+            </button>
+          </div>
 
           {/* Geometry Missing / Error Notice */}
           {hasNoGeometry && (
-            <div className="absolute top-18 left-4 z-[1000] bg-amber-500/20 border border-amber-500/50 text-amber-800 dark:text-amber-300 px-3.5 py-2 rounded-2xl text-xs font-bold shadow-lg backdrop-blur-xl flex items-center gap-2 pointer-events-auto">
+            <div className="absolute top-18 left-4 z-[1000] bg-amber-500/20 border border-amber-500/50 text-amber-800 dark:text-amber-300 px-3.5 py-2 rounded-2xl text-xs font-semibold shadow-lg backdrop-blur-xl flex items-center gap-2 pointer-events-auto">
               <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-              <span>No road geometry available for {currentResult?.algorithm_name || activeAlgo}</span>
+              <span>No road geometry available for {getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</span>
             </div>
           )}
 
           {/* Floating Map Legend Overlay */}
-          <div className="absolute bottom-4 left-4 glass-overlay bg-white/80 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-4 py-2.5 rounded-2xl text-[11px] z-[1000] flex items-center gap-3 shadow-lg backdrop-blur-xl flex-wrap">
-            <span className="flex items-center gap-1.5 font-bold text-[#080808] dark:text-[#B7FF2A] border-r border-black/10 dark:border-white/10 pr-3">
-              <Route className="h-3.5 w-3.5 text-[#B7FF2A]" />
-              <span>{currentResult?.algorithm_name || activeAlgo}</span>
-            </span>
-            <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">Legend:</span>
-            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
-              <span className="h-3 w-3 rounded-full bg-[#B7FF00] border border-black flex items-center justify-center text-[7px] font-bold text-black">
-                D
+          <div className="absolute bottom-4 left-4 glass-overlay bg-white/90 dark:!bg-[#18181B]/95 border border-black/10 dark:!border-[#29292E] text-[#080808] dark:!text-[#F5F5F7] px-3.5 py-2.5 rounded-2xl text-[11px] z-[1000] shadow-lg backdrop-blur-xl flex flex-col gap-2 max-w-[94vw] sm:max-w-xl pointer-events-auto">
+            {/* Top row: Algorithm Name & Base Color Family Badge */}
+            <div className="flex items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 pb-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                <Route className="h-3.5 w-3.5" style={{ color: activeFamily.baseColor }} />
+                <span>{getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)}</span>
+                <span
+                  className="text-[10px] px-2 py-0.2 rounded-full font-bold ml-1 border"
+                  style={{
+                    backgroundColor: `${activeFamily.baseColor}20`,
+                    color: activeFamily.baseColor,
+                    borderColor: `${activeFamily.baseColor}50`,
+                  }}
+                >
+                  {activeFamily.familyName} Family
+                </span>
+              </div>
+              <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] tabular-nums">
+                {activeRoutesCount} Active Vehicle Route{activeRoutesCount !== 1 ? 's' : ''}
               </span>
-              <span>Origin Hub</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
-              <span className="h-3 w-3 rounded-full bg-[#080808] dark:bg-[#141418] border border-white dark:border-[#B7FF00] flex items-center justify-center text-[7px] font-bold text-white dark:text-[#B7FF00]">
-                #
+            </div>
+
+            {/* Middle row: Vehicle Route Swatches (V1, V2, V3...) with their distinct vehicle colors */}
+            <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+              <span className="text-[#777777] dark:text-[#71717A] font-semibold uppercase text-[9px] tracking-wider shrink-0">
+                Vehicle Routes:
               </span>
-              <span>Customer Stops (1, 2, 3...)</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-medium text-[#171717] dark:text-[#F5F5F7]">
-              <span className="px-1.5 py-0.5 rounded-full bg-[#080808] text-[#B7FF00] border border-[#B7FF00] text-[9px] font-technical font-bold">
-                V1..Vn
+              {(currentResult?.routes ?? []).map((_, rIdx) => {
+                const totalVehicles = (currentResult?.routes ?? []).length;
+                const style = getVehicleRouteStyle(activeAlgo, rIdx, isDark, totalVehicles);
+                const driverNumber = rIdx + 1;
+                return (
+                  <div
+                    key={`legend-v-${activeAlgo}-${driverNumber}`}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10"
+                    title={`Vehicle ${driverNumber} — ${style.shadeName}`}
+                  >
+                    <span
+                      className="h-2.5 w-3.5 rounded-xs shrink-0"
+                      style={{
+                        backgroundColor: style.color,
+                        border: style.dashArray ? '1px dashed currentColor' : 'none',
+                      }}
+                    />
+                    <strong className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
+                      Vehicle {driverNumber}
+                    </strong>
+                    <span className="text-[10px] font-semibold" style={{ color: style.color }}>
+                      — {style.shadeName}
+                    </span>
+                  </div>
+                );
+              })}
+              {(currentResult?.routes ?? []).length === 0 && (
+                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] italic">No active vehicle routes</span>
+              )}
+            </div>
+
+            {/* Bottom row: Standard Markers (Depot, Customer stops, Unvisited) & Overlay status */}
+            <div className="flex items-center gap-3 pt-1 border-t border-black/5 dark:border-white/5 text-[10px] text-[#555555] dark:text-[#A1A1AA] flex-wrap">
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#B7FF00] border border-black text-[6px] font-bold text-black flex items-center justify-center">
+                  D
+                </span>
+                <span>Origin Hub</span>
               </span>
-              <span>Fleet Vehicles</span>
-            </span>
-            <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
-              <span className="h-3 w-3 rounded-full bg-red-100 dark:bg-red-950 border border-dashed border-red-500 flex items-center justify-center text-[7px] font-bold text-red-500">
-                !
+              <span className="flex items-center gap-1">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#080808] dark:bg-[#141418] border border-white dark:border-[#B7FF00] text-[6px] font-bold text-white dark:text-[#B7FF00] flex items-center justify-center">
+                  #
+                </span>
+                <span>Customer Stops</span>
               </span>
-              <span>Unvisited</span>
-            </span>
+              {currentVisitedIndices.size < Math.max(0, (result.problem?.locations?.length || 1) - 1) && (
+                <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-100 dark:bg-red-950 border border-dashed border-red-500 text-[6px] font-bold text-red-500 flex items-center justify-center">
+                    !
+                  </span>
+                  <span>Unvisited</span>
+                </span>
+              )}
+              {showComparativeOverlay && compareAlgoKey && (
+                <span className="ml-auto flex items-center gap-1 text-[9px] font-semibold text-blue-500">
+                  <span className="h-1.5 w-3 border-b-2 border-dashed border-current" />
+                  <span>Overlay: {getAlgorithmDisplayName(compareAlgoKey, resultsMap[compareAlgoKey]?.algorithm_name)} (35% Opacity)</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Right Route Sequence & Comparative Benchmark (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           {/* Driver Schedule Sequences */}
-          <div className="space-y-3 pb-5 border-b border-black/10 dark:border-[#29292E]">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block">
-              Driver Vehicle Schedules ({currentResult?.algorithm_name || activeAlgo})
+          <div className="space-y-2.5 pb-4 border-b border-black/10 dark:border-[#29292E]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
+              Driver Vehicle Schedules ({getAlgorithmDisplayName(activeAlgo, currentResult?.algorithm_name)})
             </span>
 
             <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
               {(currentResult?.routes ?? []).map((route: VehicleRoute, idx: number) => {
-                const color = activeRouteColors[idx % activeRouteColors.length];
+                const totalVehicles = (currentResult?.routes ?? []).length;
+                const routeStyle = getVehicleRouteStyle(activeAlgo, idx, isDark, totalVehicles);
+                const color = routeStyle.color;
                 const driverNumber = idx + 1;
                 const stopsArr = route.stops ?? [];
                 const vp = route.vehicle_profile;
@@ -1093,46 +1227,53 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 return (
                   <div
                     key={`schedule-driver-${driverNumber}-${idx}`}
-                    className="py-2.5 px-3 rounded-xl bg-white/70 dark:bg-[#18181B] backdrop-blur-md border border-black/5 dark:border-[#29292E] space-y-2 transition-colors"
+                    className="py-2 px-2.5 rounded-xl bg-white/70 dark:bg-[#18181B] backdrop-blur-md border border-black/5 dark:border-[#29292E] space-y-1.5 transition-colors"
                   >
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center gap-2">
                         <div
-                          className="h-3 w-3 rounded-full shrink-0"
+                          className="h-2.5 w-2.5 rounded-full shrink-0"
                           style={{ backgroundColor: color }}
+                          title={`Color: ${routeStyle.shadeName}`}
                         />
-                        <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
+                        <span className="font-semibold text-xs text-[#080808] dark:text-[#F5F5F7]">
                           {vp?.name || `Driver #${driverNumber}`}
                         </span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded font-technical font-semibold capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
+                        <span
+                          className="text-[9px] px-1.5 py-0.2 rounded font-semibold"
+                          style={{ backgroundColor: `${color}20`, color: color }}
+                        >
+                          Vehicle {driverNumber} — {routeStyle.shadeName}
+                        </span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-normal capitalize bg-black/5 dark:bg-white/10 text-[#555555] dark:text-[#A1A1AA]">
                           {isEv ? '⚡ Electric' : pType === 'hybrid' ? '🌿 Hybrid' : pType === 'petrol' ? '⛽ Petrol' : '🛢️ Diesel'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-technical font-bold text-[#080808] dark:text-[#B7FF00]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-xs text-[#080808] dark:text-[#B7FF00] tabular-nums">
                           {typeof route.distance_km === 'number' ? route.distance_km.toFixed(1) : '0.0'} km
                         </span>
                         {!isRangeFeasible && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-500/15 text-red-500 font-bold">
+                          <span className="text-[8px] px-1 py-0.2 rounded bg-red-500/15 text-red-500 font-semibold">
                             Range Overdue
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-[#777777] dark:text-[#A1A1AA] font-technical">
+                    <div className="flex items-center justify-between text-[10px] text-[#777777] dark:text-[#A1A1AA] font-normal">
                       <span className="truncate max-w-[260px]">
                         Stops: {stopsArr.map((s) => (s === 0 ? 'D' : `#${s}`)).join(' → ')} ({Math.max(0, stopsArr.length - 2)} stops)
                       </span>
-                      <span className="font-mono text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 font-semibold">
+                      <span className="text-emerald-600 dark:text-emerald-400 shrink-0 ml-2 font-medium tabular-nums">
                         Load: {route.load ?? 0} / {route.capacity ?? 100} kg ({route.utilization_pct ?? 0}%)
                       </span>
                     </div>
 
                     {remainingRange !== null && (
-                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-black/5 dark:border-white/5 font-technical text-[#777777] dark:text-[#A1A1AA]">
+                      <div className="flex items-center justify-between text-[9px] pt-1 border-t border-black/5 dark:border-white/5 font-normal text-[#777777] dark:text-[#A1A1AA]">
                         <span>Usable Range: {route.usable_range_km} km</span>
-                        <span className={`font-semibold ${isRangeFeasible ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        <span className={`font-semibold tabular-nums ${isRangeFeasible ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                           {remainingRange} km remaining
                         </span>
                       </div>
@@ -1141,7 +1282,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                 );
               })}
               {(currentResult?.routes ?? []).length === 0 && (
-                <div className="text-center py-6 text-xs text-[#777777] dark:text-[#A1A1AA]">
+                <div className="text-center py-5 text-xs text-[#777777] dark:text-[#A1A1AA]">
                   {currentResult?.status === 'FAILED'
                     ? `Solver failed: ${currentResult?.error || 'No route generated'}`
                     : 'No routes assigned for this solver selection.'}
@@ -1152,21 +1293,21 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
 
           {/* Comparative Metrics Chart */}
           {chartData.length > 1 && (
-            <div className="space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block">
+            <div className="space-y-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#080808] dark:text-[#F5F5F7] block font-heading">
                 Comparative Route Distance (km)
               </span>
 
-              <div className="h-56 w-full pt-2">
+              <div className="h-52 w-full pt-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 10, fill: isDark ? '#A1A1AA' : '#171717' }}
+                      tick={{ fontSize: 9, fontFamily: "'Roboto Condensed', sans-serif", fill: isDark ? '#A1A1AA' : '#171717' }}
                       stroke={isDark ? '#29292E' : 'rgba(0,0,0,0.1)'}
                     />
                     <YAxis
-                      tick={{ fontSize: 10, fill: isDark ? '#A1A1AA' : '#171717' }}
+                      tick={{ fontSize: 9, fontFamily: "'Roboto Condensed', sans-serif", fill: isDark ? '#A1A1AA' : '#171717' }}
                       stroke={isDark ? '#29292E' : 'rgba(0,0,0,0.1)'}
                     />
                     <Tooltip
@@ -1174,7 +1315,9 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                         backgroundColor: isDark ? '#18181B' : '#FFFFFF',
                         borderColor: isDark ? '#29292E' : 'rgba(0,0,0,0.1)',
                         color: isDark ? '#F5F5F7' : '#080808',
-                        borderRadius: '12px',
+                        borderRadius: '10px',
+                        fontSize: '11px',
+                        fontFamily: "'Roboto Condensed', sans-serif",
                         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                       }}
                       itemStyle={{ color: isDark ? '#B7FF00' : '#080808', fontWeight: 600 }}
@@ -1182,7 +1325,7 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     <Bar
                       dataKey="Distance (km)"
                       fill={isDark ? '#B7FF00' : '#080808'}
-                      radius={[4, 4, 0, 0]}
+                      radius={[3, 3, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1200,11 +1343,11 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         const isIdentical = diag.relationship_code === 'INDEPENDENT_IDENTICAL_CONVERGENCE';
 
         return (
-          <div className="p-5 rounded-3xl bg-white dark:bg-[#141418] border border-black/10 dark:border-[#29292E] shadow-sm space-y-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#141418] border border-black/10 dark:border-[#29292E] shadow-2xs space-y-3 font-heading">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <div
-                  className={`p-2.5 rounded-2xl ${
+                  className={`p-2 rounded-xl ${
                     isSupremacy
                       ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30'
                       : isAlt
@@ -1214,15 +1357,15 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30'
                   }`}
                 >
-                  <GitCompare className="h-5 w-5" />
+                  <GitCompare className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-bold text-[#080808] dark:text-[#F5F5F7] font-heading">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-xs sm:text-[13px] font-semibold text-[#080808] dark:text-[#F5F5F7] font-heading">
                       Route Identity & Independent Optimization Diagnostics
                     </h3>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider ${
                         isSupremacy
                           ? 'bg-purple-600 text-white'
                           : isAlt
@@ -1235,66 +1378,66 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                       {diag.relationship_label}
                     </span>
                   </div>
-                  <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-0.5">
+                  <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5 font-normal">
                     Rigorous mathematical comparison between ROUTE/IQ Cooperative Engine and OR-Tools incumbent
                   </p>
                 </div>
               </div>
 
               {/* Memory Separation Verification Badge */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/5 dark:bg-[#1E1E22] border border-black/5 dark:border-[#29292E] text-[11px] font-technical">
-                <span className="h-2 w-2 rounded-full bg-[#22C55E]" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/5 dark:bg-[#1E1E22] border border-black/5 dark:border-[#29292E] text-[10px] font-normal">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
                 <span className="text-[#555555] dark:text-[#A1A1AA]">Process Memory Separation:</span>
-                <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">
+                <span className="font-semibold text-[#080808] dark:text-[#F5F5F7]">
                   {diag.is_separate_memory_objects ? 'Verified (id≠id)' : 'Shared'}
                 </span>
               </div>
             </div>
 
             {/* 4 Metric Columns */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Directed Edge Overlap
                 </span>
-                <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 tabular-nums font-heading">
                   {diag.directed_edge_overlap_pct.toFixed(1)}%
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   {diag.shared_directed_edges_count} shared / {diag.total_coop_directed_edges} coop edges
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Undirected Edge Overlap
                 </span>
-                <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 tabular-nums font-heading">
                   {diag.undirected_edge_overlap_pct.toFixed(1)}%
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   Bi-directional road traversal match
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Vehicle Allocation Match
                 </span>
-                <div className="text-base sm:text-lg font-bold font-technical text-[#080808] dark:text-[#F5F5F7] mt-0.5">
+                <div className="text-sm sm:text-base font-semibold text-[#080808] dark:text-[#F5F5F7] mt-0.5 tabular-nums font-heading">
                   {diag.vehicle_allocation_similarity_pct.toFixed(1)}%
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   Fleet stop clustering Jaccard index
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#777777] dark:text-[#71717A] block">
+              <div className="p-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E]">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-[#777777] dark:text-[#71717A] block font-heading">
                   Distance Delta (Coop vs OR-Tools)
                 </span>
                 <div
-                  className={`text-base sm:text-lg font-bold font-technical mt-0.5 ${
+                  className={`text-sm sm:text-base font-semibold mt-0.5 tabular-nums font-heading ${
                     diag.distance_delta_km > 0.005
                       ? 'text-purple-600 dark:text-purple-400'
                       : 'text-[#080808] dark:text-[#F5F5F7]'
@@ -1304,18 +1447,18 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
                     ? `-${diag.distance_delta_km.toFixed(3)} km (-${diag.distance_delta_pct.toFixed(2)}%)`
                     : 'Equal Minimal Distance'}
                 </div>
-                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block">
+                <span className="text-[9px] text-[#777777] dark:text-[#A1A1AA] font-normal block">
                   {diag.distance_coop_km.toFixed(3)} km vs {diag.distance_ortools_km.toFixed(3)} km
                 </span>
               </div>
             </div>
 
             {/* Explanation Narrative */}
-            <div className="px-4 py-3 rounded-2xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-xs">
-              <span className="font-bold text-[#080808] dark:text-[#F5F5F7] block text-[11px] uppercase tracking-wider font-heading mb-1">
+            <div className="px-3.5 py-2.5 rounded-xl bg-black/5 dark:bg-[#18181B] border border-black/5 dark:border-[#29292E] text-[11px]">
+              <span className="font-semibold text-[#080808] dark:text-[#F5F5F7] block text-[10px] uppercase tracking-wider font-heading mb-0.5">
                 Audited Algorithmic Verdict
               </span>
-              <p className="text-[#555555] dark:text-[#D4D4D8] leading-relaxed">{diag.explanation}</p>
+              <p className="text-[#555555] dark:text-[#D4D4D8] leading-relaxed font-normal">{diag.explanation}</p>
             </div>
           </div>
         );
@@ -1331,427 +1474,19 @@ const createVehicleIcon = (vehicleId: number, color: string, isDark: boolean) =>
         />
       )}
 
-      {/* ─── ALGORITHM COMPARISON SCORECARD TABLE (Requirement 4) ──────── */}
+      {/* ─── REDESIGNED ALGORITHM COMPARISON SCORECARD DASHBOARD ──────── */}
       {comparisonItems.length > 0 && (
-        <div className="space-y-4 pt-6 border-t border-black/10 dark:border-[#29292E]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl font-heading font-semibold text-[#080808] dark:text-[#F5F5F7]">
-                Algorithm Comparison Scorecard
-              </h2>
-              <p className="text-xs text-[#777777] dark:text-[#A1A1AA] mt-0.5">
-                Side-by-side performance evaluation on identical stops, fleet capacity, and road network metrics.
-              </p>
-            </div>
-            <span className="text-[11px] font-technical text-[#777777] dark:text-[#71717A]">
-              Fair Benchmark · Same Graph & Matrix
-            </span>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-black/10 dark:border-[#29292E] bg-white dark:bg-[#111113]">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-black/10 dark:border-[#29292E] bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] text-[10px] uppercase font-bold tracking-wider">
-                  <th className="py-3 px-4">Algorithm & Category</th>
-                  <th className="py-3 px-4">Feasibility</th>
-                  <th className="py-3 px-4">Total Distance</th>
-                  <th className="py-3 px-4">Est. Driving Duration</th>
-                  <th className="py-3 px-4">Implied Avg Speed</th>
-                  <th className="py-3 px-4">Vehicles / Coverage</th>
-                  <th className="py-3 px-4">Violations</th>
-                  <th className="py-3 px-4">CPU / RAM</th>
-                  <th className="py-3 px-4">Complexity</th>
-                  <th className="py-3 px-4">Objective Cost</th>
-                  <th className="py-3 px-4">Runtime</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5 dark:divide-[#29292E]">
-                {/* Primary Research Systems & Academic Baseline Rows */}
-                {(() => {
-                  const primaryKeys = ['routeiq_cooperative', 'qaoa', 'qiga', 'ortools', 'classical'];
-                  const primaryItems = comparisonItems.filter((it) => primaryKeys.includes(it.id));
-                  const displayPrimary = primaryItems.length > 0 ? primaryItems : comparisonItems;
-
-                  const renderRow = (item: any, isClassicalBenchmark?: boolean) => {
-                    const isCurrent = activeAlgo === item.id;
-                    const isBest = item.id === bestAlgoId;
-                    const isCoop = item.id === 'routeiq_cooperative';
-                    const isOrtools = item.id === 'ortools' || item.id === 'classical';
-                    const isInternal = ['tabu_search', 'kernighan_lin', 'vnd'].includes(item.id);
-
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`hover:bg-black/5 dark:hover:bg-[#18181B]/80 transition-colors ${
-                          isBest ? 'bg-[#B7FF00]/5 dark:bg-[#B7FF00]/5' : ''
-                        }`}
-                      >
-                        {/* Name & Category */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{item.name}</span>
-                            {isBest && (
-                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
-                                Best Feasible
-                              </span>
-                            )}
-                            {isCoop && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold">
-                                Primary Flagship
-                              </span>
-                            )}
-                            {isOrtools && (
-                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold">
-                                Scientific Baseline
-                              </span>
-                            )}
-                            {isInternal && (
-                              <span className="text-[9px] px-1 py-0.2 rounded bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
-                                Internal Subroutine
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block mt-0.5">
-                            {item.category_label} · {item.compute_type}
-                          </span>
-                        </td>
-
-                        {/* Feasibility & Individual Solver Status */}
-                        <td className="py-3 px-4">
-                          {item.status === 'RUNNING' ? (
-                            <span className="inline-flex items-center gap-1 font-bold text-amber-500">
-                              <RotateCw className="h-3 w-3 animate-spin" />
-                              <span>Running...</span>
-                            </span>
-                          ) : item.status === 'PENDING' ? (
-                            <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
-                              <span>Pending</span>
-                            </span>
-                          ) : item.status === 'TIMED_OUT' ? (
-                            <span className="inline-flex items-center gap-1 font-bold text-orange-500">
-                              <span>Timed Out</span>
-                            </span>
-                          ) : item.status === 'FAILED' ? (
-                            <span className="inline-flex items-center gap-1 font-bold text-red-500" title={item.error || 'Solver failed'}>
-                              <span>Failed</span>
-                            </span>
-                          ) : (
-                            <span className={`inline-flex items-center gap-1 font-bold ${
-                              item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
-                            }`}>
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Total Distance */}
-                        <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                          {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
-                            ? `${item.total_distance_km.toFixed(2)} km`
-                            : (item.status === 'RUNNING' ? 'Computing...' : '—')}
-                        </td>
-
-                        {/* Travel Time */}
-                        <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                          {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
-                        </td>
-
-                        {/* Implied Average Speed */}
-                        <td className="py-3 px-4 font-technical font-semibold text-[#080808] dark:text-[#F5F5F7]">
-                          {typeof item.total_distance_km === 'number' && item.total_distance_km > 0 && item.total_travel_time_min
-                            ? `${(item.implied_speed_kmh || (item.total_distance_km / (item.total_travel_time_min / 60))).toFixed(1)} km/h`
-                            : '—'}
-                        </td>
-
-                        {/* Vehicles & Coverage */}
-                        <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                          {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
-                        </td>
-
-                        {/* Violations */}
-                        <td className="py-3 px-4 font-technical">
-                          {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
-                            <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Error'}>
-                              {item.error || 'Execution failed'}
-                            </span>
-                          ) : item.capacity_violations === 0 && item.unserved_customers === 0 ? (
-                            <span className="text-[#22C55E] font-bold">0 violations</span>
-                          ) : (
-                            <span className="text-red-500 font-bold">
-                              {item.capacity_violations} cap / {item.unserved_customers} unserved
-                            </span>
-                          )}
-                        </td>
-
-                        {/* Resource: CPU & Heap / RSS RAM */}
-                        <td className="py-3 px-4 font-technical">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
-                              {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
-                            </span>
-                            <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]" title={`Process RSS: ${item.process_rss_mb || 0} MB | Python Heap: ${item.heap_allocated_mb || item.memory_used_mb || 0} MB (peak: ${item.heap_peak_mb || item.peak_memory_mb || 0} MB)`}>
-                              {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Theoretical Big-O Complexity */}
-                        <td className="py-3 px-4 font-technical">
-                          <div className="flex flex-col">
-                            <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]" title={`Theoretical Worst-Case Time: ${item.time_complexity || 'O(N^2)'}`}>
-                              T: {item.time_complexity || 'O(N^2)'}
-                            </span>
-                            <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]" title={`Theoretical Worst-Case Space: ${item.space_complexity || 'O(N)'}`}>
-                              S: {item.space_complexity || 'O(N)'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Objective Cost */}
-                        <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                          {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
-                        </td>
-
-                        {/* Runtime */}
-                        <td className="py-3 px-4 font-technical text-[#777777] dark:text-[#A1A1AA]">
-                          {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
-                        </td>
-
-                        {/* View Action */}
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => handleSelectAlgorithm(item.id)}
-                            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              isCurrent
-                                ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40'
-                                : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
-                            }`}
-                          >
-                            {isCurrent ? '✓ Inspecting' : 'Inspect Route'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  };
-
-                  return (
-                    <>
-                      {displayPrimary.map((it) => renderRow(it, false))}
-                    </>
-                  );
-                })()}
-              </tbody>
-            </table>
-          </div>
-
-          {/* ─── OPTIONAL COLLAPSIBLE ADVANCED CLASSICAL BENCHMARKS (7 Standalone Solvers) ─── */}
-          {(() => {
-            const primaryKeys = ['routeiq_cooperative', 'qaoa', 'qiga', 'ortools', 'classical'];
-            const classicalBenchmarkItems = comparisonItems.filter((it) => !primaryKeys.includes(it.id));
-            if (classicalBenchmarkItems.length === 0) return null;
-
-            return (
-              <div className="rounded-2xl border border-black/10 dark:border-[#29292E] overflow-hidden bg-white dark:bg-[#111113]">
-                <button
-                  type="button"
-                  onClick={() => setShowAdvancedScorecard(!showAdvancedScorecard)}
-                  className="w-full flex items-center justify-between p-4 bg-black/5 dark:bg-[#18181B] hover:bg-black/10 dark:hover:bg-[#202024] transition-all cursor-pointer text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded-lg bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
-                      {showAdvancedScorecard ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-[#080808] dark:text-[#F5F5F7]">
-                          Advanced Classical Benchmarks ({classicalBenchmarkItems.length} Standalone Solvers)
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/30">
-                          Academic Comparison Suite
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-[#777777] dark:text-[#A1A1AA] mt-0.5">
-                        Standalone heuristic baselines (Clarke-Wright, 2-opt, Tabu, KL, VND, A*, Dijkstra). Note: Heuristics also execute internally inside the Cooperative Engine.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-[#080808] dark:text-[#B7FF00] font-technical shrink-0">
-                    {showAdvancedScorecard ? 'Collapse Benchmarks ▲' : `View All ${classicalBenchmarkItems.length} Benchmarks ▼`}
-                  </span>
-                </button>
-
-                {showAdvancedScorecard && (
-                  <div className="overflow-x-auto border-t border-black/10 dark:border-[#29292E] animate-fadeIn">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-black/10 dark:border-[#29292E] bg-black/5 dark:bg-[#18181B] text-[#777777] dark:text-[#A1A1AA] text-[10px] uppercase font-bold tracking-wider">
-                          <th className="py-3 px-4">Classical Solver</th>
-                          <th className="py-3 px-4">Feasibility</th>
-                          <th className="py-3 px-4">Total Distance</th>
-                          <th className="py-3 px-4">Est. Driving Duration</th>
-                          <th className="py-3 px-4">Implied Avg Speed</th>
-                          <th className="py-3 px-4">Vehicles / Coverage</th>
-                          <th className="py-3 px-4">Violations</th>
-                          <th className="py-3 px-4">CPU / RAM</th>
-                          <th className="py-3 px-4">Complexity</th>
-                          <th className="py-3 px-4">Objective Cost</th>
-                          <th className="py-3 px-4">Runtime</th>
-                          <th className="py-3 px-4 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-black/5 dark:divide-[#29292E]">
-                        {classicalBenchmarkItems.map((item) => {
-                          const isCurrent = activeAlgo === item.id;
-                          const isBest = item.id === bestAlgoId;
-                          const isInternal = ['tabu_search', 'kernighan_lin', 'vnd'].includes(item.id);
-
-                          return (
-                            <tr
-                              key={item.id}
-                              className={`hover:bg-black/5 dark:hover:bg-[#18181B]/80 transition-colors ${
-                                isBest ? 'bg-[#B7FF00]/5 dark:bg-[#B7FF00]/5' : ''
-                              }`}
-                            >
-                              <td className="py-3 px-4">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-bold text-[#080808] dark:text-[#F5F5F7]">{item.name}</span>
-                                  {isBest && (
-                                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF00] text-black font-bold">
-                                      Best Feasible
-                                    </span>
-                                  )}
-                                  {isInternal && (
-                                    <span className="text-[9px] px-1 py-0.2 rounded bg-black/5 dark:bg-[#25252A] text-[#777777] dark:text-[#A1A1AA]">
-                                      Internal Subroutine
-                                    </span>
-                                  )}
-                                </div>
-                                <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] font-technical block mt-0.5">
-                                  {item.category_label} · {item.compute_type}
-                                </span>
-                              </td>
-
-                              <td className="py-3 px-4">
-                                {item.status === 'RUNNING' ? (
-                                  <span className="inline-flex items-center gap-1 font-bold text-amber-500">
-                                    <RotateCw className="h-3 w-3 animate-spin" />
-                                    <span>Running...</span>
-                                  </span>
-                                ) : item.status === 'PENDING' ? (
-                                  <span className="inline-flex items-center gap-1 text-slate-400 font-medium">
-                                    <span>Pending</span>
-                                  </span>
-                                ) : item.status === 'TIMED_OUT' ? (
-                                  <span className="inline-flex items-center gap-1 font-bold text-orange-500">
-                                    <span>Timed Out</span>
-                                  </span>
-                                ) : item.status === 'FAILED' ? (
-                                  <span className="inline-flex items-center gap-1 font-bold text-red-500" title={item.error || 'Solver failed'}>
-                                    <span>Failed</span>
-                                  </span>
-                                ) : (
-                                  <span className={`inline-flex items-center gap-1 font-bold ${
-                                    item.is_feasible ? 'text-[#22C55E]' : 'text-amber-500'
-                                  }`}>
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    <span>{item.is_feasible ? 'Feasible' : 'Penalized'}</span>
-                                  </span>
-                                )}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                                {typeof item.total_distance_km === 'number' && item.total_distance_km > 0
-                                  ? `${item.total_distance_km.toFixed(2)} km`
-                                  : (item.status === 'RUNNING' ? 'Computing...' : '—')}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                                {item.total_travel_time_min ? `${Math.round(item.total_travel_time_min)} min` : '—'}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical font-semibold text-[#080808] dark:text-[#F5F5F7]">
-                                {typeof item.total_distance_km === 'number' && item.total_distance_km > 0 && item.total_travel_time_min
-                                  ? `${(item.implied_speed_kmh || (item.total_distance_km / (item.total_travel_time_min / 60))).toFixed(1)} km/h`
-                                  : '—'}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical text-[#555555] dark:text-[#A1A1AA]">
-                                {item.vehicles_used ? `${item.vehicles_used} vehicles · ${item.served_customers} stops` : '—'}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical">
-                                {item.status === 'FAILED' || item.status === 'TIMED_OUT' ? (
-                                  <span className="text-red-500 font-bold truncate max-w-[120px] block" title={item.error || 'Error'}>
-                                    {item.error || 'Execution failed'}
-                                  </span>
-                                ) : item.capacity_violations === 0 && item.unserved_customers === 0 ? (
-                                  <span className="text-[#22C55E] font-bold">0 violations</span>
-                                ) : (
-                                  <span className="text-red-500 font-bold">
-                                    {item.capacity_violations} cap / {item.unserved_customers} unserved
-                                  </span>
-                                )}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-[#080808] dark:text-[#F5F5F7]" title={`CPU Core Time Ratio: ${item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0}%`}>
-                                    {item.cpu_core_ratio_percent || item.cpu_utilization_percent ? `${(item.cpu_core_ratio_percent || item.cpu_utilization_percent || 0).toFixed(0)}% CPU` : 'Active'}
-                                  </span>
-                                  <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA]">
-                                    {item.heap_allocated_mb || item.memory_used_mb ? `${(item.heap_allocated_mb || item.memory_used_mb || 0).toFixed(1)}M heap` : '<1M heap'} (pk: {(item.heap_peak_mb || item.peak_memory_mb || 1).toFixed(1)}M)
-                                  </span>
-                                </div>
-                              </td>
-
-                              <td className="py-3 px-4 font-technical">
-                                <div className="flex flex-col">
-                                  <span className="text-[11px] font-bold text-[#080808] dark:text-[#F5F5F7] truncate max-w-[110px]">
-                                    T: {item.time_complexity || 'O(N^2)'}
-                                  </span>
-                                  <span className="text-[10px] text-[#777777] dark:text-[#A1A1AA] truncate max-w-[110px]">
-                                    S: {item.space_complexity || 'O(N)'}
-                                  </span>
-                                </div>
-                              </td>
-
-                              <td className="py-3 px-4 font-technical font-bold text-[#080808] dark:text-[#F5F5F7]">
-                                {typeof item.total_objective_cost === 'number' ? item.total_objective_cost.toFixed(2) : '—'}
-                              </td>
-
-                              <td className="py-3 px-4 font-technical text-[#777777] dark:text-[#A1A1AA]">
-                                {typeof item.execution_time_sec === 'number' ? `${item.execution_time_sec.toFixed(3)}s` : '—'}
-                              </td>
-
-                              <td className="py-3 px-4 text-right">
-                                <button
-                                  onClick={() => handleSelectAlgorithm(item.id)}
-                                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                    isCurrent
-                                      ? 'bg-[#080808] text-[#B7FF00] dark:bg-[#202024] dark:text-[#B7FF00] border border-black dark:border-[#B7FF00]/40'
-                                      : 'bg-black/5 hover:bg-black/10 dark:bg-[#18181B] dark:border dark:border-[#29292E] dark:hover:bg-[#202024] text-[#080808] dark:text-[#F5F5F7]'
-                                  }`}
-                                >
-                                  {isCurrent ? '✓ Inspecting' : 'Inspect Route'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </div>
+        <AlgorithmComparisonScorecard
+          items={comparisonItems}
+          resultsMap={resultsMap}
+          activeAlgo={activeAlgo}
+          bestAlgoId={bestAlgoId}
+          onSelectAlgorithm={handleSelectAlgorithm}
+          isDark={isDark}
+          jobStatus={result.status}
+          totalAlgorithms={result.total_algorithms}
+          completedAlgorithms={result.completed_algorithms}
+        />
       )}
     </div>
   );

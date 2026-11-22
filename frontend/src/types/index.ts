@@ -73,6 +73,7 @@ export interface VehicleRoute {
   stops: number[];
   customer_stops: number[];
   distance_km: number;
+  total_distance_km?: number;
   driving_time_min?: number;
   service_time_min?: number;
   total_duration_min?: number;
@@ -267,7 +268,7 @@ export interface AlgorithmEnergyProfile {
   total_co2_kg: number;
   operational_cost_usd: number;
   vehicle_breakdowns: VehicleRouteEnergy[];
-  data_tags?: Record<string, 'MEASURED' | 'ESTIMATED' | 'ASSUMED' | 'UNAVAILABLE'>;
+  data_tags?: Record<string, 'MEASURED' | 'COMPUTED' | 'ESTIMATED' | 'ASSUMED' | 'SIMULATED' | 'UNAVAILABLE' | 'INVALID'>;
 }
 
 export interface EnergyComparison {
@@ -279,6 +280,8 @@ export interface EnergyComparison {
   delta_energy_kwh: number;
   delta_co2_kg: number;
   delta_cost_usd: number;
+  co2_abatement_kg?: number;
+  fleet_cost_saved_usd?: number;
   pct_distance_savings: number;
   pct_fuel_savings: number;
   pct_energy_savings: number;
@@ -333,10 +336,11 @@ export interface RouteIdentityDiagnostics {
 }
 
 export interface ComparisonSummary {
-  best_algorithm: string;
-  best_algorithm_name: string;
+  best_algorithm?: string | null;
+  best_algorithm_name?: string | null;
   best_reason: string;
-  best_feasible_distance_km: number;
+  best_feasible_distance_km?: number | null;
+  has_feasible_solution?: boolean;
   items: ComparisonItem[];
   route_identity_diagnostics?: RouteIdentityDiagnostics;
   energy_analysis?: FullEnergyAnalysis;

@@ -1,0 +1,26 @@
+\section{Problem Formulation: HFVRP-VC}
+\label{sec:problem_formulation}
+We formalize the \textit{Heterogeneous Fleet Vehicle Routing Problem with Vehicle Condition (HFVRP-VC)}. 
+
+Let $\mathcal{G} = (\mathcal{V}, \mathcal{E})$ be a directed road network where $\mathcal{V} = \{0\} \cup \mathcal{V}_c$ consists of depot node $0$ and customer nodes $\mathcal{V}_c = \{1, \dots, N\}$. Each stop $i \in \mathcal{V}_c$ has a demand $q_i > 0$ and service time $s_i \ge 0$. Each directed arc $(i, j) \in \mathcal{E}$ has distance $d_{ij}$ and base travel time $t_{ij}$.
+
+\subsection{Heterogeneous Fleet Condition Model}
+The fleet comprises $K$ vehicles $\mathcal{K} = \{1, \dots, K\}$. Each vehicle $k \in \mathcal{K}$ is characterized by a condition tuple:
+\begin{equation}
+\mathbf{p}_k = (Q_k, \phi_k, \text{SoC}_k, \text{SoH}_k, B_{\text{nom}, k}, V_{\text{nom}, k}, f_k, \mu_k, c_{\text{dist}, k}, c_{\text{time}, k}, c_{\text{fixed}, k}, e_k)
+\end{equation}
+where $Q_k$ is payload capacity (kg), $\phi_k \in \{\text{BEV}, \text{Diesel}, \text{Petrol}, \text{Hybrid}\}$ is powertrain, $\text{SoC}_k \in [0, 100]\%$ is State of Charge, $\text{SoH}_k \in [0, 100]\%$ is State of Health, $B_{\text{nom}, k}$ is nominal battery capacity (kWh), $V_{\text{nom}, k}$ is nominal fuel tank volume (liters), $f_k$ is nominal fuel/energy efficiency (kWh/km or L/100km), $\mu_k \in [1.0, 1.25]$ is maintenance wear multiplier, $c_{\text{dist}, k}, c_{\text{time}, k}, c_{\text{fixed}, k}$ are operational unit costs, and $e_k$ is carbon emissions factor.
+
+\subsection{Electrochemical and Range Physics}
+The usable battery capacity is degraded by electrochemical aging:
+\begin{equation}
+B_{\text{usable}, k} = B_{\text{nom}, k} \cdot \left(\frac{\text{SoH}_k}{100}\right) \quad (\text{kWh})
+\end{equation}
+The maximum feasible operating range $R_k$ before refueling or recharging is:
+\begin{equation}
+R_k = \begin{cases} 
+\dfrac{B_{\text{usable}, k} \cdot (\text{SoC}_k / 100)}{\mu_k \cdot f_k} \times 100 & \text{if } \phi_k = \text{BEV} \\[2ex]
+\dfrac{V_{\text{nom}, k} \cdot (\text{FuelLevel}_k / 100)}{\mu_k \cdot f_k} \times 100 & \text{if } \phi_k \in \{\text{Diesel}, \text{Petrol}\}
+\end{cases} \quad (\text{km})
+\end{equation}
+Maintenance wear $\mu_k = 1.15$ applies a 15\% penalty when vehicles operate past service intervals.

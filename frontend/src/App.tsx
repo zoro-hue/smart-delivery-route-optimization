@@ -62,7 +62,13 @@ export const App: React.FC = () => {
   const reconnectAttemptRef = useRef<number>(0);
   const reconnectTimerRef = useRef<any>(null);
   const consecutiveHealthFailuresRef = useRef<number>(0);
-  const [lastResult, setLastResult] = useState<OptimizationResponse | null>(null);
+  const [lastResult, setLastResult] = useState<OptimizationResponse | null>(() => {
+    try {
+      const stored = localStorage.getItem('routeiq_last_result');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return null;
+  });
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 

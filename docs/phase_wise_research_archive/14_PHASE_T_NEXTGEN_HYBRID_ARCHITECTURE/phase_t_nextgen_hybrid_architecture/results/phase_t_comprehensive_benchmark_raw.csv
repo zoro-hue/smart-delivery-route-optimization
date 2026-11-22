@@ -1,0 +1,8 @@
+scale_name,N,M,seed,ortools_cost_km,ortools_time_ms,vnd_cost_km,vnd_time_ms,nextgen_cost_km,qaoa_time_ms,quantum_gain_km,guardrail_triggered,spark_total_ms,spark_internal_ms,spark_partitions,is_feasible
+Micro_10,10,2,42,23.15,3136.05,23.15,0.34,23.15,475.03,0.0,True,31132.5,31132.32,3,False
+Small_25,25,4,42,79.101,3003.59,79.101,3.86,79.101,658.81,0.0,True,2312.5,2312.36,3,True
+Medium_50,50,6,202,135.314,3002.0,135.314,4.15,135.314,1316.27,0.0,True,1763.11,1762.95,6,True
+Large_100,100,10,404,236.703,3004.44,236.569,11.28,236.703,9343.41,0.0,True,1139.7,1139.56,10,True
+Enterprise_250,250,20,777,406.0,3008.77,406.0,41.72,406.0,0.0,0.0,True,1138.04,1137.77,18,True
+Enterprise_500,500,40,888,743.974,3022.56,735.212,151.67,735.212,0.0,0.0,True,1142.68,1142.42,36,True
+Enterprise_1000,1000,80,999,1302.932,3080.42,1253.391,330.27,1253.391,0.0,0.0,True,1156.62,1156.24,70,True
