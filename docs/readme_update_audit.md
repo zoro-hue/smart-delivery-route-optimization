@@ -28,7 +28,7 @@ All statements regarding the **ROUTE/IQ-NextGen** flagship cooperative optimizat
 | **6** | NextGen Cooperative Engine Architecture | `VERIFIED IN SOURCE` | `nextgen_cooperative_engine.py` & Mermaid sequence |
 | **7** | Shared Candidate Pool / Blackboard | `VERIFIED IN SOURCE` | `backend/app/services/optimization/candidate_pool.py` |
 | **8** | Adaptive UCB-1 Operator Controller | `VERIFIED IN SOURCE` | `backend/app/services/optimization/adaptive_mab.py` |
-| **9** | Cooperative Optimization Operators (QAOA, QIGA, Tabu, Deep VND, ALNS, OR-Tools, CW, Polar) | `VERIFIED IN SOURCE` | `qaoa_cooperative_operator.py`, `qiga_cooperative_operator.py`, `neighborhood_search.py`, `classical_solver.py`, `construction_heuristics.py` |
+| **9** | Cooperative Optimization Operators (QAOA, QIGA, Tabu, Kernighan-Lin, Deep VND, ALNS, OR-Tools, CW, Polar) | `VERIFIED IN SOURCE` | `qaoa_cooperative_operator.py`, `qiga_cooperative_operator.py`, `neighborhood_search.py`, `classical_solver.py`, `construction_heuristics.py` |
 | **10** | Vehicle-Condition-Aware Optimization | `VERIFIED IN SOURCE` | `backend/app/services/optimization/vehicle_condition_evaluator.py` |
 | **11** | Big Data Processing with Apache Spark | `VERIFIED IN SOURCE` | `bigdata_pipeline.py`, `spark_routing_preprocessor.py` |
 | **12** | Quantum Computing and Simulation Methodology | `VERIFIED IN SOURCE` | Qiskit Aer statevector simulation boundaries |

@@ -88,7 +88,7 @@ flowchart TD
         D1["Multi-Start Seeding (OR-Tools, CW, Polar, Regret-3)"]
         D2["Shared Candidate Blackboard (CandidatePool)"]
         D3["Adaptive UCB-1 Operator Controller"]
-        D4["Cooperative Operator Pool (QAOA, QIGA, VND, ALNS, Tabu)"]
+        D4["Cooperative Operator Pool (QAOA, QIGA, VND, ALNS, Tabu, Kernighan-Lin)"]
         D5["Vehicle Condition Evaluator (SoH, SoC, Range, Wear)"]
         D6["Proposition 1 Monotonic Guardrail"]
     end
@@ -171,7 +171,8 @@ flowchart TD
             O5["Deep VND (2-Opt, 2-Opt*, Or-Opt, Cross-Exchange, 3-Ejection)"]
             O6["ALNS Ruin-and-Recreate (Shaw / Worst Detour + Regret-2/3)"]
             O7["Tabu Search (7-Iteration Inter-Route Customer Swap)"]
-            O8["OR-Tools Local Repair (150ms Subproblem Re-solve)"]
+            O8["Kernighan-Lin (Variable-Depth Pairwise Sequence Swap & 2-Opt)"]
+            O9["OR-Tools Local Repair (150ms Subproblem Re-solve)"]
         end
     end
 
@@ -272,7 +273,7 @@ ROUTE/IQ-NextGen is architected around four tightly coupled operational pillars:
 │ • Elite k = 4     │ • State Vector xt │   Polar Sweep, Clarke-Wright    │
 │ • Jaccard Edge    │ • 4-Pillar Reward │ • Exploitation: Deep VND,       │
 │   Diversity       │   (Cost, Feas,    │   ALNS, Tabu Search,            │
-│ • Duplicate Check │   Div, Latency)   │   OR-Tools Guided Repair        │
+│ • Duplicate Check │   Div, Latency)   │   Kernighan-Lin, OR-Tools       │
 ├───────────────────┴───────────────────┴─────────────────────────────────┤
 │ Pillar 4: Vehicle-Condition-Aware Physics & Fleet Evaluation            │
 │ • Battery SoH Cycle Decay (alpha_c) & Thermal Headroom (alpha_t)        │
@@ -418,7 +419,7 @@ The operator selection mechanism is implemented in `backend/app/services/optimiz
 
 ## 9. Cooperative Optimization Operators
 
-ROUTE/IQ-NextGen incorporates eight distinct search and repair operators across classical, heuristic, and quantum paradigms:
+ROUTE/IQ-NextGen incorporates nine distinct search and repair operators across classical, heuristic, and quantum paradigms:
 
 ### 9.1 Simulated QAOA Subproblem Operator (`OP_QAOA_SUBPROBLEM`)
 - **Implementation:** `backend/app/services/optimization/qaoa_cooperative_operator.py`.
@@ -463,6 +464,12 @@ ROUTE/IQ-NextGen incorporates eight distinct search and repair operators across 
 ### 9.8 Parameterized Clarke-Wright Savings (`OP_CLARKE_WRIGHT_SAVINGS`)
 - **Implementation:** `backend/app/services/optimization/construction_heuristics.py` (`clarke_wright_savings_pool`).
 - **Function:** Dynamically varies savings weight $\gamma \in [0.5, 1.5]$ in $s_{ij} = d_{i0} + d_{0j} - \gamma d_{ij}$.
+
+---
+
+### 9.9 Kernighan–Lin Graph Bipartition & Variable Exchange (`solve_kernighan_lin`)
+- **Implementation:** `backend/app/services/optimization/classical_solver.py` (`solve_kernighan_lin`).
+- **Function:** Evaluates variable-depth sequence swaps between vehicle pairs with node locking and inter-cluster gain tracking, followed by intra-route 2-opt refinement. Partitions delivery graphs into balanced clusters and exchanges sequences across routes to break structural entrapment.
 
 ---
 
