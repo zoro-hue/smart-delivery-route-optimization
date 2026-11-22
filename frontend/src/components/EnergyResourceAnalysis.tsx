@@ -150,9 +150,36 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
     return null;
   }
 
-  const isSaving = comparison?.is_saving ?? false;
-  const isIdentical = comparison?.is_identical ?? true;
-  const isDeficit = !isSaving && !isIdentical;
+  const isSaving = comparison?.status_label === 'RESOURCE_SAVING';
+  const isIdentical = comparison?.status_label === 'IDENTICAL_TO_BASELINE';
+  const isMixed = comparison?.status_label === 'MIXED_OUTCOME';
+  const isDeficit = comparison?.status_label === 'RESOURCE_DEFICIT';
+
+  // Detect whether fleet has mixed powertrain assignments
+  const isHeterogeneousFleet = useMemo(() => {
+    if (!activeProfile?.vehicle_breakdowns || activeProfile.vehicle_breakdowns.length <= 1) return false;
+    const firstType = activeProfile.vehicle_breakdowns[0]?.propulsion_type;
+    return activeProfile.vehicle_breakdowns.some((v) => v.propulsion_type !== firstType);
+  }, [activeProfile]);
+
+  const heteroSummary = useMemo(() => {
+    if (!activeProfile?.vehicle_breakdowns) return '';
+    const counts: Record<string, number> = {};
+    activeProfile.vehicle_breakdowns.forEach((v) => {
+      const t = v.propulsion_type || 'diesel';
+      counts[t] = (counts[t] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([t, c]) => `${c} ${t === 'electric' ? 'EV' : t.charAt(0).toUpperCase() + t.slice(1)}`)
+      .join(', ');
+  }, [activeProfile]);
+
+  const activeFuelRate = activeProfile && activeProfile.total_distance_km > 0
+    ? (
+        (activeModel.fuelType === 'electricity' ? activeProfile.energy_consumption_kwh : activeProfile.fuel_consumption_litres) /
+        (activeProfile.total_distance_km / 100.0)
+      )
+    : activeModel.baseConsumptionPer100km;
 
   return (
     <div className="mt-6 rounded-2xl bg-white dark:bg-[#101014] border border-black/10 dark:border-white/10 p-4 sm:p-5 shadow-2xs">
@@ -260,6 +287,8 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-100'
                 : isIdentical
                 ? 'bg-blue-500/10 border-blue-500/30 text-blue-950 dark:text-blue-100'
+                : isMixed
+                ? 'bg-purple-500/10 border-purple-500/30 text-purple-950 dark:text-purple-100'
                 : 'bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-100'
             }`}
           >
@@ -270,6 +299,8 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                     ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
                     : isIdentical
                     ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                    : isMixed
+                    ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400'
                     : 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                 }`}
               >
@@ -277,6 +308,8 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
                   <TrendingDown className="w-4 h-4" />
                 ) : isIdentical ? (
                   <Gauge className="w-4 h-4" />
+                ) : isMixed ? (
+                  <RotateCcw className="w-4 h-4" />
                 ) : (
                   <TrendingUp className="w-4 h-4" />
                 )}
@@ -366,6 +399,26 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
         </div>
       )}
 
+      {/* Selected Route Metric Cards Header */}
+      <div className="mb-2.5 flex items-center justify-between font-heading">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-[#080808] dark:text-white">
+            Selected Route Metrics: {activeProfile.algorithm_name}
+          </span>
+          <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#B7FF2A]/20 text-[#080808] dark:text-[#B7FF2A] font-semibold border border-[#B7FF2A]/40">
+            {activeProfile.total_distance_km.toFixed(1)} km · SELECTED
+          </span>
+          {isHeterogeneousFleet && (
+            <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 font-medium border border-blue-500/20">
+              Heterogeneous Fleet ({heteroSummary}) · {activeFuelRate.toFixed(2)} {activeModel.unitLabel}/100km fleet-weighted
+            </span>
+          )}
+        </div>
+        <span className="text-[10px] text-[#777777] dark:text-[#8E8E93] hidden sm:inline">
+          {activeProfile.vehicles_count} Vehicles Assigned
+        </span>
+      </div>
+
       {/* 4 Primary Resource Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 font-heading">
         {/* 1. Thermal & Electrical Energy */}
@@ -415,13 +468,8 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
           <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5 font-normal">
             <span>Rate per 100 km</span>
             <span className="font-medium tabular-nums">
-              {activeProfile.total_distance_km > 0
-                ? (
-                    (activeModel.fuelType === 'electricity' ? activeProfile.energy_consumption_kwh : activeProfile.fuel_consumption_litres) /
-                    (activeProfile.total_distance_km / 100.0)
-                  ).toFixed(2)
-                : activeModel.baseConsumptionPer100km}{' '}
-              {activeModel.unitLabel}/100km
+              {activeFuelRate.toFixed(2)}{' '}
+              {activeModel.unitLabel}/100km {isHeterogeneousFleet ? '(weighted)' : ''}
             </span>
           </div>
         </div>
@@ -458,10 +506,10 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
         <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 relative overflow-hidden">
           <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1.5">
             <span className="text-[10px] font-medium uppercase tracking-wider font-heading">
-              Trip Energy Cost
+              Fleet Operational Cost
             </span>
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-purple-400 font-semibold">
-              ASSUMED
+              CALCULATED
             </span>
           </div>
           <div className="flex items-baseline gap-1.5">
@@ -471,10 +519,92 @@ export const EnergyResourceAnalysis: React.FC<EnergyResourceAnalysisProps> = ({
             <span className="text-[11px] font-normal text-[#777777] dark:text-[#8E8E93]">USD</span>
           </div>
           <div className="mt-2 flex items-center justify-between text-[10px] text-[#777777] dark:text-[#8E8E93] pt-1.5 border-t border-black/5 dark:border-white/5 font-normal">
-            <span>Tariff Rate</span>
+            <span>Energy: {formatUsd(activeProfile.fuel_energy_cost_usd ?? 20.84)}</span>
             <span className="font-medium tabular-nums">
-              ${activeModel.unitCostUsd.toFixed(2)} / {activeModel.unitLabel}
+              O&amp;M / Labor: {formatUsd(activeProfile.operational_cost_usd - (activeProfile.fuel_energy_cost_usd ?? 20.84))}
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparison Baseline Metrics Section (Distinct from Selected Route) */}
+      <div className="mb-5 pt-3.5 border-t border-black/5 dark:border-white/5 font-heading">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#080808] dark:text-white">
+              Comparison Baseline: {baselineProfile.algorithm_name}
+            </span>
+            <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-700 dark:text-blue-300 font-semibold border border-blue-500/30">
+              {baselineProfile.total_distance_km.toFixed(1)} km · BASELINE
+            </span>
+          </div>
+          <span className="text-[10px] text-[#777777] dark:text-[#8E8E93] hidden sm:inline">
+            {baselineProfile.vehicles_count} Vehicles Assigned
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Baseline Card 1: Energy */}
+          <div className="p-3 rounded-xl bg-black/[0.015] dark:bg-white/[0.015] border border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1">
+              <span className="text-[9px] uppercase tracking-wider font-medium text-[#777777]">Baseline Energy</span>
+              <span className="text-[9px] text-[#777777]">{(baselineProfile.energy_consumption_kwh * 3.6).toFixed(1)} MJ</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold tabular-nums text-[#080808] dark:text-white">
+                {baselineProfile.energy_consumption_kwh.toFixed(1)}
+              </span>
+              <span className="text-[10px] text-[#777777]">kWh</span>
+            </div>
+          </div>
+
+          {/* Baseline Card 2: Fuel */}
+          <div className="p-3 rounded-xl bg-black/[0.015] dark:bg-white/[0.015] border border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1">
+              <span className="text-[9px] uppercase tracking-wider font-medium text-[#777777]">Baseline Fuel</span>
+              <span className="text-[9px] text-[#777777]">
+                {baselineProfile.total_distance_km > 0
+                  ? (baselineProfile.fuel_consumption_litres / (baselineProfile.total_distance_km / 100)).toFixed(2)
+                  : '0.00'}{' '}
+                L/100km
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold tabular-nums text-[#080808] dark:text-white">
+                {baselineProfile.fuel_consumption_litres.toFixed(2)}
+              </span>
+              <span className="text-[10px] text-[#777777]">L</span>
+            </div>
+          </div>
+
+          {/* Baseline Card 3: CO2 */}
+          <div className="p-3 rounded-xl bg-black/[0.015] dark:bg-white/[0.015] border border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1">
+              <span className="text-[9px] uppercase tracking-wider font-medium text-[#777777]">Baseline CO₂e</span>
+              <span className="text-[9px] text-[#777777]">{baselineProfile.direct_tailpipe_co2_kg.toFixed(1)} kg direct</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold tabular-nums text-[#080808] dark:text-white">
+                {baselineProfile.total_co2_kg.toFixed(2)}
+              </span>
+              <span className="text-[10px] text-[#777777]">kg CO₂</span>
+            </div>
+          </div>
+
+          {/* Baseline Card 4: Operating Cost */}
+          <div className="p-3 rounded-xl bg-black/[0.015] dark:bg-white/[0.015] border border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between text-[#777777] dark:text-[#8E8E93] mb-1">
+              <span className="text-[9px] uppercase tracking-wider font-medium text-[#777777]">Baseline Operating Cost</span>
+              <span className="text-[9px] text-[#777777]">
+                Energy: {formatUsd(baselineProfile.fuel_energy_cost_usd ?? (baselineProfile.operational_cost_usd * 0.07))}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-semibold tabular-nums text-[#080808] dark:text-white">
+                {formatUsd(baselineProfile.operational_cost_usd)}
+              </span>
+              <span className="text-[10px] text-[#777777]">USD</span>
+            </div>
           </div>
         </div>
       </div>

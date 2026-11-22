@@ -404,6 +404,10 @@ def compute_algorithm_energy_profile(
 
     primary_model = PROPULSION_MODELS.get(propulsion_type, PROPULSION_MODELS["diesel"])
 
+    total_maintenance_wear_cost_usd = sum(v.get("maintenance_wear_cost_usd", 0.0) for v in vehicle_breakdowns)
+    total_driver_labor_cost_usd = sum(v.get("driver_labor_cost_usd", 0.0) for v in vehicle_breakdowns)
+    total_dispatch_cost_usd = sum(v.get("dispatch_cost_usd", 0.0) for v in vehicle_breakdowns)
+
     return {
         "algorithm_id": algo_key,
         "algorithm_name": algo_data.get("algorithm_name", algo_key.upper()),
@@ -424,6 +428,9 @@ def compute_algorithm_energy_profile(
         "upstream_well_to_tank_co2_kg": round(total_upstream_co2, 3),
         "total_co2_kg": round(total_co2_kg, 3),
         "fuel_energy_cost_usd": round(total_fuel_energy_cost_usd, 2),
+        "maintenance_wear_cost_usd": round(total_maintenance_wear_cost_usd, 2),
+        "driver_labor_cost_usd": round(total_driver_labor_cost_usd, 2),
+        "dispatch_cost_usd": round(total_dispatch_cost_usd, 2),
         "operational_cost_usd": round(total_cost_usd, 2),
         "vehicle_breakdowns": vehicle_breakdowns,
         "data_tags": DATA_TAGS,
@@ -485,26 +492,60 @@ def compute_energy_comparison(
     pct_co2 = _calc_savings_pct(base_co2, tgt_co2)
     pct_cost = _calc_savings_pct(base_cost, tgt_cost)
 
-    # Classification: negative delta_energy means energy is saved
-    if abs(delta_kwh) <= 0.01:
+    # Classification logic with mixed-outcome support
+    is_energy_saved = delta_kwh < -0.01
+    is_energy_identical = abs(delta_kwh) <= 0.01
+    is_energy_deficit = delta_kwh > 0.01
+
+    is_co2_abated = co2_abatement > 0.01
+    is_co2_identical = abs(co2_abatement) <= 0.01
+    is_co2_deficit = co2_abatement < -0.01
+
+    if is_energy_identical and is_co2_identical:
         status_label = "IDENTICAL_TO_BASELINE"
         impact_summary = "Identical resource consumption and emissions to baseline"
         is_saving = False
         is_identical = True
-    elif delta_kwh < -0.01:
+    elif is_energy_saved and is_co2_abated:
         status_label = "RESOURCE_SAVING"
         impact_summary = (
-            f"Reduces energy consumption by {abs(pct_kwh)}% ({round(delta_kwh, 2)} kWh) "
+            f"Saves {abs(pct_kwh)}% energy ({round(delta_kwh, 2)} kWh) "
             f"and avoids {round(co2_abatement, 3)} kg CO2"
         )
         is_saving = True
         is_identical = False
-    else:
+    elif is_energy_deficit and is_co2_deficit:
         status_label = "RESOURCE_DEFICIT"
         impact_summary = (
             f"Increases energy consumption by {abs(pct_kwh)}% (+{round(delta_kwh, 2)} kWh) "
-            f"over baseline"
+            f"and adds {round(abs(co2_abatement), 3)} kg CO2"
         )
+        is_saving = False
+        is_identical = False
+    elif is_energy_saved and is_co2_deficit:
+        status_label = "MIXED_OUTCOME"
+        impact_summary = (
+            f"Saves {abs(pct_kwh)}% energy ({round(delta_kwh, 2)} kWh) "
+            f"but adds {round(abs(co2_abatement), 3)} kg CO2"
+        )
+        is_saving = False
+        is_identical = False
+    elif is_energy_deficit and is_co2_abated:
+        status_label = "MIXED_OUTCOME"
+        impact_summary = (
+            f"Uses {abs(pct_kwh)}% more energy (+{round(delta_kwh, 2)} kWh) "
+            f"but avoids {round(co2_abatement, 3)} kg CO2"
+        )
+        is_saving = False
+        is_identical = False
+    elif is_energy_saved:
+        status_label = "RESOURCE_SAVING"
+        impact_summary = f"Saves {abs(pct_kwh)}% energy ({round(delta_kwh, 2)} kWh) with identical CO2 emissions"
+        is_saving = True
+        is_identical = False
+    else:
+        status_label = "RESOURCE_DEFICIT"
+        impact_summary = f"Uses {abs(pct_kwh)}% more energy (+{round(delta_kwh, 2)} kWh) with identical CO2 emissions"
         is_saving = False
         is_identical = False
 

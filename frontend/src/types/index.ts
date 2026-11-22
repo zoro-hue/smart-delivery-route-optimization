@@ -239,6 +239,10 @@ export interface VehicleRouteEnergy {
   indirect_grid_co2_kg: number;
   upstream_well_to_tank_co2_kg: number;
   total_co2_kg: number;
+  fuel_energy_cost_usd?: number;
+  maintenance_wear_cost_usd?: number;
+  driver_labor_cost_usd?: number;
+  dispatch_cost_usd?: number;
   operational_cost_usd: number;
   remaining_soc_pct?: number | null;
   remaining_fuel_pct?: number | null;
@@ -266,6 +270,10 @@ export interface AlgorithmEnergyProfile {
   indirect_grid_co2_kg: number;
   upstream_well_to_tank_co2_kg: number;
   total_co2_kg: number;
+  fuel_energy_cost_usd?: number;
+  maintenance_wear_cost_usd?: number;
+  driver_labor_cost_usd?: number;
+  dispatch_cost_usd?: number;
   operational_cost_usd: number;
   vehicle_breakdowns: VehicleRouteEnergy[];
   data_tags?: Record<string, 'MEASURED' | 'COMPUTED' | 'ESTIMATED' | 'ASSUMED' | 'SIMULATED' | 'UNAVAILABLE' | 'INVALID'>;
@@ -289,7 +297,7 @@ export interface EnergyComparison {
   pct_cost_savings: number;
   is_saving: boolean;
   is_identical: boolean;
-  status_label: 'RESOURCE_SAVING' | 'RESOURCE_DEFICIT' | 'IDENTICAL_TO_BASELINE';
+  status_label: 'RESOURCE_SAVING' | 'RESOURCE_DEFICIT' | 'IDENTICAL_TO_BASELINE' | 'MIXED_OUTCOME';
   impact_summary: string;
 }
 

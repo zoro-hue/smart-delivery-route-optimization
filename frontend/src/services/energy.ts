@@ -169,24 +169,35 @@ export function calculateVehicleRouteEnergy(
   let energyKwh = 0;
   let tailpipeCo2 = 0;
   let upstreamCo2 = 0;
-  let costUsd = 0;
+  let fuelEnergyCost = 0;
 
   if (isElectric) {
     fuelLitres = 0;
     energyKwh = distKm * (model.baseConsumptionPer100km / 100.0) * totalMultiplier;
     tailpipeCo2 = 0;
     upstreamCo2 = energyKwh * model.upstreamCo2KgPerUnit;
-    costUsd = energyKwh * model.unitCostUsd;
+    fuelEnergyCost = energyKwh * model.unitCostUsd;
   } else {
     fuelLitres = distKm * (model.baseConsumptionPer100km / 100.0) * totalMultiplier;
     energyKwh = fuelLitres * model.energyDensityKwhPerUnit;
     tailpipeCo2 = fuelLitres * model.directTailpipeCo2KgPerUnit;
     upstreamCo2 = fuelLitres * model.upstreamCo2KgPerUnit;
-    costUsd = fuelLitres * model.unitCostUsd;
+    fuelEnergyCost = fuelLitres * model.unitCostUsd;
   }
 
-  const totalCo2 = tailpipeCo2 + upstreamCo2;
   const vp = route.vehicle_profile;
+  const stopsCount = (route.customer_stops || route.stops || []).length;
+  const hasActivity = stopsCount > 0 && distKm > 0;
+  const costPerKm = Number(vp?.cost_per_km_usd ?? 0.35);
+  const costPerHour = Number(vp?.cost_per_hour_usd ?? 22.0);
+  const fixedDispatch = Number(vp?.fixed_dispatch_cost_usd ?? 15.0);
+
+  const maintenanceWearCost = distKm * costPerKm;
+  const driverLaborCost = (durationMin / 60.0) * costPerHour;
+  const dispatchCost = hasActivity ? fixedDispatch : 0;
+  const totalCost = fuelEnergyCost + maintenanceWearCost + driverLaborCost + dispatchCost;
+
+  const totalCo2 = tailpipeCo2 + upstreamCo2;
   const usableRange = vp?.max_range_km || 250.0;
   const remainingRange = Math.max(0, Math.round((usableRange - distKm) * 10) / 10);
   const isRangeFeasible = distKm <= usableRange + 0.01;
@@ -207,7 +218,7 @@ export function calculateVehicleRouteEnergy(
     vehicle_profile: vp,
     distance_km: Math.round(distKm * 100) / 100,
     duration_min: Math.round(durationMin * 10) / 10,
-    stops_count: (route.customer_stops || route.stops || []).length,
+    stops_count: stopsCount,
     load: Math.round(load * 10) / 10,
     capacity: Math.round(cap * 10) / 10,
     utilization_pct: cap > 0 ? Math.round((load / cap) * 1000) / 10 : 0,
@@ -219,7 +230,11 @@ export function calculateVehicleRouteEnergy(
     indirect_grid_co2_kg: isElectric ? Math.round(upstreamCo2 * 1000) / 1000 : 0,
     upstream_well_to_tank_co2_kg: Math.round(upstreamCo2 * 1000) / 1000,
     total_co2_kg: Math.round(totalCo2 * 1000) / 1000,
-    operational_cost_usd: Math.round(costUsd * 100) / 100,
+    fuel_energy_cost_usd: Math.round(fuelEnergyCost * 100) / 100,
+    maintenance_wear_cost_usd: Math.round(maintenanceWearCost * 100) / 100,
+    driver_labor_cost_usd: Math.round(driverLaborCost * 100) / 100,
+    dispatch_cost_usd: Math.round(dispatchCost * 100) / 100,
+    operational_cost_usd: Math.round(totalCost * 100) / 100,
     remaining_soc_pct: remainingSoc,
     remaining_fuel_pct: remainingFuel,
     remaining_range_km: remainingRange,
@@ -249,6 +264,10 @@ export function calculateAlgorithmEnergyProfile(
   let totalKwh = 0;
   let totalTailpipe = 0;
   let totalUpstream = 0;
+  let totalFuelEnergyCost = 0;
+  let totalMaintenanceWear = 0;
+  let totalDriverLabor = 0;
+  let totalDispatch = 0;
   let totalCost = 0;
 
   if (routes && routes.length > 0) {
@@ -259,6 +278,10 @@ export function calculateAlgorithmEnergyProfile(
       totalKwh += v.energy_consumption_kwh;
       totalTailpipe += v.direct_tailpipe_co2_kg;
       totalUpstream += v.upstream_well_to_tank_co2_kg;
+      totalFuelEnergyCost += v.fuel_energy_cost_usd ?? 0;
+      totalMaintenanceWear += v.maintenance_wear_cost_usd ?? 0;
+      totalDriverLabor += v.driver_labor_cost_usd ?? 0;
+      totalDispatch += v.dispatch_cost_usd ?? 0;
       totalCost += v.operational_cost_usd;
     });
   } else {
@@ -271,14 +294,18 @@ export function calculateAlgorithmEnergyProfile(
       totalKwh = dist * (model.baseConsumptionPer100km / 100.0) * fTraffic;
       totalTailpipe = 0;
       totalUpstream = totalKwh * model.upstreamCo2KgPerUnit;
-      totalCost = totalKwh * model.unitCostUsd;
+      totalFuelEnergyCost = totalKwh * model.unitCostUsd;
     } else {
       totalFuel = dist * (model.baseConsumptionPer100km / 100.0) * fTraffic;
       totalKwh = totalFuel * model.energyDensityKwhPerUnit;
       totalTailpipe = totalFuel * model.directTailpipeCo2KgPerUnit;
       totalUpstream = totalFuel * model.upstreamCo2KgPerUnit;
-      totalCost = totalFuel * model.unitCostUsd;
+      totalFuelEnergyCost = totalFuel * model.unitCostUsd;
     }
+    totalMaintenanceWear = dist * 0.35;
+    totalDriverLabor = (totalDurationMin / 60.0) * 22.0;
+    totalDispatch = dist > 0 ? 15.0 : 0.0;
+    totalCost = totalFuelEnergyCost + totalMaintenanceWear + totalDriverLabor + totalDispatch;
   }
 
   const totalCo2 = totalTailpipe + totalUpstream;
@@ -302,6 +329,10 @@ export function calculateAlgorithmEnergyProfile(
     indirect_grid_co2_kg: model.fuelType === 'electricity' ? Math.round(totalUpstream * 1000) / 1000 : 0,
     upstream_well_to_tank_co2_kg: Math.round(totalUpstream * 1000) / 1000,
     total_co2_kg: Math.round(totalCo2 * 1000) / 1000,
+    fuel_energy_cost_usd: Math.round(totalFuelEnergyCost * 100) / 100,
+    maintenance_wear_cost_usd: Math.round(totalMaintenanceWear * 100) / 100,
+    driver_labor_cost_usd: Math.round(totalDriverLabor * 100) / 100,
+    dispatch_cost_usd: Math.round(totalDispatch * 100) / 100,
     operational_cost_usd: Math.round(totalCost * 100) / 100,
     vehicle_breakdowns: breakdowns,
     data_tags: SCIENTIFIC_DATA_TAGS,
@@ -335,26 +366,43 @@ export function calculateEnergyComparison(
   const pctCo2 = pctSavings(baseline.total_co2_kg, target.total_co2_kg);
   const pctCost = pctSavings(baseline.operational_cost_usd, target.operational_cost_usd);
 
-  let statusLabel: 'RESOURCE_SAVING' | 'RESOURCE_DEFICIT' | 'IDENTICAL_TO_BASELINE' = 'IDENTICAL_TO_BASELINE';
+  let statusLabel: 'RESOURCE_SAVING' | 'RESOURCE_DEFICIT' | 'IDENTICAL_TO_BASELINE' | 'MIXED_OUTCOME' = 'IDENTICAL_TO_BASELINE';
   let impactSummary = 'Identical resource consumption and emissions to baseline';
   let isSaving = false;
-  let isIdentical = true;
+  let isIdentical = false;
 
-  if (Math.abs(deltaKwh) <= 0.01) {
+  const isEnergySaved = deltaKwh < -0.01;
+  const isEnergyIdentical = Math.abs(deltaKwh) <= 0.01;
+  const isEnergyDeficit = deltaKwh > 0.01;
+
+  const isCo2Abated = co2Abatement > 0.01;
+  const isCo2Identical = Math.abs(co2Abatement) <= 0.01;
+  const isCo2Deficit = co2Abatement < -0.01;
+
+  if (isEnergyIdentical && isCo2Identical) {
     statusLabel = 'IDENTICAL_TO_BASELINE';
     impactSummary = 'Identical resource consumption and emissions to baseline';
-    isSaving = false;
     isIdentical = true;
-  } else if (deltaKwh < -0.01) {
+  } else if (isEnergySaved && isCo2Abated) {
     statusLabel = 'RESOURCE_SAVING';
     impactSummary = `Saves ${Math.abs(pctKwh)}% energy (${Math.round(deltaKwh * 10) / 10} kWh) and avoids ${Math.round(co2Abatement * 100) / 100} kg CO2`;
     isSaving = true;
-    isIdentical = false;
+  } else if (isEnergyDeficit && isCo2Deficit) {
+    statusLabel = 'RESOURCE_DEFICIT';
+    impactSummary = `Uses ${Math.abs(pctKwh)}% more energy (+${Math.round(deltaKwh * 10) / 10} kWh) and adds ${Math.round(Math.abs(co2Abatement) * 100) / 100} kg CO2`;
+  } else if (isEnergySaved && isCo2Deficit) {
+    statusLabel = 'MIXED_OUTCOME';
+    impactSummary = `Saves ${Math.abs(pctKwh)}% energy (${Math.round(deltaKwh * 10) / 10} kWh) but adds ${Math.round(Math.abs(co2Abatement) * 100) / 100} kg CO2`;
+  } else if (isEnergyDeficit && isCo2Abated) {
+    statusLabel = 'MIXED_OUTCOME';
+    impactSummary = `Uses ${Math.abs(pctKwh)}% more energy (+${Math.round(deltaKwh * 10) / 10} kWh) but avoids ${Math.round(co2Abatement * 100) / 100} kg CO2`;
+  } else if (isEnergySaved) {
+    statusLabel = 'RESOURCE_SAVING';
+    impactSummary = `Saves ${Math.abs(pctKwh)}% energy (${Math.round(deltaKwh * 10) / 10} kWh) with identical CO2 emissions`;
+    isSaving = true;
   } else {
     statusLabel = 'RESOURCE_DEFICIT';
-    impactSummary = `Uses ${Math.abs(pctKwh)}% more energy (+${Math.round(deltaKwh * 10) / 10} kWh) than baseline`;
-    isSaving = false;
-    isIdentical = false;
+    impactSummary = `Uses ${Math.abs(pctKwh)}% more energy (+${Math.round(deltaKwh * 10) / 10} kWh) with identical CO2 emissions`;
   }
 
   return {

@@ -159,7 +159,7 @@ def test_energy_comparison_savings():
     # fleet_cost_saved = baseline - selected = 12.65 - 11.50 = +1.15 USD (positive: saved)
     assert comp["fleet_cost_saved_usd"] == 1.15
     assert comp["status_label"] == "RESOURCE_SAVING"
-    assert "Reduces energy consumption by 9.09% (-10.0 kWh) and avoids 3.26 kg CO2" in comp["impact_summary"]
+    assert "Saves 9.09% energy (-10.0 kWh) and avoids 3.26 kg CO2" in comp["impact_summary"]
 
 
 def test_energy_comparison_identical():
@@ -220,7 +220,7 @@ def test_energy_comparison_penalty():
     # fleet_cost_saved = 11.50 - 17.25 = -5.75 USD (negative: additional cost)
     assert comp["fleet_cost_saved_usd"] == -5.75
     assert comp["status_label"] == "RESOURCE_DEFICIT"
-    assert "Increases energy consumption by 50.0% (+50.0 kWh) over baseline" in comp["impact_summary"]
+    assert "Increases energy consumption by 50.0% (+50.0 kWh) and adds 16.3 kg CO2" in comp["impact_summary"]
 
 
 def test_energy_comparison_zero_or_missing_baseline():
@@ -374,6 +374,290 @@ def test_full_energy_analysis_all_propulsions():
     assert flagship["is_saving"] is True
     assert flagship["delta_distance_km"] == -5.0
     assert flagship["delta_energy_kwh"] < 0.0
+
+
+def test_energy_saving_with_increased_co2():
+    """Verify mixed-outcome handling when selected route saves energy but emits more CO2."""
+    baseline = {
+        "algorithm_id": "baseline_gas_clean",
+        "total_distance_km": 100.0,
+        "energy_consumption_kwh": 120.0,
+        "total_co2_kg": 20.0,
+        "operational_cost_usd": 30.0,
+    }
+    target = {
+        "algorithm_id": "selected_ice_efficient",
+        "total_distance_km": 90.0,
+        "energy_consumption_kwh": 100.0,  # 20 kWh energy saved (delta_energy = -20 kWh)
+        "total_co2_kg": 28.0,             # 8 kg more CO2 (co2_abatement = -8 kg)
+        "operational_cost_usd": 25.0,
+    }
+    comp = compute_energy_comparison(target, baseline)
+    assert comp["delta_energy_kwh"] == -20.0
+    assert comp["pct_energy_savings"] == pytest.approx(16.67, abs=0.01)
+    assert comp["co2_abatement_kg"] == -8.0
+    assert comp["status_label"] == "MIXED_OUTCOME"
+    assert "Saves 16.67% energy (-20.0 kWh) but adds 8.0 kg CO2" in comp["impact_summary"]
+
+
+def test_energy_deficit_with_reduced_co2():
+    """Verify mixed-outcome handling when selected route uses more energy but avoids CO2."""
+    baseline = {
+        "algorithm_id": "baseline_ice_dirty",
+        "total_distance_km": 90.0,
+        "energy_consumption_kwh": 90.0,
+        "total_co2_kg": 35.0,
+        "operational_cost_usd": 30.0,
+    }
+    target = {
+        "algorithm_id": "selected_ev_heavy_grid",
+        "total_distance_km": 95.0,
+        "energy_consumption_kwh": 100.0,  # 10 kWh more energy (delta_energy = +10 kWh)
+        "total_co2_kg": 24.5,             # 10.5 kg CO2 avoided (co2_abatement = +10.5 kg)
+        "operational_cost_usd": 28.0,
+    }
+    comp = compute_energy_comparison(target, baseline)
+    assert comp["delta_energy_kwh"] == 10.0
+    assert comp["pct_energy_savings"] == pytest.approx(-11.11, abs=0.01)
+    assert comp["co2_abatement_kg"] == 10.5
+    assert comp["status_label"] == "MIXED_OUTCOME"
+    assert "Uses 11.11% more energy (+10.0 kWh) but avoids 10.5 kg CO2" in comp["impact_summary"]
+
+
+def test_baseline_switching_selected_unchanged():
+    """Verify that switching comparison baselines updates deltas while selected-route metrics remain completely invariant."""
+    selected = {
+        "algorithm_id": "routeiq_cooperative",
+        "total_distance_km": 227.69,
+        "energy_consumption_kwh": 170.77,
+        "fuel_consumption_litres": 15.201,
+        "total_co2_kg": 52.704,
+        "operational_cost_usd": 288.71,
+    }
+    base_qiga = {
+        "algorithm_id": "qiga",
+        "total_distance_km": 354.34,
+        "energy_consumption_kwh": 241.14,
+        "fuel_consumption_litres": 20.038,
+        "total_co2_kg": 73.267,
+        "operational_cost_usd": 403.99,
+    }
+    base_qaoa = {
+        "algorithm_id": "qaoa",
+        "total_distance_km": 247.98,
+        "energy_consumption_kwh": 160.22,
+        "fuel_consumption_litres": 12.618,
+        "total_co2_kg": 47.989,
+        "operational_cost_usd": 301.56,
+    }
+    base_coop = dict(selected)
+
+    comp_qiga = compute_energy_comparison(selected, base_qiga)
+    comp_qaoa = compute_energy_comparison(selected, base_qaoa)
+    comp_coop = compute_energy_comparison(selected, base_coop)
+
+    # Selected-route underlying values have not changed
+    assert selected["energy_consumption_kwh"] == 170.77
+    assert selected["fuel_consumption_litres"] == 15.201
+    assert selected["total_co2_kg"] == 52.704
+    assert selected["operational_cost_usd"] == 288.71
+
+    # QIGA comparison: Energy saved (-70.37 kWh), CO2 avoided (+20.563 kg), Cost saved ($115.28)
+    assert comp_qiga["delta_energy_kwh"] == -70.37
+    assert comp_qiga["co2_abatement_kg"] == 20.563
+    assert comp_qiga["fleet_cost_saved_usd"] == 115.28
+    assert comp_qiga["status_label"] == "RESOURCE_SAVING"
+
+    # QAOA comparison: Energy deficit (+10.55 kWh), CO2 extra emissions (-4.715 kg), Cost saved ($12.85)
+    assert comp_qaoa["delta_energy_kwh"] == 10.55
+    assert comp_qaoa["co2_abatement_kg"] == -4.715
+    assert comp_qaoa["fleet_cost_saved_usd"] == 12.85
+    assert comp_qaoa["status_label"] == "RESOURCE_DEFICIT"
+
+    # Cooperative comparison: Identical route (0 delta)
+    assert comp_coop["delta_energy_kwh"] == 0.0
+    assert comp_coop["co2_abatement_kg"] == 0.0
+    assert comp_coop["fleet_cost_saved_usd"] == 0.0
+    assert comp_coop["status_label"] == "IDENTICAL_TO_BASELINE"
+
+
+PRODUCTION_JOB_COOP_DATA = {
+    "algorithm_name": "ROUTE/IQ Cooperative Engine",
+    "is_feasible": True,
+    "routes": [
+        {
+            "vehicle_id": 1,
+            "distance_km": 51.43,
+            "load": 47.0,
+            "capacity": 50,
+            "total_duration_min": 77.14,
+            "customer_stops": [1, 2],
+            "vehicle_profile": {
+                "name": "Vehicle 1 (Ford E-Transit BEV)",
+                "vehicle_type": "electric_van",
+                "powertrain": "electric",
+                "capacity_kg": 60,
+                "cargo_volume_m3": 12,
+                "condition": "excellent",
+                "age_years": 1.5,
+                "odometer_km": 28000,
+                "maintenance_status": "ok",
+                "is_available": True,
+                "battery_capacity_kwh": 68,
+                "battery_soc_percent": 90,
+                "battery_soh_percent": 97,
+                "base_consumption_per_100km": 26,
+                "max_range_km": 210,
+                "max_operating_hours": 8,
+                "cost_per_km_usd": 0.24,
+                "cost_per_hour_usd": 22,
+                "fixed_dispatch_cost_usd": 12,
+                "id": "veh-1",
+            },
+        },
+        {
+            "vehicle_id": 2,
+            "distance_km": 55.276,
+            "load": 60.0,
+            "capacity": 50,
+            "total_duration_min": 82.91,
+            "customer_stops": [3, 4],
+            "vehicle_profile": {
+                "name": "Vehicle 2 (Mercedes Sprinter Diesel)",
+                "vehicle_type": "van",
+                "powertrain": "diesel",
+                "capacity_kg": 75,
+                "cargo_volume_m3": 14,
+                "condition": "good",
+                "age_years": 3,
+                "odometer_km": 65000,
+                "maintenance_status": "ok",
+                "is_available": True,
+                "fuel_tank_capacity_l": 75,
+                "fuel_level_percent": 80,
+                "base_consumption_per_100km": 9.5,
+                "max_range_km": 280,
+                "max_operating_hours": 9,
+                "cost_per_km_usd": 0.38,
+                "cost_per_hour_usd": 22,
+                "fixed_dispatch_cost_usd": 18,
+                "id": "veh-2",
+            },
+        },
+        {
+            "vehicle_id": 3,
+            "distance_km": 50.004,
+            "load": 50.0,
+            "capacity": 50,
+            "total_duration_min": 75.01,
+            "customer_stops": [5, 6],
+            "vehicle_profile": {
+                "name": "Vehicle 3 (Ford Transit 3.5L Petrol)",
+                "vehicle_type": "van",
+                "powertrain": "petrol",
+                "capacity_kg": 50,
+                "cargo_volume_m3": 10,
+                "condition": "average",
+                "age_years": 4.5,
+                "odometer_km": 92000,
+                "maintenance_status": "service_recommended",
+                "is_available": True,
+                "fuel_tank_capacity_l": 80,
+                "fuel_level_percent": 70,
+                "base_consumption_per_100km": 11.2,
+                "max_range_km": 240,
+                "max_operating_hours": 8,
+                "cost_per_km_usd": 0.42,
+                "cost_per_hour_usd": 20,
+                "fixed_dispatch_cost_usd": 15,
+                "id": "veh-3",
+            },
+        },
+        {
+            "vehicle_id": 4,
+            "distance_km": 34.524,
+            "load": 47.0,
+            "capacity": 50,
+            "total_duration_min": 51.79,
+            "customer_stops": [7, 8],
+            "vehicle_profile": {
+                "name": "Vehicle 4 (Transit Custom PHEV)",
+                "vehicle_type": "van",
+                "powertrain": "hybrid",
+                "capacity_kg": 55,
+                "cargo_volume_m3": 11,
+                "condition": "good",
+                "age_years": 2,
+                "odometer_km": 42000,
+                "maintenance_status": "ok",
+                "is_available": True,
+                "battery_capacity_kwh": 14,
+                "battery_soc_percent": 85,
+                "battery_soh_percent": 96,
+                "fuel_tank_capacity_l": 54,
+                "fuel_level_percent": 85,
+                "base_consumption_per_100km": 6.8,
+                "max_range_km": 300,
+                "max_operating_hours": 8.5,
+                "cost_per_km_usd": 0.32,
+                "cost_per_hour_usd": 22,
+                "fixed_dispatch_cost_usd": 14,
+                "id": "veh-4",
+            },
+        },
+        {
+            "vehicle_id": 5,
+            "distance_km": 36.462,
+            "load": 44.0,
+            "capacity": 50,
+            "total_duration_min": 54.69,
+            "customer_stops": [9, 10],
+            "vehicle_profile": {
+                "name": "Vehicle 5 (Ford E-Transit BEV)",
+                "vehicle_type": "electric_van",
+                "powertrain": "electric",
+                "capacity_kg": 60,
+                "cargo_volume_m3": 12,
+                "condition": "excellent",
+                "age_years": 1.5,
+                "odometer_km": 28000,
+                "maintenance_status": "ok",
+                "is_available": True,
+                "battery_capacity_kwh": 68,
+                "battery_soc_percent": 90,
+                "battery_soh_percent": 97,
+                "base_consumption_per_100km": 26,
+                "max_range_km": 210,
+                "max_operating_hours": 8,
+                "cost_per_km_usd": 0.24,
+                "cost_per_hour_usd": 22,
+                "fixed_dispatch_cost_usd": 12,
+                "id": "veh-5",
+            },
+        },
+    ],
+}
+
+
+def test_fleet_weighted_consumption_rates():
+    """Verify that heterogeneous fleet of 5 vehicles produces exact 6.68 L/100km fleet-weighted average."""
+    profile = compute_algorithm_energy_profile("routeiq_cooperative", PRODUCTION_JOB_COOP_DATA)
+    assert profile["total_distance_km"] == pytest.approx(227.69, abs=0.05)
+    # Total fuel = 0 (EV) + 6.196 (Diesel) + 6.326 (Petrol) + 2.679 (Hybrid) + 0 (EV) = 15.201 L
+    assert profile["fuel_consumption_litres"] == pytest.approx(15.20, abs=0.02)
+    # Weighted rate = 15.201 / 227.696 * 100 = 6.676... approx 6.68 L/100km
+    weighted_rate = (profile["fuel_consumption_litres"] / (profile["total_distance_km"] / 100.0))
+    assert weighted_rate == pytest.approx(6.68, abs=0.02)
+
+
+def test_cost_breakdown_reconciliation():
+    """Verify that fleet operating cost reconciles fuel/power ($20.84) + wear ($74.14) + labor ($122.73) + dispatch ($71.00) = $288.71."""
+    profile = compute_algorithm_energy_profile("routeiq_cooperative", PRODUCTION_JOB_COOP_DATA)
+    assert profile["fuel_energy_cost_usd"] == pytest.approx(20.84, abs=0.05)
+    assert profile["maintenance_wear_cost_usd"] == pytest.approx(74.14, abs=0.05)
+    assert profile["driver_labor_cost_usd"] == pytest.approx(122.72, abs=0.05)
+    assert profile["dispatch_cost_usd"] == pytest.approx(71.00, abs=0.05)
+    assert profile["operational_cost_usd"] == pytest.approx(288.71, abs=0.05)
 
 
 def test_scientific_data_tags():
