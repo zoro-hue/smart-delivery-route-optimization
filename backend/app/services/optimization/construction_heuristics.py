@@ -158,8 +158,14 @@ class DiverseConstructionHeuristics:
                 v_idx = 0
                 cur_load = 0
                 feasible = True
+                target_per_veh = max(1, math.ceil(len(rot_angles) / num_vehicles))
 
                 for _, c in rot_angles:
+                    cap_v = capacities[v_idx] if v_idx < len(capacities) else 100.0
+                    should_advance = (len(routes[v_idx]) >= target_per_veh and v_idx < num_vehicles - 1) or (cur_load + demands[c] > cap_v)
+                    if should_advance and v_idx < num_vehicles - 1:
+                        v_idx += 1
+                        cur_load = 0
                     cap_v = capacities[v_idx] if v_idx < len(capacities) else 100.0
                     if cur_load + demands[c] <= cap_v:
                         routes[v_idx].append(c)

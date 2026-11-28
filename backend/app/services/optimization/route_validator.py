@@ -365,6 +365,31 @@ def repair_fleet_coverage(
             else:
                 logger.warning(f"Stop {u} cannot be feasibly reached on road network. Remains unserved.")
 
+    # Step 3.5: Balance fleet allocation across all requested vehicles
+    # When num_customers >= num_vehicles, ensure all num_vehicles are actively assigned stops.
+    target_active_count = min(num_vehicles, len(input_customer_ids))
+    if target_active_count > 0:
+        for _ in range(target_active_count * 3):
+            empty_indices = [
+                i for i in range(target_active_count)
+                if len([s for s in repaired_routes[i].get("stops", []) if s != depot]) == 0
+            ]
+            if not empty_indices:
+                break
+            empty_idx = empty_indices[0]
+            # Find donor vehicle with the most customer stops
+            donor_idx = max(
+                range(target_active_count),
+                key=lambda i: len([s for s in repaired_routes[i].get("stops", []) if s != depot])
+            )
+            donor_stops = [s for s in repaired_routes[donor_idx].get("stops", []) if s != depot]
+            if len(donor_stops) < 2:
+                break
+            # Transfer the trailing stop from donor to the empty vehicle
+            c = donor_stops.pop()
+            repaired_routes[donor_idx]["stops"] = [depot] + donor_stops + [depot]
+            repaired_routes[empty_idx]["stops"] = [depot, c, depot]
+
     # Recalculate metrics for all routes
     phys_mat = physical_matrix if physical_matrix is not None else distance_matrix
     combined_env_factor = max(0.1, float(traffic_factor) * float(weather_factor))
@@ -415,9 +440,9 @@ def repair_fleet_coverage(
             r["usable_range_km"] = vehicle_ranges[r_idx - 1]
             r["is_range_feasible"] = bool(d_km <= vehicle_ranges[r_idx - 1] + 1e-3)
 
-    # Prune completely empty trailing routes if vehicle count permits
-    non_empty = [r for r in repaired_routes if len(r["customer_stops"]) > 0]
-    final_routes = non_empty if non_empty else repaired_routes[:1]
+    # Retain the exact fleet size specified by the dispatcher (num_vehicles)
+    # Active vehicles have customer stops; any unused vehicles (when stops < vehicles) remain in fleet as idle
+    final_routes = repaired_routes[:num_vehicles]
 
     # Re-index vehicle IDs sequentially
     for i, r in enumerate(final_routes, start=1):

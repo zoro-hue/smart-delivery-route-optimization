@@ -212,6 +212,12 @@ class ClassicalVRPSolver:
         for node in range(1, n):
             routing.AddDisjunction([manager.NodeToIndex(node)], penalty)
 
+        # Enforce active fleet utilization: if customers >= num_vehicles, require every vehicle to serve at least 1 stop
+        solver = routing.solver()
+        if n - 1 >= num_vehicles:
+            for v in range(num_vehicles):
+                solver.Add(routing.NextVar(routing.Start(v)) != routing.End(v))
+
         # Search parameters
         search_params = pywrapcp.DefaultRoutingSearchParameters()
         search_params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
@@ -277,29 +283,24 @@ class ClassicalVRPSolver:
             # Add return to depot
             route_nodes.append(depot)
 
-            if len(route_nodes) > 2:  # More than just depot-depot
-                v_prof = vehicle_profiles[vehicle_id] if (vehicle_profiles and vehicle_id < len(vehicle_profiles)) else None
-                r_entry = {
-                    "vehicle_id": vehicle_id,
-                    "stops": route_nodes,
-                    "customer_stops": [n for n in route_nodes if n != depot],
-                    "distance_km": round(route_distance, 3),
-                    "load": route_load,
-                    "capacity": vehicle_capacities[vehicle_id],
-                    "utilization_pct": round(route_load / vehicle_capacities[vehicle_id] * 100, 1) if vehicle_capacities[vehicle_id] > 0 else 0,
-                }
-                if v_prof:
-                    r_entry["vehicle_profile"] = v_prof
-                    r_entry["vehicle_name"] = v_prof.get("name", f"Vehicle {vehicle_id + 1}")
-                routes.append(r_entry)
-                total_distance += route_distance
-                total_load += route_load
+            v_prof = vehicle_profiles[vehicle_id] if (vehicle_profiles and vehicle_id < len(vehicle_profiles)) else None
+            r_entry = {
+                "vehicle_id": vehicle_id + 1,
+                "stops": route_nodes,
+                "customer_stops": [n for n in route_nodes if n != depot],
+                "distance_km": round(route_distance, 3),
+                "load": route_load,
+                "capacity": vehicle_capacities[vehicle_id] if vehicle_id < len(vehicle_capacities) else 100,
+                "utilization_pct": round(route_load / vehicle_capacities[vehicle_id] * 100, 1) if (vehicle_id < len(vehicle_capacities) and vehicle_capacities[vehicle_id] > 0) else 0,
+            }
+            if v_prof:
+                r_entry["vehicle_profile"] = v_prof
+                r_entry["vehicle_name"] = v_prof.get("name", f"Vehicle {vehicle_id + 1}")
+            routes.append(r_entry)
+            total_distance += route_distance
+            total_load += route_load
 
-        # Re-index active non-empty routes sequentially (Driver #1, Driver #2...)
-        for r_i, r in enumerate(routes, start=1):
-            r["vehicle_id"] = r_i
-
-        # If OR-Tools produced 0 routes (all customers dropped), report honest failure
+        # If OR-Tools produced 0 customer visits, report failure
         if len(routes) == 0:
             log_lines.append("OR-Tools produced 0 routes (no customers served).")
             return {
@@ -1106,7 +1107,18 @@ class ClassicalVRPSolver:
         routes = [[] for _ in range(num_vehicles)]
         loads = [0] * num_vehicles
 
-        for c in customers:
+        # Seed every vehicle with at least 1 customer if customers >= num_vehicles
+        if len(customers) >= num_vehicles:
+            for v in range(num_vehicles):
+                c = customers[v]
+                d_c = demands[c] if c < len(demands) else 1
+                routes[v].append(c)
+                loads[v] += d_c
+            remaining = customers[num_vehicles:]
+        else:
+            remaining = customers
+
+        for c in remaining:
             d_c = demands[c] if c < len(demands) else 1
             # Find vehicle with capacity that minimizes insertion distance
             best_v = None

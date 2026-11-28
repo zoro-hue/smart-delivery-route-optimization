@@ -317,6 +317,14 @@ class RoadNetworkService:
         snapped_lat = float(self.node_coords[idx, 0])
         snapped_lon = float(self.node_coords[idx, 1])
 
+        from app.services.geo_validation import check_water_body
+        wb = check_water_body(lat, lon)
+        if wb:
+            msg = f"Coordinate ({lat:.4f}, {lon:.4f}) is located in open water ({wb})."
+            logger.warning(msg)
+            if raise_on_exceed:
+                raise ValueError(f"Coordinate ({lat:.4f}, {lon:.4f}) is located in open water ({wb}). Delivery points must be on land roadways.")
+
         if dist_km > max_dist_km:
             msg = f"Coordinate ({lat:.4f}, {lon:.4f}) is {dist_km:.2f}km away from nearest road node {node_id}"
             logger.warning(msg)
@@ -354,13 +362,19 @@ class RoadNetworkService:
         snapped_coords = []
 
         for idx, (loc_lat, loc_lon) in enumerate(locations):
+            from app.services.geo_validation import check_water_body
+            wb = check_water_body(loc_lat, loc_lon)
+            if wb:
+                raise ValueError(f"Stop #{idx} at ({loc_lat:.4f}, {loc_lon:.4f}) is located in open water ({wb}). Delivery locations must be on navigable roads.")
             try:
-                nid, slat, slon, dkm = self.snap_coordinate(loc_lat, loc_lon)
+                nid, slat, slon, dkm = self.snap_coordinate(loc_lat, loc_lon, raise_on_exceed=True)
                 snapped_nodes.append(nid)
                 snapped_coords.append((slat, slon))
                 if dkm > 2.0:
                     warnings.append(f"Stop #{idx} snapped {dkm:.1f}km away to nearest road segment.")
             except Exception as e:
+                if "open water" in str(e):
+                    raise
                 warnings.append(f"Failed to snap stop #{idx}: {e}")
                 snapped_nodes.append(self.nodes_list[0])
                 snapped_coords.append((float(self.node_coords[0, 0]), float(self.node_coords[0, 1])))

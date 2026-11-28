@@ -20,6 +20,11 @@ def is_point_in_polygon(lat: float, lon: float, polygon: List[Tuple[float, float
     return inside
 
 # Water body polygons (lat, lon)
+ARTHUR_KILL = [
+    (40.6350, -74.2050), (40.6000, -74.1950), (40.5600, -74.2150), (40.5100, -74.2500),
+    (40.5050, -74.2600), (40.5400, -74.2400), (40.5850, -74.2250), (40.6300, -74.2200)
+]
+
 HUDSON_RIVER = [
     (40.7020, -74.0200), (40.7080, -74.0195), (40.7200, -74.0170), (40.7400, -74.0130),
     (40.7600, -74.0070), (40.7850, -73.9890), (40.8150, -73.9660), (40.8500, -73.9420),
@@ -89,6 +94,8 @@ def check_water_body(lat: float, lon: float) -> Optional[str]:
         return "Jamaica Bay"
     if is_point_in_polygon(lat, lon, NEWARK_BAY):
         return "Newark Bay"
+    if is_point_in_polygon(lat, lon, ARTHUR_KILL):
+        return "Arthur Kill"
     return None
 
 

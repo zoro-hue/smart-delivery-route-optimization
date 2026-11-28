@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { OptimizationResponse, VehicleRoute, Dataset } from '../types';
 import { api } from '../services/api';
+import { validateDeliveryCoordinate } from '../utils/geoValidation';
 
 // Fix Leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -147,9 +148,20 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
     try {
       const data = await api.getDeliveryStops(30);
       if (data && data.stops) {
-        setStops(data.stops);
+        const validated = data.stops.map((s: DeliveryStop) => {
+          const check = validateDeliveryCoordinate(s.lat, s.lon);
+          return {
+            ...s,
+            status: check.isValid ? 'valid' : 'warning',
+            validationError: check.error,
+          };
+        });
+        setStops(validated);
         if (data.depot) {
-          setDepot(data.depot);
+          const dCheck = validateDeliveryCoordinate(data.depot.lat, data.depot.lon);
+          if (dCheck.isValid) {
+            setDepot(data.depot);
+          }
         }
       }
     } catch (err) {
@@ -177,6 +189,11 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
       alert('Please enter valid numeric latitude and longitude.');
       return;
     }
+    const geoCheck = validateDeliveryCoordinate(lat, lon);
+    if (!geoCheck.isValid) {
+      alert(`Invalid Delivery Location:\n${geoCheck.error || 'Coordinates fall in a water body or outside service area.'}`);
+      return;
+    }
     const newStop: DeliveryStop = {
       id: `CUSTOM-${Date.now().toString().slice(-4)}`,
       customer_id: `CUST-MANUAL-${stops.length + 1}`,
@@ -185,13 +202,15 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
       lon,
       demand,
       service_time_min: 15,
-      address: `${newStopName}, New York, NY`,
+      address: `${newStopName || 'Custom Stop'}, New York, NY`,
       status: 'valid',
       is_included: true,
     };
     setStops([newStop, ...stops]);
     setShowAddModal(false);
     setNewStopName('');
+    setNewStopLat('');
+    setNewStopLon('');
   };
 
   const handleUseCurrentLocation = () => {
@@ -201,6 +220,11 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const geoCheck = validateDeliveryCoordinate(pos.coords.latitude, pos.coords.longitude);
+        if (!geoCheck.isValid) {
+          alert(`GPS Location Error: ${geoCheck.error || 'Your current location is outside active NYC operational area or in water.'} Defaulting to Flushing Depot.`);
+          return;
+        }
         setDepot({
           lat: pos.coords.latitude,
           lon: pos.coords.longitude,
@@ -236,6 +260,19 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
   const handleExecuteOptimization = async () => {
     if (includedStops.length < 2) {
       alert('Please select at least 2 delivery stops in Step 1 before optimizing.');
+      return;
+    }
+
+    const depotCheck = validateDeliveryCoordinate(depot.lat, depot.lon);
+    if (!depotCheck.isValid) {
+      alert(`Origin Depot Hub Error:\n${depotCheck.error}`);
+      return;
+    }
+
+    const invalidStop = includedStops.find(s => !validateDeliveryCoordinate(s.lat, s.lon).isValid);
+    if (invalidStop) {
+      const check = validateDeliveryCoordinate(invalidStop.lat, invalidStop.lon);
+      alert(`Cannot optimize: Delivery stop "${invalidStop.name}" is invalid:\n${check.error}\n\nPlease exclude or relocate this stop.`);
       return;
     }
 
@@ -511,6 +548,16 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
                 </button>
               </div>
 
+              {/* Water Body & Bounds Warning Banner */}
+              {includedStops.some((s) => !validateDeliveryCoordinate(s.lat, s.lon).isValid) && (
+                <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-800 flex items-start gap-2 shadow-xs">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Water Body / Boundary Warning:</span> One or more selected stops fall in open water (Hudson/East River, Bay, or Ocean) or outside NYC service bounds. Commercial delivery vehicles require roadway addresses. Please uncheck or relocate invalid stops to continue.
+                  </div>
+                </div>
+              )}
+
               {/* Delivery Locations Table */}
               <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[320px] overflow-y-auto">
                 <table className="w-full text-xs text-left">
@@ -523,37 +570,54 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {stops.slice(0, 15).map((stop) => (
-                      <tr
-                        key={stop.id}
-                        className={`hover:bg-slate-50 transition-colors ${
-                          stop.is_included ? 'bg-white' : 'bg-slate-50/60 opacity-60'
-                        }`}
-                      >
-                        <td className="p-2.5 text-center">
-                          <input
-                            type="checkbox"
-                            checked={stop.is_included}
-                            onChange={() => handleToggleStop(stop.id)}
-                            className="rounded border-slate-300 text-black focus:ring-black h-3.5 w-3.5 cursor-pointer"
-                          />
-                        </td>
-                        <td className="p-2.5 font-medium text-slate-800">
-                          <div className="truncate max-w-[140px]" title={stop.name}>
-                            {stop.name}
-                          </div>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {stop.customer_id}
-                          </span>
-                        </td>
-                        <td className="p-2.5 text-slate-600 font-mono text-[11px]">
-                          {stop.lat.toFixed(3)}, {stop.lon.toFixed(3)}
-                        </td>
-                        <td className="p-2.5 text-right font-bold text-slate-900">
-                          {stop.demand} u
-                        </td>
-                      </tr>
-                    ))}
+                    {stops.slice(0, 15).map((stop) => {
+                      const geoCheck = validateDeliveryCoordinate(stop.lat, stop.lon);
+                      return (
+                        <tr
+                          key={stop.id}
+                          className={`hover:bg-slate-50 transition-colors ${
+                            !geoCheck.isValid
+                              ? 'bg-rose-50/70 border-l-4 border-rose-500'
+                              : stop.is_included
+                              ? 'bg-white'
+                              : 'bg-slate-50/60 opacity-60'
+                          }`}
+                        >
+                          <td className="p-2.5 text-center">
+                            <input
+                              type="checkbox"
+                              checked={stop.is_included}
+                              onChange={() => handleToggleStop(stop.id)}
+                              className="rounded border-slate-300 text-black focus:ring-black h-3.5 w-3.5 cursor-pointer"
+                            />
+                          </td>
+                          <td className="p-2.5 font-medium text-slate-800">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate max-w-[130px]" title={stop.name}>
+                                {stop.name}
+                              </span>
+                              {!geoCheck.isValid && (
+                                <span
+                                  className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-600 text-white shrink-0"
+                                  title={geoCheck.error}
+                                >
+                                  WATER / INVALID
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {stop.customer_id}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-slate-600 font-mono text-[11px]">
+                            {stop.lat.toFixed(3)}, {stop.lon.toFixed(3)}
+                          </td>
+                          <td className="p-2.5 text-right font-bold text-slate-900">
+                            {stop.demand} u
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -571,7 +635,10 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
 
                 <button
                   onClick={() => setCurrentStep(2)}
-                  disabled={includedStops.length < 2}
+                  disabled={
+                    includedStops.length < 2 ||
+                    includedStops.some((s) => !validateDeliveryCoordinate(s.lat, s.lon).isValid)
+                  }
                   className="flex items-center gap-2 px-5 py-2.5 bg-[#080808] hover:bg-neutral-800 text-[#B7FF2A] rounded-xl text-xs font-extrabold shadow-sm transition-all disabled:opacity-40"
                 >
                   <span>Continue to Goals & Settings</span>
@@ -1263,6 +1330,30 @@ export const RouteOptimization: React.FC<RouteOptimizationProps> = ({
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl"
                 />
               </div>
+
+              {/* Live Geospatial / Water Body Validation Feedback */}
+              {newStopLat && newStopLon && !isNaN(parseFloat(newStopLat)) && !isNaN(parseFloat(newStopLon)) && (
+                (() => {
+                  const check = validateDeliveryCoordinate(parseFloat(newStopLat), parseFloat(newStopLon));
+                  if (!check.isValid) {
+                    return (
+                      <div className="p-2.5 bg-rose-50 border border-rose-300 rounded-xl text-[11px] text-rose-700 font-semibold flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block text-rose-900 font-bold">Invalid Location (Water Body / Bounds):</strong>
+                          <span>{check.error}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-2 bg-emerald-50 border border-emerald-300 rounded-xl text-[11px] text-emerald-800 font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>Valid ground delivery location within NYC 5-Borough road network.</span>
+                    </div>
+                  );
+                })()
+              )}
             </div>
 
             <div className="pt-2 flex justify-end gap-2">
