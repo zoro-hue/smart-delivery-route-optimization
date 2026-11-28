@@ -108,7 +108,17 @@ class CooperativeVRPSolver:
                 locations=locations,
                 vehicle_profiles=vehicle_profiles,
                 seed=seed,
+                incumbent_solution=incumbent_solution,
             )
+
+            # Centralized Proposition 1 Guardrail Enforcement
+            if incumbent_solution and incumbent_solution.get("total_distance_km") is not None:
+                inc_dist = float(incumbent_solution["total_distance_km"])
+                if res_ng.get("total_distance_km", float("inf")) > inc_dist + 1e-4:
+                    res_ng = copy.deepcopy(incumbent_solution)
+                    res_ng["solution_origin"] = "INHERITED_INCUMBENT_BASELINE"
+                    res_ng["algorithm"] = "routeiq_cooperative"
+                    res_ng["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
 
             # Augment with execution ID and validation report
             res_ng["execution_id"] = solver_execution_id
@@ -134,6 +144,7 @@ class CooperativeVRPSolver:
                 "candidate_pool_stats": res_ng.get("candidate_pool_stats"),
                 "adaptive_controller_stats": res_ng.get("adaptive_controller_stats"),
                 "proposition1_guaranteed": True,
+                "spark_mode": "local_partitioning",
             }
 
             return res_ng

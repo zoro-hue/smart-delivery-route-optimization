@@ -1324,11 +1324,17 @@ export const PlanWorkspace: React.FC<PlanWorkspaceProps> = ({
         ? (algosToRun.includes('ortools') ? 'ortools' : algosToRun[0])
         : (selectedAlgorithms[0] || 'ortools');
 
+    const targetNumVehicles = Number(numVehicles);
+    const synchronizedProfiles =
+      vehicleProfiles.length === targetNumVehicles
+        ? vehicleProfiles
+        : generateDefaultProfiles(targetNumVehicles, vehicleCapacity);
+
     const basePayload = {
       num_customers: activeStops.length,
-      num_vehicles: Number(numVehicles),
+      num_vehicles: targetNumVehicles,
       vehicle_capacity: Number(vehicleCapacity),
-      vehicle_profiles: vehicleProfiles,
+      vehicle_profiles: synchronizedProfiles,
       depot_lat: depot.lat,
       depot_lon: depot.lon,
       weight_distance: Number(weightDistance),

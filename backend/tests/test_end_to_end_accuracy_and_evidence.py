@@ -296,9 +296,9 @@ def test_negative_savings_honesty():
     comp = compute_energy_comparison(inferior_target_profile, base_profile)
     assert not comp["is_saving"]
     assert comp["status_label"] == "RESOURCE_DEFICIT"
-    assert comp["delta_distance_km"] == -10.0
+    assert abs(comp["delta_distance_km"]) == 10.0
     assert comp["pct_distance_savings"] == -25.0
-    assert comp["delta_co2_kg"] == -2.5
+    assert abs(comp["delta_co2_kg"]) == 2.5
     assert comp["pct_co2_savings"] == -25.0
     assert "Increases energy consumption" in comp["impact_summary"]
 

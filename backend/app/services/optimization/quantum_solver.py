@@ -782,23 +782,45 @@ class QuantumVRPSolver:
             for r in decoded.get("routes", []):
                 routed_cust.update(r.get("customer_stops", []))
             unassigned = list(all_cust_set - routed_cust)
-            if not decoded.get("routes"):
-                decoded["routes"] = [{
-                    "vehicle_id": v,
+            if "routes" not in decoded or not decoded["routes"]:
+                decoded["routes"] = []
+
+            # Pad routes up to exactly num_vehicles
+            while len(decoded["routes"]) < num_vehicles:
+                v_num = len(decoded["routes"])
+                decoded["routes"].append({
+                    "vehicle_id": v_num,
                     "stops": [depot, depot],
                     "customer_stops": [],
-                    "distance_km": 0
-                } for v in range(num_vehicles)]
+                    "distance_km": 0.0,
+                })
+
             for c in unassigned:
-                best_route = min(decoded["routes"], key=lambda r: len(r.get("customer_stops", [])))
+                best_route = min(decoded["routes"][:num_vehicles], key=lambda r: len(r.get("customer_stops", [])))
                 best_route["customer_stops"].append(c)
                 best_route["stops"].insert(-1, c)
-            for r in decoded["routes"]:
+
+            # Rebalance so all min(num_vehicles, n_cust) vehicles have customer visits
+            target_active = min(num_vehicles, n_cust)
+            for _ in range(target_active * 2):
+                empty_r = [r for r in decoded["routes"][:target_active] if len(r["customer_stops"]) == 0]
+                if not empty_r:
+                    break
+                donor_r = max(decoded["routes"][:target_active], key=lambda r: len(r["customer_stops"]))
+                if len(donor_r["customer_stops"]) < 2:
+                    break
+                moved_c = donor_r["customer_stops"].pop()
+                donor_r["stops"] = [depot] + donor_r["customer_stops"] + [depot]
+                empty_r[0]["customer_stops"].append(moved_c)
+                empty_r[0]["stops"] = [depot, moved_c, depot]
+
+            # Re-index vehicle IDs and recalculate distances
+            for v_idx, r in enumerate(decoded["routes"][:num_vehicles]):
+                r["vehicle_id"] = v_idx + 1
                 st = r["stops"]
                 r["distance_km"] = round(float(sum(distance_matrix[st[i]][st[i+1]] for i in range(len(st)-1))), 3)
-            active_routes = [r for r in decoded["routes"] if len(r.get("customer_stops", [])) > 0]
-            if active_routes:
-                decoded["routes"] = active_routes
+
+            decoded["routes"] = decoded["routes"][:num_vehicles]
             decoded["total_distance_km"] = float(sum(r["distance_km"] for r in decoded["routes"]))
             decoded["unassigned_customers"] = []
 

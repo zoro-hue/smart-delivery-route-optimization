@@ -4,6 +4,7 @@ Optimization & Experiments API — Classical VRP, QAOA, Comparison, Experiment H
 from __future__ import annotations
 
 import asyncio
+import copy
 import gc
 import json
 import math
@@ -364,6 +365,7 @@ def _prepare_optimization_problem(req: OptimizationRequest):
     total_cust_demand = sum(demands_int)
 
     # Heterogeneous Fleet Processing & Individual Vehicle Condition Evaluation
+    target_fleet_size = max(1, int(req.num_vehicles))
     usable_vehicle_profiles = []
     vehicle_ranges = []
     fleet_capacities = []
@@ -383,19 +385,32 @@ def _prepare_optimization_problem(req: OptimizationRequest):
                     f"is_available={is_avail}, maintenance_status='{maint}'."
                 )
 
-        if not usable_vehicle_profiles:
-            road_warnings.append("All configured fleet vehicles were unavailable or in critical maintenance. Reverting to default fleet.")
-            usable_vehicle_profiles = None
-            fleet_capacities = [int(req.vehicle_capacity)] * req.num_vehicles
-            vehicle_ranges = None
+    # Strictly enforce that the dispatched fleet size equals the user-specified num_vehicles (N)
+    # If fewer profiles are usable than requested, synthesize default vehicle profiles to fulfill N vehicles.
+    while len(usable_vehicle_profiles) < target_fleet_size:
+        v_num = len(usable_vehicle_profiles) + 1
+        synth_profile = {
+            "id": f"veh-{v_num}",
+            "name": f"Vehicle {v_num} (Standard Fleet)",
+            "vehicle_type": "van",
+            "powertrain": "electric" if v_num % 2 == 1 else "diesel",
+            "capacity_kg": int(req.vehicle_capacity),
+            "max_payload_kg": int(req.vehicle_capacity),
+            "usable_range_km": 250.0,
+            "is_available": True,
+            "maintenance_status": "ok",
+        }
+        usable_vehicle_profiles.append(synth_profile)
+        fleet_capacities.append(int(req.vehicle_capacity))
+        vehicle_ranges.append(250.0)
 
-    if not usable_vehicle_profiles:
-        usable_vehicle_profiles = None
-        fleet_capacities = [int(req.vehicle_capacity)] * req.num_vehicles
-        vehicle_ranges = None
-        num_dispatch_vehicles = req.num_vehicles
-    else:
-        num_dispatch_vehicles = len(usable_vehicle_profiles)
+    # If more profiles were provided than target_fleet_size, retain exactly target_fleet_size
+    if len(usable_vehicle_profiles) > target_fleet_size:
+        usable_vehicle_profiles = usable_vehicle_profiles[:target_fleet_size]
+        fleet_capacities = fleet_capacities[:target_fleet_size]
+        vehicle_ranges = vehicle_ranges[:target_fleet_size]
+
+    num_dispatch_vehicles = target_fleet_size
 
     total_fleet_capacity = sum(fleet_capacities)
     capacities = fleet_capacities
@@ -475,6 +490,7 @@ def _solve_single_algo(
     service_time_per_stop_min: float = 0.0,
     vehicle_ranges: Optional[List[float]] = None,
     vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
+    incumbent_solution: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Execute a single solver with resource profiling, coverage repair, and waypoint reconstruction."""
     logger.info(f"Executing algorithm '{algo}' on {n} nodes, {num_vehicles} vehicles")
@@ -494,6 +510,7 @@ def _solve_single_algo(
                 seed=random_seed,
                 vehicle_ranges=vehicle_ranges,
                 vehicle_profiles=vehicle_profiles,
+                incumbent_solution=incumbent_solution,
             )
             res["algorithm_name"] = "ROUTE/IQ Cooperative Engine"
             res["category"] = "cooperative"
@@ -816,6 +833,19 @@ def _solve_single_algo(
     effective_speed = round(float(40.0 / combined_env), 1)
     implied_speed = round(float(total_dist / (total_driving_min / 60.0)), 1) if total_driving_min > 0 else effective_speed
     operational_speed = round(float(total_dist / (total_duration_min / 60.0)), 1) if total_duration_min > 0 else implied_speed
+
+    # Proposition 1 Guardrail: If Cooperative Engine route distance exceeds OR-Tools baseline, revert to baseline
+    if algo in ("routeiq_cooperative", "cooperative", "routeiq") and incumbent_solution and incumbent_solution.get("total_distance_km") is not None:
+        inc_dist = float(incumbent_solution["total_distance_km"])
+        if total_dist > inc_dist + 1e-4:
+            logger.info(f"Proposition 1 Guardrail triggered: Cooperative ({total_dist:.2f} km) > OR-Tools ({inc_dist:.2f} km). Inheriting baseline.")
+            repaired_routes = copy.deepcopy(incumbent_solution.get("routes", repaired_routes))
+            total_dist = inc_dist
+            total_driving_min = round(float(sum(r.get("driving_time_min", (r["distance_km"] / 40.0) * 60.0) for r in repaired_routes)), 2)
+            total_service_min = round(float(sum(r.get("service_time_min", 0.0) for r in repaired_routes)), 2)
+            total_duration_min = round(total_driving_min + total_service_min, 2)
+            algo_res["solution_origin"] = "INHERITED_INCUMBENT_BASELINE"
+            algo_res["guardrail_status"] = "INHERITED_INCUMBENT_BASELINE"
 
     algo_res["routes"] = repaired_routes
     algo_res["total_distance_km"] = total_dist
@@ -1944,7 +1974,13 @@ async def run_optimization(
     route_geometry_cache: Dict[Tuple[int, ...], List[Dict[str, Any]]] = {}
 
     try:
-        for a in to_run:
+        # Guarantee OR-Tools baseline runs before Cooperative Engine to support Proposition 1 guardrail
+        sorted_to_run = list(to_run)
+        if "ortools" in sorted_to_run and "routeiq_cooperative" in sorted_to_run:
+            sorted_to_run.remove("routeiq_cooperative")
+            sorted_to_run.insert(sorted_to_run.index("ortools") + 1, "routeiq_cooperative")
+
+        for a in sorted_to_run:
             try:
                 results[a] = _solve_single_algo(
                     a, n, num_dispatch_vehicles, req.vehicle_capacity,
@@ -1959,6 +1995,7 @@ async def run_optimization(
                     req.service_time_per_stop_min,
                     vehicle_ranges,
                     usable_vehicle_profiles,
+                    incumbent_solution=results.get("ortools"),
                 )
             except Exception as exc:
                 logger.error(f"Solver for {a} raised: {exc}")

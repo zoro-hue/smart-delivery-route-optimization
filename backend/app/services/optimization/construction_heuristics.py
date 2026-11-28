@@ -160,10 +160,16 @@ class DiverseConstructionHeuristics:
                 feasible = True
                 target_per_veh = max(1, math.ceil(len(rot_angles) / num_vehicles))
 
-                for _, c in rot_angles:
+                for idx_c, (_, c) in enumerate(rot_angles):
+                    rem_c = len(rot_angles) - idx_c
+                    rem_v = num_vehicles - 1 - v_idx
                     cap_v = capacities[v_idx] if v_idx < len(capacities) else 100.0
-                    should_advance = (len(routes[v_idx]) >= target_per_veh and v_idx < num_vehicles - 1) or (cur_load + demands[c] > cap_v)
-                    if should_advance and v_idx < num_vehicles - 1:
+                    should_advance = (v_idx < num_vehicles - 1) and (
+                        (rem_c <= rem_v and len(routes[v_idx]) > 0) or
+                        (len(routes[v_idx]) >= target_per_veh and cur_load > 0 and rem_v > 0) or
+                        (cur_load + demands[c] > cap_v)
+                    )
+                    if should_advance:
                         v_idx += 1
                         cur_load = 0
                     cap_v = capacities[v_idx] if v_idx < len(capacities) else 100.0
@@ -189,6 +195,18 @@ class DiverseConstructionHeuristics:
                         if c_cost < best_cost:
                             best_cost = c_cost
                             best_routes = opt_routes
+
+        if best_routes:
+            target_active = min(num_vehicles, n - 1)
+            for _ in range(target_active * 2):
+                empty_r = [i for i in range(target_active) if len(best_routes[i]) == 0]
+                if not empty_r:
+                    break
+                donor_idx = max(range(target_active), key=lambda i: len(best_routes[i]))
+                if len(best_routes[donor_idx]) < 2:
+                    break
+                moved_c = best_routes[donor_idx].pop()
+                best_routes[empty_r[0]].append(moved_c)
 
         return best_routes or [[] for _ in range(num_vehicles)]
 

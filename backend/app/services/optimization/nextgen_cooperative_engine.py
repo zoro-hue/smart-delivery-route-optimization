@@ -67,6 +67,7 @@ class NextGenCooperativeEngine:
         locations: Optional[List[Tuple[float, float]]] = None,
         vehicle_profiles: Optional[List[Dict[str, Any]]] = None,
         seed: int = 42,
+        incumbent_solution: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Executes the iterative, vehicle-condition-aware cooperative optimization cycle:
@@ -112,16 +113,19 @@ class NextGenCooperativeEngine:
         t0_seed = time.perf_counter()
 
         # Seed A: OR-Tools baseline incumbent
-        ortools_res = classical_solver.solve_ortools(
-            distance_matrix=distance_matrix,
-            num_vehicles=num_vehicles,
-            depot=depot,
-            demands=demands,
-            vehicle_capacities=vehicle_capacities,
-            time_limit_sec=min(0.5, time_limit_sec * 0.3),
-            travel_time_matrix=travel_time_matrix,
-            vehicle_profiles=vehicle_profiles,
-        )
+        if incumbent_solution and incumbent_solution.get("success") and incumbent_solution.get("routes"):
+            ortools_res = copy.deepcopy(incumbent_solution)
+        else:
+            ortools_res = classical_solver.solve_ortools(
+                distance_matrix=distance_matrix,
+                num_vehicles=num_vehicles,
+                depot=depot,
+                demands=demands,
+                vehicle_capacities=vehicle_capacities,
+                time_limit_sec=max(0.5, float(time_limit_sec)),
+                travel_time_matrix=travel_time_matrix,
+                vehicle_profiles=vehicle_profiles,
+            )
 
         ort_routes = []
         if ortools_res.get("success") and ortools_res.get("routes"):
@@ -519,9 +523,14 @@ class NextGenCooperativeEngine:
         guardrail_status = "SUPREMACY_IMPROVED"
 
         if base_ort and base_ort.is_feasible:
-            if final_cand.total_distance_km < base_ort.total_distance_km - 1e-3:
+            is_cand_valid = (
+                final_cand.is_feasible
+                and getattr(final_cand, "capacity_violations", 0) == 0
+                and getattr(final_cand, "unserved_customers", 0) == 0
+            )
+            if is_cand_valid and final_cand.total_distance_km < base_ort.total_distance_km - 1e-3:
                 guardrail_status = "SUPREMACY_IMPROVED"
-            elif final_cand.total_distance_km <= base_ort.total_distance_km + 1e-4:
+            elif is_cand_valid and final_cand.total_distance_km <= base_ort.total_distance_km + 1e-4:
                 guardrail_status = "INDEPENDENT_EQUAL_ORTOOLS"
             else:
                 # Safety fallback to OR-Tools

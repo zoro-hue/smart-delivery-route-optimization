@@ -463,12 +463,12 @@ def compute_energy_comparison(
     tgt_dist = float(target_profile.get("total_distance_km", 0.0) or 0.0)
     delta_dist = tgt_dist - base_dist
 
-    base_fuel = float(baseline_profile.get("fuel_consumption_litres", 0.0) or 0.0)
-    tgt_fuel = float(target_profile.get("fuel_consumption_litres", 0.0) or 0.0)
+    base_fuel = float(baseline_profile.get("fuel_consumption_litres", baseline_profile.get("total_fuel_litres", 0.0)) or 0.0)
+    tgt_fuel = float(target_profile.get("fuel_consumption_litres", target_profile.get("total_fuel_litres", 0.0)) or 0.0)
     delta_fuel = tgt_fuel - base_fuel
 
-    base_kwh = float(baseline_profile.get("energy_consumption_kwh", 0.0) or 0.0)
-    tgt_kwh = float(target_profile.get("energy_consumption_kwh", 0.0) or 0.0)
+    base_kwh = float(baseline_profile.get("energy_consumption_kwh", baseline_profile.get("total_energy_kwh", 0.0)) or 0.0)
+    tgt_kwh = float(target_profile.get("energy_consumption_kwh", target_profile.get("total_energy_kwh", 0.0)) or 0.0)
     delta_kwh = tgt_kwh - base_kwh
 
     base_co2 = float(baseline_profile.get("total_co2_kg", 0.0) or 0.0)
@@ -476,8 +476,8 @@ def compute_energy_comparison(
     co2_abatement = base_co2 - tgt_co2
     delta_co2 = tgt_co2 - base_co2
 
-    base_cost = float(baseline_profile.get("operational_cost_usd", 0.0) or 0.0)
-    tgt_cost = float(target_profile.get("operational_cost_usd", 0.0) or 0.0)
+    base_cost = float(baseline_profile.get("operational_cost_usd", baseline_profile.get("total_operational_cost_usd", 0.0)) or 0.0)
+    tgt_cost = float(target_profile.get("operational_cost_usd", target_profile.get("total_operational_cost_usd", 0.0)) or 0.0)
     fleet_cost_saved = base_cost - tgt_cost
     delta_cost = tgt_cost - base_cost
 

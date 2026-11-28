@@ -95,16 +95,19 @@ class QIGASolver:
                 current_load = 0
                 v_idx = 0
                 # Balanced target stops per vehicle to distribute workload across available fleet
-                target_stops = max(2, math.ceil(n_cust / max(1, num_vehicles))) if num_vehicles > 0 else n_cust
+                target_stops = max(1, math.ceil(n_cust / max(1, num_vehicles))) if num_vehicles > 0 else n_cust
 
-                for c in ordered_customers:
+                for c_idx, c in enumerate(ordered_customers):
                     dem = demands[c]
                     cap = vehicle_capacities[v_idx] if v_idx < len(vehicle_capacities) else vehicle_capacities[-1]
+                    rem_cust = len(ordered_customers) - c_idx
+                    rem_veh = num_vehicles - 1 - v_idx
                     
-                    # Split route if capacity reached or target vehicle stop workload met (and more vehicles remain)
+                    # Split route if capacity reached, target workload met, or remaining customers must be reserved for remaining vehicles
                     should_split = (v_idx < num_vehicles - 1) and (
+                        (rem_cust <= rem_veh and len(current_route) > 1) or
                         (current_load + dem > cap) or 
-                        (len(current_route) - 1 >= target_stops and current_load > 0)
+                        (len(current_route) - 1 >= target_stops and current_load > 0 and rem_veh > 0)
                     )
 
                     if not should_split:
@@ -137,6 +140,38 @@ class QIGASolver:
                         "load": current_load,
                         "capacity": cap,
                     })
+
+                # Pad to exactly num_vehicles
+                while len(routes) < num_vehicles:
+                    cap = vehicle_capacities[len(routes)] if len(routes) < len(vehicle_capacities) else vehicle_capacities[-1]
+                    routes.append({
+                        "vehicle_id": len(routes) + 1,
+                        "stops": [depot, depot],
+                        "customer_stops": [],
+                        "distance_km": 0.0,
+                        "load": 0,
+                        "capacity": cap,
+                    })
+
+                # Rebalance stops so all min(num_vehicles, n_cust) vehicles have customer visits
+                target_active = min(num_vehicles, n_cust)
+                for _ in range(target_active * 2):
+                    empty_r = [r for r in routes[:target_active] if len(r["customer_stops"]) == 0]
+                    if not empty_r:
+                        break
+                    donor_r = max(routes[:target_active], key=lambda r: len(r["customer_stops"]))
+                    if len(donor_r["customer_stops"]) < 2:
+                        break
+                    moved_c = donor_r["customer_stops"].pop()
+                    donor_r["stops"] = [depot] + donor_r["customer_stops"] + [depot]
+                    donor_r["load"] -= demands[moved_c]
+                    st = donor_r["stops"]
+                    donor_r["distance_km"] = round(float(sum(distance_matrix[st[k]][st[k+1]] for k in range(len(st)-1))), 3)
+
+                    empty_r[0]["customer_stops"].append(moved_c)
+                    empty_r[0]["stops"] = [depot, moved_c, depot]
+                    empty_r[0]["load"] += demands[moved_c]
+                    empty_r[0]["distance_km"] = round(float(distance_matrix[depot][moved_c] + distance_matrix[moved_c][depot]), 3)
 
                 # Re-index all routes sequentially (1, 2, ..., len(routes))
                 for r_i, r in enumerate(routes, start=1):
@@ -195,9 +230,22 @@ class QIGASolver:
 
         is_feasible = (len(served) == n_cust) and (cap_violations == 0)
 
+        # Ensure exact fleet size matching num_vehicles
+        while len(best_routes) < num_vehicles:
+            cap = vehicle_capacities[len(best_routes)] if len(best_routes) < len(vehicle_capacities) else vehicle_capacities[-1]
+            best_routes.append({
+                "vehicle_id": len(best_routes) + 1,
+                "stops": [depot, depot],
+                "customer_stops": [],
+                "distance_km": 0.0,
+                "load": 0,
+                "capacity": cap,
+            })
+
         # Enforce clean sequential 1-indexed vehicle numbers
-        for r_i, r in enumerate(best_routes, start=1):
+        for r_i, r in enumerate(best_routes[:num_vehicles], start=1):
             r["vehicle_id"] = r_i
+        best_routes = best_routes[:num_vehicles]
 
         log_lines = [
             f"Quantum-Inspired Genetic Algorithm (QIGA/IQGA) completed.",

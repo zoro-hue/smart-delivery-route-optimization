@@ -207,10 +207,11 @@ class ClassicalVRPSolver:
                     v_max_int = int(round(v_rng * 1000))
                     dist_dim.CumulVar(routing.End(v_idx)).SetRange(0, v_max_int)
 
-        # Allow dropping nodes with penalty if capacity is strictly constrained
-        penalty = 1000000
-        for node in range(1, n):
-            routing.AddDisjunction([manager.NodeToIndex(node)], penalty)
+        # Allow dropping nodes only if total demand strictly exceeds total fleet capacity
+        if sum(demands) > sum(vehicle_capacities):
+            penalty = 100000000
+            for node in range(1, n):
+                routing.AddDisjunction([manager.NodeToIndex(node)], penalty)
 
         # Enforce active fleet utilization: if customers >= num_vehicles, require every vehicle to serve at least 1 stop
         solver = routing.solver()
@@ -463,15 +464,20 @@ class ClassicalVRPSolver:
         customers = list(range(1, n))
         routes = []
         served = set()
+        target_stops_per_veh = max(1, math.ceil(len(customers) / max(1, num_vehicles)))
 
         for vid in range(num_vehicles):
-            if not customers:
-                break
             route_nodes = [depot]
             load = 0
             current = depot
+            rem_veh = num_vehicles - 1 - vid
 
             while customers:
+                if len(customers) <= rem_veh and len(route_nodes) > 1:
+                    break
+                if len(route_nodes) - 1 >= target_stops_per_veh and rem_veh > 0 and len(customers) > 0:
+                    break
+
                 # Find nearest unvisited customer within capacity
                 best_next = None
                 best_dist = float('inf')
@@ -492,17 +498,16 @@ class ClassicalVRPSolver:
                 served.add(best_next)
 
             route_nodes.append(depot)
-            if len(route_nodes) > 2:
-                dist = sum(distance_matrix[route_nodes[i]][route_nodes[i+1]] for i in range(len(route_nodes)-1))
-                routes.append({
-                    "vehicle_id": vid,
-                    "stops": route_nodes,
-                    "customer_stops": [n for n in route_nodes if n != depot],
-                    "distance_km": round(dist, 3),
-                    "load": load,
-                    "capacity": vehicle_capacities[vid],
-                    "utilization_pct": round(load / vehicle_capacities[vid] * 100, 1) if vehicle_capacities[vid] > 0 else 0,
-                })
+            dist = sum(distance_matrix[route_nodes[i]][route_nodes[i+1]] for i in range(len(route_nodes)-1))
+            routes.append({
+                "vehicle_id": vid,
+                "stops": route_nodes,
+                "customer_stops": [nd for nd in route_nodes if nd != depot],
+                "distance_km": round(dist, 3),
+                "load": load,
+                "capacity": vehicle_capacities[vid] if vid < len(vehicle_capacities) else 100,
+                "utilization_pct": round(load / vehicle_capacities[vid] * 100, 1) if (vid < len(vehicle_capacities) and vehicle_capacities[vid] > 0) else 0,
+            })
 
         # Ensure any leftover unserved customers are assigned to existing routes
         if customers and routes:
@@ -595,6 +600,8 @@ class ClassicalVRPSolver:
         for s_val, i, j in savings_list:
             if s_val <= 0:
                 break
+            if len(routes) <= num_vehicles:
+                break
             r_i = cust_to_route.get(i)
             r_j = cust_to_route.get(j)
             if r_i is None or r_j is None or r_i is r_j:
@@ -648,12 +655,29 @@ class ClassicalVRPSolver:
             else:
                 break
 
+        # If fewer routes than requested vehicles and we have enough customers, split multi-stop routes
+        target_v = min(num_vehicles, len(customers))
+        while len(routes) < target_v:
+            donor_idx = max(range(len(routes)), key=lambda r_i: len(routes[r_i]))
+            if len(routes[donor_idx]) <= 1:
+                break
+            donor_route = routes[donor_idx]
+            split_point = max(1, len(donor_route) // 2)
+            new_r = donor_route[split_point:]
+            routes[donor_idx] = donor_route[:split_point]
+            routes.append(new_r)
+
+        # Pad with empty routes up to num_vehicles
+        while len(routes) < num_vehicles:
+            routes.append([])
+
         # Format routes
         formatted_routes = []
         total_distance = 0.0
         served = set()
 
-        for vid, r_nodes in enumerate(routes[:num_vehicles]):
+        for vid in range(num_vehicles):
+            r_nodes = routes[vid] if vid < len(routes) else []
             full_stops = [depot] + r_nodes + [depot]
             dist = sum(distance_matrix[full_stops[k]][full_stops[k+1]] for k in range(len(full_stops) - 1))
             load = sum(demands[nd] for nd in r_nodes)
@@ -661,7 +685,7 @@ class ClassicalVRPSolver:
             formatted_routes.append({
                 "vehicle_id": vid,
                 "stops": full_stops,
-                "customer_stops": r_nodes,
+                "customer_stops": list(r_nodes),
                 "distance_km": round(float(dist), 3),
                 "load": load,
                 "capacity": veh_cap,
@@ -683,6 +707,28 @@ class ClassicalVRPSolver:
                 best_r["distance_km"] = round(float(dist), 3)
                 best_r["utilization_pct"] = round(best_r["load"] / best_r["capacity"] * 100, 1) if best_r["capacity"] > 0 else 0
                 served.add(un)
+
+        # Fleet-wide stop rebalancing: ensure all requested vehicles have stops when customers >= num_vehicles
+        target_active = min(num_vehicles, len(customers))
+        for _ in range(target_active * 2):
+            empty_r = [r for r in formatted_routes[:target_active] if len(r["customer_stops"]) == 0]
+            if not empty_r:
+                break
+            donor_r = max(formatted_routes[:target_active], key=lambda r: len(r["customer_stops"]))
+            if len(donor_r["customer_stops"]) < 2:
+                break
+            moved_c = donor_r["customer_stops"].pop()
+            donor_r["stops"] = [depot] + donor_r["customer_stops"] + [depot]
+            donor_r["load"] -= demands[moved_c]
+            st = donor_r["stops"]
+            donor_r["distance_km"] = round(float(sum(distance_matrix[st[k]][st[k+1]] for k in range(len(st)-1))), 3)
+            donor_r["utilization_pct"] = round(donor_r["load"] / donor_r["capacity"] * 100, 1) if donor_r["capacity"] > 0 else 0
+
+            empty_r[0]["customer_stops"].append(moved_c)
+            empty_r[0]["stops"] = [depot, moved_c, depot]
+            empty_r[0]["load"] += demands[moved_c]
+            empty_r[0]["distance_km"] = round(float(distance_matrix[depot][moved_c] + distance_matrix[moved_c][depot]), 3)
+            empty_r[0]["utilization_pct"] = round(empty_r[0]["load"] / empty_r[0]["capacity"] * 100, 1) if empty_r[0]["capacity"] > 0 else 0
 
         total_distance = sum(r["distance_km"] for r in formatted_routes)
         exec_time = time.time() - t0
@@ -863,16 +909,21 @@ class ClassicalVRPSolver:
 
         routes = []
         cust_pool = list(sorted_customers)
+        target_stops_per_veh = max(1, math.ceil(len(customers) / max(1, num_vehicles)))
 
         for vid in range(num_vehicles):
-            if not cust_pool:
-                break
             route_stops = [depot]
             load = 0
             curr_node = depot
             veh_cap = vehicle_capacities[vid] if vid < len(vehicle_capacities) else capacity
+            rem_veh = num_vehicles - 1 - vid
 
             while cust_pool:
+                if len(cust_pool) <= rem_veh and len(route_stops) > 1:
+                    break
+                if len(route_stops) - 1 >= target_stops_per_veh and rem_veh > 0 and len(cust_pool) > 0:
+                    break
+
                 best_idx = None
                 best_cost = float('inf')
                 for idx, c in enumerate(cust_pool):
@@ -891,17 +942,16 @@ class ClassicalVRPSolver:
                 curr_node = chosen_cust
 
             route_stops.append(depot)
-            if len(route_stops) > 2:
-                r_dist = sum(distance_matrix[route_stops[i]][route_stops[i+1]] for i in range(len(route_stops)-1))
-                routes.append({
-                    "vehicle_id": vid,
-                    "stops": route_stops,
-                    "customer_stops": [s for s in route_stops if s != depot],
-                    "distance_km": round(float(r_dist), 3),
-                    "load": load,
-                    "capacity": veh_cap,
-                    "utilization_pct": round(load / veh_cap * 100, 1) if veh_cap > 0 else 0,
-                })
+            r_dist = sum(distance_matrix[route_stops[i]][route_stops[i+1]] for i in range(len(route_stops)-1))
+            routes.append({
+                "vehicle_id": vid,
+                "stops": route_stops,
+                "customer_stops": [s for s in route_stops if s != depot],
+                "distance_km": round(float(r_dist), 3),
+                "load": load,
+                "capacity": veh_cap,
+                "utilization_pct": round(load / veh_cap * 100, 1) if veh_cap > 0 else 0,
+            })
 
         # Leftovers
         if cust_pool and routes:
@@ -916,6 +966,28 @@ class ClassicalVRPSolver:
                 dist = sum(distance_matrix[st[i]][st[i+1]] for i in range(len(st)-1))
                 r["distance_km"] = round(float(dist), 3)
                 r["utilization_pct"] = round(r["load"] / r["capacity"] * 100, 1) if r["capacity"] > 0 else 0
+
+        # Fleet-wide stop rebalancing: ensure all requested vehicles have stops when customers >= num_vehicles
+        target_active = min(num_vehicles, len(customers))
+        for _ in range(target_active * 2):
+            empty_r = [r for r in routes[:target_active] if len(r["customer_stops"]) == 0]
+            if not empty_r:
+                break
+            donor_r = max(routes[:target_active], key=lambda r: len(r["customer_stops"]))
+            if len(donor_r["customer_stops"]) < 2:
+                break
+            moved_c = donor_r["customer_stops"].pop()
+            donor_r["stops"] = [depot] + donor_r["customer_stops"] + [depot]
+            donor_r["load"] -= demands[moved_c]
+            st = donor_r["stops"]
+            donor_r["distance_km"] = round(float(sum(distance_matrix[st[k]][st[k+1]] for k in range(len(st)-1))), 3)
+            donor_r["utilization_pct"] = round(donor_r["load"] / donor_r["capacity"] * 100, 1) if donor_r["capacity"] > 0 else 0
+
+            empty_r[0]["customer_stops"].append(moved_c)
+            empty_r[0]["stops"] = [depot, moved_c, depot]
+            empty_r[0]["load"] += demands[moved_c]
+            empty_r[0]["distance_km"] = round(float(distance_matrix[depot][moved_c] + distance_matrix[moved_c][depot]), 3)
+            empty_r[0]["utilization_pct"] = round(empty_r[0]["load"] / empty_r[0]["capacity"] * 100, 1) if empty_r[0]["capacity"] > 0 else 0
 
         total_distance = sum(r["distance_km"] for r in routes)
         exec_time = time.time() - t0
@@ -989,16 +1061,21 @@ class ClassicalVRPSolver:
         routes = []
         cust_pool = list(customers)
         evaluations_count = 0
+        target_stops_per_veh = max(1, math.ceil(len(customers) / max(1, num_vehicles)))
 
         for vid in range(num_vehicles):
-            if not cust_pool:
-                break
             route_stops = [depot]
             load = 0
             curr_node = depot
             veh_cap = vehicle_capacities[vid] if vid < len(vehicle_capacities) else capacity
+            rem_veh = num_vehicles - 1 - vid
 
             while cust_pool:
+                if len(cust_pool) <= rem_veh and len(route_stops) > 1:
+                    break
+                if len(route_stops) - 1 >= target_stops_per_veh and rem_veh > 0 and len(cust_pool) > 0:
+                    break
+
                 best_idx = None
                 best_f = float('inf')
 
@@ -1021,17 +1098,16 @@ class ClassicalVRPSolver:
                 curr_node = chosen
 
             route_stops.append(depot)
-            if len(route_stops) > 2:
-                r_dist = sum(distance_matrix[route_stops[i]][route_stops[i+1]] for i in range(len(route_stops)-1))
-                routes.append({
-                    "vehicle_id": vid,
-                    "stops": route_stops,
-                    "customer_stops": [s for s in route_stops if s != depot],
-                    "distance_km": round(float(r_dist), 3),
-                    "load": load,
-                    "capacity": veh_cap,
-                    "utilization_pct": round(load / veh_cap * 100, 1) if veh_cap > 0 else 0,
-                })
+            r_dist = sum(distance_matrix[route_stops[i]][route_stops[i+1]] for i in range(len(route_stops)-1))
+            routes.append({
+                "vehicle_id": vid,
+                "stops": route_stops,
+                "customer_stops": [s for s in route_stops if s != depot],
+                "distance_km": round(float(r_dist), 3),
+                "load": load,
+                "capacity": veh_cap,
+                "utilization_pct": round(load / veh_cap * 100, 1) if veh_cap > 0 else 0,
+            })
 
         # Handle leftovers
         if cust_pool and routes:
@@ -1046,6 +1122,28 @@ class ClassicalVRPSolver:
                 dist = sum(distance_matrix[st[i]][st[i+1]] for i in range(len(st)-1))
                 r["distance_km"] = round(float(dist), 3)
                 r["utilization_pct"] = round(r["load"] / r["capacity"] * 100, 1) if r["capacity"] > 0 else 0
+
+        # Fleet-wide stop rebalancing: ensure all requested vehicles have stops when customers >= num_vehicles
+        target_active = min(num_vehicles, len(customers))
+        for _ in range(target_active * 2):
+            empty_r = [r for r in routes[:target_active] if len(r["customer_stops"]) == 0]
+            if not empty_r:
+                break
+            donor_r = max(routes[:target_active], key=lambda r: len(r["customer_stops"]))
+            if len(donor_r["customer_stops"]) < 2:
+                break
+            moved_c = donor_r["customer_stops"].pop()
+            donor_r["stops"] = [depot] + donor_r["customer_stops"] + [depot]
+            donor_r["load"] -= demands[moved_c]
+            st = donor_r["stops"]
+            donor_r["distance_km"] = round(float(sum(distance_matrix[st[k]][st[k+1]] for k in range(len(st)-1))), 3)
+            donor_r["utilization_pct"] = round(donor_r["load"] / donor_r["capacity"] * 100, 1) if donor_r["capacity"] > 0 else 0
+
+            empty_r[0]["customer_stops"].append(moved_c)
+            empty_r[0]["stops"] = [depot, moved_c, depot]
+            empty_r[0]["load"] += demands[moved_c]
+            empty_r[0]["distance_km"] = round(float(distance_matrix[depot][moved_c] + distance_matrix[moved_c][depot]), 3)
+            empty_r[0]["utilization_pct"] = round(empty_r[0]["load"] / empty_r[0]["capacity"] * 100, 1) if empty_r[0]["capacity"] > 0 else 0
 
         total_distance = sum(r["distance_km"] for r in routes)
         exec_time = time.time() - t0
